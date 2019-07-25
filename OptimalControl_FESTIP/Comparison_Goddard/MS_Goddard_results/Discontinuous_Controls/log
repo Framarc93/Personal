@@ -1,0 +1,203 @@
+---- iteration : 1 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.020451105373418058
+            Iterations: 26
+            Function evaluations: 2166
+            Gradient evaluations: 26
+mf          : 2045.11054
+max altitude: 6771000.00000
+final time  : [  0.         158.9950669  265.60033257 446.56204126 469.84400932
+ 490.62388876]
+---- iteration : 2 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.03981572724871574
+            Iterations: 26
+            Function evaluations: 2138
+            Gradient evaluations: 26
+mf          : 3981.57272
+max altitude: 6771000.00000
+final time  : [  0.         163.99683803 322.54381929 522.54381929 592.02722782
+ 612.80710726]
+---- iteration : 3 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.041918496858231985
+            Iterations: 26
+            Function evaluations: 2150
+            Gradient evaluations: 26
+mf          : 4191.84969
+max altitude: 6771000.00000
+final time  : [  0.         169.39398762 332.64371003 532.64371003 643.37289679
+ 664.15277623]
+---- iteration : 4 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04275668001958376
+            Iterations: 26
+            Function evaluations: 2156
+            Gradient evaluations: 26
+mf          : 4275.66800
+max altitude: 6771000.00000
+final time  : [  0.         173.2293436  344.17395348 544.17392676 688.87125867
+ 709.65113811]
+---- iteration : 5 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04299187614330685
+            Iterations: 26
+            Function evaluations: 2164
+            Gradient evaluations: 26
+mf          : 4299.18761
+max altitude: 6771000.00000
+final time  : [  0.         173.88311829 349.93613795 549.93613795 711.82825198
+ 732.60813142]
+---- iteration : 6 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04313845798700593
+            Iterations: 26
+            Function evaluations: 2172
+            Gradient evaluations: 26
+mf          : 4313.84580
+max altitude: 6771000.00000
+final time  : [  0.         175.51505594 353.95990441 553.95990441 733.43656028
+ 754.21643972]
+---- iteration : 7 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04333869655726232
+            Iterations: 26
+            Function evaluations: 2152
+            Gradient evaluations: 26
+mf          : 4333.86966
+max altitude: 6771000.00000
+final time  : [  0.         176.97567845 359.94209313 559.94209313 759.94209313
+ 780.72197257]
+---- iteration : 8 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.043368032559290726
+            Iterations: 26
+            Function evaluations: 2191
+            Gradient evaluations: 26
+mf          : 4336.80326
+max altitude: 6771000.00000
+final time  : [  0.         177.93265798 363.54333575 563.54323047 763.54006212
+ 784.31994157]
+---- iteration : 9 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.043395814082167354
+            Iterations: 26
+            Function evaluations: 2176
+            Gradient evaluations: 26
+mf          : 4339.58141
+max altitude: 6771000.00000
+final time  : [  0.         179.17399953 366.92296989 566.92280279 766.92170775
+ 787.70158719]
+---- iteration : 10 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04341689598273944
+            Iterations: 26
+            Function evaluations: 2195
+            Gradient evaluations: 26
+mf          : 4341.68960
+max altitude: 6771000.00000
+final time  : [  0.         179.45740829 369.48790815 569.48790772 769.48243743
+ 790.26231688]
+---- iteration : 11 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04345979946144511
+            Iterations: 26
+            Function evaluations: 2176
+            Gradient evaluations: 26
+mf          : 4345.97995
+max altitude: 6771000.00000
+final time  : [  0.         181.06015395 375.15838204 575.15838204 775.15703031
+ 795.93690975]
+---- iteration : 12 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04351169089242411
+            Iterations: 26
+            Function evaluations: 2165
+            Gradient evaluations: 26
+mf          : 4351.16909
+max altitude: 6771000.00000
+final time  : [  0.         182.57835857 382.33338179 582.33338179 782.33338179
+ 803.11326123]
+---- iteration : 13 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04355889745197812
+            Iterations: 26
+            Function evaluations: 2172
+            Gradient evaluations: 26
+mf          : 4355.88975
+max altitude: 6771000.00000
+final time  : [  0.         186.16401923 386.16401923 586.16401923 786.16401923
+ 806.94389867]
+---- iteration : 14 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04357547801186785
+            Iterations: 26
+            Function evaluations: 2167
+            Gradient evaluations: 26
+mf          : 4357.54780
+max altitude: 6771000.00000
+final time  : [  0.         186.65544278 386.65543724 586.65543502 786.65497204
+ 807.43485148]
+---- iteration : 15 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.043607321004578405
+            Iterations: 26
+            Function evaluations: 2158
+            Gradient evaluations: 26
+mf          : 4360.73210
+max altitude: 6771000.00000
+final time  : [  0.         188.77276307 388.77276307 588.77276307 788.77276307
+ 809.55264251]
+---- iteration : 16 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04360854139665961
+            Iterations: 26
+            Function evaluations: 2185
+            Gradient evaluations: 26
+mf          : 4360.85414
+max altitude: 6771000.00000
+final time  : [  0.         188.84324401 388.84324401 588.84324401 788.84324401
+ 809.62312345]
+---- iteration : 17 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04360891036371343
+            Iterations: 26
+            Function evaluations: 2179
+            Gradient evaluations: 26
+mf          : 4360.89104
+max altitude: 6771000.00000
+final time  : [  0.         189.12403426 389.12403426 589.12403426 789.12403426
+ 809.90391371]
+---- iteration : 18 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.043609578784897185
+            Iterations: 26
+            Function evaluations: 2161
+            Gradient evaluations: 26
+mf          : 4360.95788
+max altitude: 6771000.00000
+final time  : [  0.         189.33565379 389.33565379 589.33565379 789.33565379
+ 810.11553323]
+---- iteration : 19 ----
+Iteration limit exceeded    (Exit mode 9)
+            Current function value: -0.04360991824435987
+            Iterations: 26
+            Function evaluations: 2174
+            Gradient evaluations: 26
+mf          : 4360.99182
+max altitude: 6771000.00000
+final time  : [  0.         189.49183723 389.49183723 589.49183723 789.49183723
+ 810.27171667]
+---- iteration : 20 ----
+Optimization terminated successfully.    (Exit mode 0)
+            Current function value: -0.04360999602500614
+            Iterations: 8
+            Function evaluations: 678
+            Gradient evaluations: 8
+mf          : 4360.99960
+max altitude: 6771000.00000
+final time  : [  0.         189.49239645 389.49239645 589.49239645 789.49239645
+ 810.2722759 ]
+Time elapsed for total optimization  8:22:32
+
+Process finished with exit code 0
