@@ -80,8 +80,6 @@ class Spaceplane:
         self.LBV = np.zeros((0))
 
 
-
-
 def conversionStatesToOrig(var, len):
     new_var = np.zeros((len*Nstates))
     for i in range(len):
@@ -208,7 +206,7 @@ def inequalityAll(states, controls, varnum):
     delta = np.transpose(controls[:, 1])
     deltaf = np.transpose(controls[:, 2])
     tau = np.transpose(controls[:, 3])  # tau back to [-1, 1] interval
-    #mu = np.transpose(controls[:, 4])
+    #u = np.transpose(controls[:, 4])
 
 
     Press, rho, c = isaMulti(h, obj.psl, obj.g0, obj.Re)
@@ -580,7 +578,8 @@ def plot(var, Nint):
     deltafCP = np.zeros((Nleg, NContPoints))
     tauCP = np.zeros((Nleg, NContPoints))
     muCP = np.zeros((Nleg, NContPoints))
-    res = open("res_{}_{}.txt".format(os.path.basename(__file__), timestr), "w")
+    if flag_save:
+        res = open("res_{}_{}.txt".format(os.path.basename(__file__), timestr), "w")
     tCtot = np.zeros((0))
     timestart = 0.0
     varD = var * (obj.UBV - obj.LBV) + obj.LBV
@@ -661,21 +660,22 @@ def plot(var, Nint):
         ax = (T * np.cos(Deps) - D * np.cos(alfares) + L * np.sin(alfares)) / mres
         az = (T * np.sin(Deps) + D * np.sin(alfares) + L * np.cos(alfares)) / mres
 
-        res.write("Number of leg: " + str(Nleg) + "\n" + "Max number Optimization iterations: " + str(maxIterator) + "\n"
-            + "Number of NLP iterations: " + str(maxiter) + "\n" + "Leg Number:" + str(i) + "\n" + "v: " + str(
-            vres) + "\n" + "Chi: " + str(np.rad2deg(chires))
-            + "\n" + "Gamma: " + str(np.rad2deg(gammares)) + "\n" + "Teta: " + str(
-            np.rad2deg(tetares)) + "\n" + "Lambda: "
-            + str(np.rad2deg(lamres)) + "\n" + "Height: " + str(hres) + "\n" + "Mass: " + str(
-            mres) + "\n" + "mf: " + str(mf) + "\n"
-            + "Objective Function: " + str(-mf / obj.M0) + "\n" + "Alfa: "
-            + str(np.rad2deg(alfares)) + "\n" + "Delta: " + str(deltares) + "\n" + "Delta f: " + str(
-            np.rad2deg(deltafres)) + "\n"
-            + "Tau: " + str(taures) + "\n" + "Eps: " + str(np.rad2deg(eps)) + "\n" + "Lift: "
-            + str(L) + "\n" + "Drag: " + str(D) + "\n" + "Thrust: " + str(T) + "\n" + "Spimp: " + str(
-            isp) + "\n" + "c: "
-            + str(c) + "\n" + "Mach: " + str(M) + "\n" + "Time vector: " + str(timeTotal) + "\n" + "Press: " + str(
-            Press) + "\n" + "Dens: " + str(rho) + "\n" + "Time elapsed during optimization: " + tformat)
+        if flag_save:
+            res.write("Number of leg: " + str(Nleg) + "\n" + "Max number Optimization iterations: " + str(maxIterator) + "\n"
+                + "Number of NLP iterations: " + str(maxiter) + "\n" + "Leg Number:" + str(i) + "\n" + "v: " + str(
+                vres) + "\n" + "Chi: " + str(np.rad2deg(chires))
+                + "\n" + "Gamma: " + str(np.rad2deg(gammares)) + "\n" + "Teta: " + str(
+                np.rad2deg(tetares)) + "\n" + "Lambda: "
+                + str(np.rad2deg(lamres)) + "\n" + "Height: " + str(hres) + "\n" + "Mass: " + str(
+                mres) + "\n" + "mf: " + str(mf) + "\n"
+                + "Objective Function: " + str(-mf / obj.M0) + "\n" + "Alfa: "
+                + str(np.rad2deg(alfares)) + "\n" + "Delta: " + str(deltares) + "\n" + "Delta f: " + str(
+                np.rad2deg(deltafres)) + "\n"
+                + "Tau: " + str(taures) + "\n" + "Eps: " + str(np.rad2deg(eps)) + "\n" + "Lift: "
+                + str(L) + "\n" + "Drag: " + str(D) + "\n" + "Thrust: " + str(T) + "\n" + "Spimp: " + str(
+                isp) + "\n" + "c: "
+                + str(c) + "\n" + "Mach: " + str(M) + "\n" + "Time vector: " + str(timeTotal) + "\n" + "Press: " + str(
+                Press) + "\n" + "Dens: " + str(rho) + "\n" + "Time elapsed during optimization: " + tformat)
 
         downrange = (vres ** 2) / g * np.sin(2 * gammares)
 
@@ -686,7 +686,8 @@ def plot(var, Nint):
         plt.ylabel("m/s")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "velocity" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "velocity" + ".png")
 
 
         plt.figure(1)
@@ -696,7 +697,8 @@ def plot(var, Nint):
         plt.ylabel("deg")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "chi" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "chi" + ".png")
 
 
         plt.figure(2)
@@ -706,7 +708,8 @@ def plot(var, Nint):
         plt.ylabel("deg")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "gamma" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "gamma" + ".png")
 
 
         plt.figure(3)
@@ -716,7 +719,8 @@ def plot(var, Nint):
         plt.ylabel("deg")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "theta" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "theta" + ".png")
 
 
         plt.figure(4)
@@ -726,7 +730,8 @@ def plot(var, Nint):
         plt.ylabel("deg")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "lambda" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "lambda" + ".png")
 
 
         plt.figure(5)
@@ -740,7 +745,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Chi", "Gamma", "Theta", "Lambda"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "angles" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "angles" + ".png")
 
 
         plt.figure(6)
@@ -750,7 +756,8 @@ def plot(var, Nint):
         plt.ylabel("km")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "altitude" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "altitude" + ".png")
 
 
         plt.figure(7)
@@ -760,7 +767,8 @@ def plot(var, Nint):
         plt.ylabel("kg")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "mass" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "mass" + ".png")
 
 
         plt.figure(8)
@@ -772,7 +780,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "alpha" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "alpha" + ".png")
 
 
         plt.figure(9)
@@ -786,7 +795,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Delta", "Tau", "Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "throttles" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "throttles" + ".png")
 
 
         plt.figure(10)
@@ -798,7 +808,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "deltaf" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "deltaf" + ".png")
 
         plt.figure(11)
         plt.title("Bank angle profile \u03BC")
@@ -809,7 +820,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "mu" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "mu" + ".png")
 
 
         plt.figure(12)
@@ -819,7 +831,8 @@ def plot(var, Nint):
         plt.ylabel("kPa")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "dynPress" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "dynPress" + ".png")
 
 
         plt.figure(13)
@@ -831,7 +844,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["ax", "az"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "accelerations" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "accelerations" + ".png")
 
 
         plt.figure(14)
@@ -840,7 +854,8 @@ def plot(var, Nint):
         plt.grid()
         plt.ylabel("km")
         plt.xlabel("km")
-        plt.savefig(savefig_file + "downrange" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "downrange" + ".png")
 
 
         plt.figure(15)
@@ -853,7 +868,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Thrust", "Lift", "Drag"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "forces" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "forces" + ".png")
 
 
         plt.figure(16)
@@ -862,7 +878,8 @@ def plot(var, Nint):
         plt.grid()
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "mach" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "mach" + ".png")
 
 
         plt.figure(17)
@@ -874,7 +891,8 @@ def plot(var, Nint):
         plt.ylabel("kNm")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "moment" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "moment" + ".png")
 
         timestart = timeend
 
@@ -883,7 +901,8 @@ def plot(var, Nint):
     print("altitude Hohmann starts: {0:.5f}".format(hres[-1]))
     print("final time  : {}".format(time))
 
-    res.close()
+    if flag_save:
+        res.close()
     plt.show()
     plt.close(0)
     plt.close(1)
@@ -1072,20 +1091,15 @@ cons = ({'type': 'eq',
 if __name__ == '__main__':
     timestr = time.strftime("%Y%m%d-%H%M%S")
     savefig_file = "MultiShooting_{}_{}_".format(os.path.basename(__file__), timestr)
+    flag_save = False
     obj = Spaceplane()
     start=time.time()
 
     '''reading of aerodynamic coefficients and specific impulse from file'''
 
-    cl = fileReadOr("/home/francesco/git_workspace/FESTIP_Work/coeff_files/clfile.txt")
-    cd = fileReadOr("/home/francesco/git_workspace/FESTIP_Work/coeff_files/cdfile.txt")
-    cm = fileReadOr("/home/francesco/git_workspace/FESTIP_Work/coeff_files/cmfile.txt")
-    cl = np.asarray(cl)
-    # cl = np.reshape(clOld, (13, 17, 6))
-    cd = np.asarray(cd)
-    # cd = np.reshape(cdOld, (13, 17, 6))
-    cm = np.asarray(cm)
-    # cm = np.reshape(cmOld, (13,17,6))
+    cl = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt"))
+    cd = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt"))
+    cm = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt"))
 
     # cl_interp = RegularGridInterpolator((mach, angAttack, bodyFlap), cl)
     # cd_interp = RegularGridInterpolator((mach, angAttack, bodyFlap), cd)
@@ -1102,7 +1116,7 @@ if __name__ == '__main__':
     # sparseJacIneq = load_npz("/home/francesco/git_workspace/FESTIP_Work/MultipleShooting_Algorithm/jacIneq.npz")
     # spIneq = sparseJacIneq.todense()
 
-    with open("/home/francesco/git_workspace/FESTIP_Work/coeff_files/impulse.dat") as f:
+    with open("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
         impulse = []
         for line in f:
             line = line.split()
@@ -1142,7 +1156,7 @@ if __name__ == '__main__':
     Nintplot = 1000
 
     '''NLP solver parameters'''
-    maxiter = 30  # max number of iterations for nlp solver
+    maxiter = 1  # max number of iterations for nlp solver
     ftol = 1e-8  # numeric tolerance of nlp solver
     # eps = 1e-10
     eps = 1e-09  # increment of the derivative

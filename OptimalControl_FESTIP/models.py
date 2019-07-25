@@ -619,7 +619,7 @@ def vass(states, controls, dyn, omega):
                   (Re + h) * np.cos(lam) * np.sin(teta),
                   (Re + h) * np.sin(lam)))
 
-    dx = dyn(states, controls, obj)
+    dx = dyn(states, controls)
     xp = np.array((dx[5] * np.cos(lam) * np.cos(teta) - (Re + h) * dx[4] * np.sin(lam) * np.cos(teta) - (Re + h) * dx[3]
                    * np.cos(lam) * np.sin(teta),
                    dx[5] * np.cos(lam) * np.sin(teta) - (Re + h) * dx[4] * np.sin(lam) * np.sin(teta) + (Re + h) * dx[3]

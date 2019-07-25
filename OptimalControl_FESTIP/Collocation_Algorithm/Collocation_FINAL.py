@@ -813,9 +813,9 @@ def dynamicsVel(states, contr, obj):
 
 if __name__ == '__main__':
 
-    cl = np.array(fileReadOr("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/clfile.txt"))
-    cd = np.array(fileReadOr("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cdfile.txt"))
-    cm = np.array(fileReadOr("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cmfile.txt"))
+    cl = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt"))
+    cd = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt"))
+    cm = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt"))
     # cl = np.load("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cl_smooth_few.npy")
     # cd = np.load("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cd_smooth_few.npy")
     # cm = np.load("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cm_smooth_few.npy")
@@ -826,7 +826,7 @@ if __name__ == '__main__':
     cm = np.reshape(cm, (13, 17, 6))
 
 
-    with open("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/impulse.dat") as f:
+    with open("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
         impulse = []
         for line in f:
             line = line.split()
@@ -848,12 +848,12 @@ if __name__ == '__main__':
     spimp_interp = splrep(presv, spimpv, s=2)
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    flag_savefig = True
+    flag_savefig = False
 
     pool = Pool(processes=3)
     plt.ion()
     start = time.time()
-    n = [40]
+    n = [30]
     time_init = [0.0, 350]
     num_states = [7]
     num_controls = [5]
@@ -864,12 +864,13 @@ if __name__ == '__main__':
     varStates = Nstates * Npoints
     varTot = (Nstates + Ncontrols) * Npoints
     Nint = 10000
-    maxiter = 100
+    maxiter = 1
     ftol = 1e-8
-    os.makedirs("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr))
-    savefig_file = "/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/Res_".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr)
+    if flag_savefig:
+        os.makedirs("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr))
+        savefig_file = "/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/Res_".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr)
     # -------------
     # set OpenGoddard class for algorithm determination
     prob = Problem(time_init, n, num_states, num_controls, max_iteration)
@@ -1165,49 +1166,50 @@ if __name__ == '__main__':
     Dv2 = np.sqrt(obj.GMe / obj.r2) * (1 - np.sqrt((2 * r1) / (r1 + obj.r2)))
     mf = m / (np.exp(Dv1 / obj.gIsp) * np.exp(Dv2 / (obj.g0 * isp)))
 
-    res = open("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/resColloc_{}_{}.txt".format(os.path.basename(__file__), n[0], maxiter, max_iteration, timestr, os.path.basename(__file__), timestr), "w")
+    if flag_savefig:
+        res = open("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/resColloc_{}_{}.txt".format(os.path.basename(__file__), n[0], maxiter, max_iteration, timestr, os.path.basename(__file__), timestr), "w")
 
-    res.write("Max number Optimization iterations: " + str(max_iteration) + "\n" + "Number of NLP iterations: "
-              + str(maxiter) + "\n" + "v: " + str(v) + "\n" + "Chi: " + str(np.rad2deg(chi)) + "\n" + "Gamma: "
-              + str(np.rad2deg(gamma)) + "\n" + "Teta: " + str(np.rad2deg(teta)) + "\n" + "Lambda: "
-              + str(np.rad2deg(lam)) + "\n" + "Height: " + str(h) + "\n" + "Mass: " + str(m) + "\n" + "mf: "
-              + str(mf) + "\n" + "Objective Function: " + str(-mf / unit_m) + "\n" + "Alfa: " + str(np.rad2deg(alfa))
-              + "\n" + "Delta: " + str(delta) + "\n" + "Delta f: " + str(np.rad2deg(deltaf)) + "\n" + "Tau: "
-              + str(tau) + "\n" + "Mu: " + str(np.rad2deg(mu)) + "\n" + "Eps: " + str(np.rad2deg(eps)) + "\n" + "Lift: "
-              + str(L) + "\n" + "Drag: " + str(D) + "\n" + "Thrust: " + str(T) + "\n" + "Spimp: " + str(
-        isp) + "\n" + "c: "
-              + str(c) + "\n" + "Mach: " + str(M) + "\n" + "Time vector: " + str(time) + "\n" + "Press: " + str(Press)
-              + "\n" + "Dens: " + str(rho) + "\n" + "Time elapsed for optimization: " + tformat + "\n")
-    res.close()
+        res.write("Max number Optimization iterations: " + str(max_iteration) + "\n" + "Number of NLP iterations: "
+                  + str(maxiter) + "\n" + "v: " + str(v) + "\n" + "Chi: " + str(np.rad2deg(chi)) + "\n" + "Gamma: "
+                  + str(np.rad2deg(gamma)) + "\n" + "Teta: " + str(np.rad2deg(teta)) + "\n" + "Lambda: "
+                  + str(np.rad2deg(lam)) + "\n" + "Height: " + str(h) + "\n" + "Mass: " + str(m) + "\n" + "mf: "
+                  + str(mf) + "\n" + "Objective Function: " + str(-mf / unit_m) + "\n" + "Alfa: " + str(np.rad2deg(alfa))
+                  + "\n" + "Delta: " + str(delta) + "\n" + "Delta f: " + str(np.rad2deg(deltaf)) + "\n" + "Tau: "
+                  + str(tau) + "\n" + "Mu: " + str(np.rad2deg(mu)) + "\n" + "Eps: " + str(np.rad2deg(eps)) + "\n" + "Lift: "
+                  + str(L) + "\n" + "Drag: " + str(D) + "\n" + "Thrust: " + str(T) + "\n" + "Spimp: " + str(
+            isp) + "\n" + "c: "
+                  + str(c) + "\n" + "Mach: " + str(M) + "\n" + "Time vector: " + str(time) + "\n" + "Press: " + str(Press)
+                  + "\n" + "Dens: " + str(rho) + "\n" + "Time elapsed for optimization: " + tformat + "\n")
+        res.close()
 
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/v".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), vres)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/chi".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), chires)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/gamma".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), gammares)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/teta".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), tetares)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/lambda".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), lamres)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/h".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), hres)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/m".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), mres)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/alfa".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), alfa)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/delta".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), delta)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/deltaf".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), deltaf)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/tau".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), tau)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/mu".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), mu)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/timeTot".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), tres)
-    np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/timeCol".format(
-        os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), time)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/v".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), vres)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/chi".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), chires)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/gamma".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), gammares)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/teta".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), tetares)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/lambda".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), lamres)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/h".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), hres)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/m".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), mres)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/alfa".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), alfa)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/delta".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), delta)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/deltaf".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), deltaf)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/tau".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), tau)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/mu".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), mu)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/timeTot".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), tres)
+        np.save("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}/timeCol".format(
+            os.path.basename(__file__), n[0], maxiter, max_iteration, timestr), time)
 
     # ------------------------
     # Visualization
