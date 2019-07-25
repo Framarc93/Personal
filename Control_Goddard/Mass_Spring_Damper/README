@@ -1,0 +1,59 @@
+Tue 09 Jul 2019 12:06:24 BST 
+
+Genetic Programming (mass-spring-damper system) - version: 1.0.2
+
+Requirements
+
+To install this project, please ensure that you have installed the following:
+
+
+      ( Package )	         ( Minimum version rquired )
+
+
+-	deap				1.3.0
+-	matplotlib			3.03
+-	numpy				1.16.3
+-	scipy				1.2.1
+-	pandas				0.24.2
+-	pygraphviz			1.5
+-	networkz			2.3
+-	tkinter
+
+
+
+
+[VERSIONE 1.0.2]
+
+UPDATES:
+- Aggiunta animazione in 3D del sistema massa molla smorzatore utilizzando la libreria Tkinter. Essa è stata implementata secondo la seguente conversione (100 pixels == 1 metro), dunque per una corretta visualizzazione 3d del sistema occore che i valori di posizione comandata siano contenuti nel range: (-5 , +9 [m])
+- Corretti minor bugs nel codice e migliorata la scelta di alcuni paremetri del processo di evoluzione
+
+[VERSIONE 1.0.1]
+
+UPDATES:
+
+- inserito il modulo multiprocessing ossia la libreria per distribuire le operazioni su più processori
+
+- si è scelto di minimizzare la performance index (PI) invece di massimizzarne l'inverso (1/PI) in quanto la divisione è un'operazione non lineare
+
+- riscritte nuovamente le funzioni (protectedDiv), Mul, Sqrt, Log, Exp, Sin e ora interamente implementate nel processo di ricerca
+
+- si salvano sul file txt rinominato "Best individuals" i migliori individui visti in ogni generazione (Prima riga = miglior individuo, ultima riga = generazione iniziale). Ciò ha permesso di seguire un po' più da vicino il processo di ottimizzazione in maniera tale da definire meglio i parametri del gp.
+
+- ridefinito il costraint sul massimo valore di forza che può essere prodotto fisicamente dal controllore, ora non è più settato manualmente ma fa riferimento ad un tempo di rising impostato dall'utente (=rapidità a raggiungere la posizione comandata)
+
+- riscritta la procedura di penalizzazione:
+
+	-gli individui non validi, ossia quelli che non possono essere inseriti nel processo di integrazione (Nan,infty,Overflow) vengono penalizzati con un valore di fitness function pari a +1000. (durante i test la percentuale di questi individui in un'intera simulazione è stata sempre al di sotto dell'1%)
+
+	-agli individui che non rispettano anche per una sola volta il constraint viene invece attribuito un valore random in funzione del miglior individuo visto fino a quel punto della simulazione nel seguente intervallo:
+
+[ff(best_individual) * 1.2, ff(best_individual) * 1.3]
+
+	-agli individui che eccedono il constraint sul massimo valore di forza possibile generato dal controllore durante tutta la durata della simulazione (20 secondi) viene attribuito in maniera casuale un valore di fitness function definito nel seguente intervallo:
+
+[ff(best_individual) * 1.5, ff(best_individual) * 1.6]
+
+- migliorati i grafici di output e introdotta la possibilità di stampare il grafico a massima risoluzione della gerarchia di un'intera evoluzione (richiede molto tempo per cui nel codice è commentata) 
+
+

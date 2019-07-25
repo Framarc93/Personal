@@ -1,0 +1,1 @@
+Mul(Mul(err, Add(Add(err, pi), Mul(pi, nap))), Mul(Mul(Add(pi, 2), nap), Mul(Add(Mul(Mul(Add(err, pi), nap), Add(pi, 2)), 2), nap)))

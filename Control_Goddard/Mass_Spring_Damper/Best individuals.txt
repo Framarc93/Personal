@@ -1,0 +1,60 @@
+Mul(Mul(err, Add(Add(err, pi), Mul(pi, nap))), Mul(Mul(Add(pi, 2), nap), Mul(Add(Mul(Mul(Add(err, pi), nap), Add(pi, 2)), 2), nap)))
+ 
+Mul(Mul(Mul(err, Add(Add(nap, pi), Add(Mul(nap, pi), 2))), Mul(pi, Mul(nap, pi))), Mul(pi, Add(pi, 2)))
+ 
+Mul(Mul(err, Mul(Mul(Mul(Add(pi, 2), nap), Add(Add(pi, Log(2)), 2)), nap)), Mul(pi, Mul(nap, pi)))
+ 
+Mul(Mul(err, Mul(Mul(Mul(Add(pi, 2), nap), Add(pi, 2)), nap)), Mul(pi, Mul(nap, pi)))
+ 
+Mul(Mul(err, Mul(pi, nap)), Mul(Mul(Add(pi, 2), Mul(Mul(pi, nap), nap)), Add(pi, 2)))
+ 
+Mul(Mul(err, Mul(Mul(Add(pi, 2), nap), Mul(Add(pi, 2), nap))), Mul(pi, Mul(nap, pi)))
+ 
+Mul(Mul(err, Mul(Add(Mul(Add(pi, Mul(nap, pi)), Add(pi, 2)), 2), nap)), Mul(Add(pi, nap), Add(pi, 2)))
+ 
+Mul(Mul(err, Mul(pi, Mul(pi, Add(Add(Sin(Mul(2, nap)), pi), pi)))), Mul(Mul(Add(pi, 2), nap), Add(pi, 2)))
+ 
+Mul(Mul(Add(pi, 2), Mul(4.4, err)), Mul(Mul(Add(pi, 2), nap), Mul(Add(pi, 2), nap)))
+ 
+Mul(Mul(err, Add(Add(err, Add(pi, Mul(err, Mul(nap, pi)))), Mul(pi, nap))), Mul(Add(pi, Add(pi, 2)), Mul(pi, Mul(Add(pi, 2), nap))))
+ 
+Mul(Mul(err, Mul(Add(pi, 2), nap)), Mul(pi, Add(Mul(Mul(nap, pi), Add(Mul(nap, pi), 2)), nap)))
+ 
+Mul(Mul(err, Mul(Add(pi, 2), nap)), Mul(Add(pi, nap), Add(pi, Mul(Mul(Add(err, pi), nap), Add(pi, 2)))))
+ 
+Mul(Mul(err, Mul(2, Mul(Add(Mul(Add(pi, 2), nap), Mul(pi, nap)), pi))), Mul(pi, Mul(nap, pi)))
+ 
+Mul(Mul(err, Mul(Add(Mul(Mul(Add(err, pi), nap), Add(pi, 2)), 2), nap)), Mul(Add(pi, nap), Add(pi, 2)))
+ 
+Mul(Mul(err, Add(Add(err, Add(pi, Mul(Mul(pi, nap), Mul(nap, pi)))), Mul(pi, nap))), Mul(Add(pi, Add(pi, 2)), Add(pi, 2)))
+ 
+Mul(Mul(err, Mul(Add(pi, 2), Mul(Mul(pi, nap), nap))), Mul(Add(pi, nap), Add(pi, 2)))
+ 
+Mul(Mul(err, Mul(pi, nap)), Mul(Mul(nap, pi), Add(Mul(pi, Mul(Add(pi, 2), nap)), 2)))
+ 
+Mul(Mul(err, Mul(pi, nap)), Mul(Mul(Add(pi, Mul(nap, pi)), pi), Add(Mul(nap, pi), 2)))
+ 
+Mul(Mul(Mul(pi, nap), Mul(4.4, err)), Mul(pi, Mul(pi, Mul(nap, pi))))
+ 
+Mul(Mul(Add(pi, 2), Mul(err, Mul(pi, nap))), Mul(Mul(Add(pi, 2), nap), Add(pi, 2)))
+ 
+Mul(Mul(err, Mul(Mul(Mul(Add(pi, 2), nap), Add(pi, 2)), nap)), Mul(pi, Add(pi, 2)))
+ 
+Mul(Mul(err, Mul(pi, nap)), Mul(Mul(Add(pi, 2), Mul(Add(pi, 2), nap)), Add(pi, 2)))
+ 
+Mul(Mul(err, Mul(pi, nap)), Mul(Mul(Mul(Add(pi, 2), nap), Add(pi, 2)), Add(pi, 2)))
+ 
+Mul(Mul(err, Add(Add(pi, 2), Mul(pi, nap))), Mul(Mul(pi, Mul(nap, pi)), Mul(nap, pi)))
+ 
+Mul(Mul(Add(pi, 2), Mul(Mul(pi, Add(pi, Mul(pi, nap))), err)), Mul(pi, Add(pi, 2)))
+ 
+Mul(Mul(Add(pi, 2), Mul(Mul(pi, Add(pi, Mul(nap, pi))), err)), Mul(pi, Add(pi, 2)))
+ 
+Mul(Mul(err, Mul(Add(Mul(Add(pi, Mul(nap, pi)), Add(pi, 2)), 2), nap)), Mul(Add(err, pi), Add(pi, 2)))
+ 
+Mul(Mul(err, Mul(Add(pi, 2), Mul(Mul(pi, nap), nap))), Mul(Add(pi, nap), Add(Exp(err), 2)))
+ 
+Mul(Mul(err, Mul(Add(pi, 2), Mul(Mul(pi, nap), nap))), Mul(Add(pi, nap), Add(Log(pi), 2)))
+ 
+Mul(Mul(err, Mul(Add(Mul(Mul(Add(err, pi), nap), Add(pi, 2)), 2), nap)), Mul(Add(2, err), Add(pi, 2)))
+ 
