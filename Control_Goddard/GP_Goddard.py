@@ -21,6 +21,7 @@ from deap import tools
 import multiprocessing
 from scipy.interpolate import PchipInterpolator
 from functools import partial
+import datetime
 
 def Div(left, right):
     with np.errstate(divide='ignore',invalid='ignore'):
@@ -81,18 +82,30 @@ def Sin(x):
 
 
 def xmate(ind1, ind2):
+    global flag
     i1 = random.randrange(len(ind1))
     i2 = random.randrange(len(ind2))
-    print(ind1[i1], ind2[i2])
-    ind1[i1], ind2[i2] = gp.cxOnePoint(ind1[i1], ind2[i2])
-    return ind1, ind2
+    try:
+        ind1[i1], ind2[i2] = gp.cxOnePoint(ind1[i1], ind2[i2])
+        return ind1, ind2
+    except (
+    RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+        flag = True
+        return ind1, ind2
 
 
 def xmut(ind, expr):
+    global flag
     i1 = random.randrange(len(ind))
-    indx = gp.mutUniform(ind[i1], expr, pset=pset)
-    ind[i1] = indx[0]
-    return ind,
+    try:
+        indx = gp.mutUniform(ind[i1], expr, pset=pset)
+        ind[i1] = indx[0]
+        return ind,
+    except (
+    RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+        flag = True
+        return ind,
+
 
 
 # Direct copy from tools - modified for individuals with GP trees in an array
@@ -136,25 +149,6 @@ def xselDoubleTournament(individuals, k, fitness_size, parsimony_size, fitness_f
         return _fitTournament(individuals, k, tsize)
 
 
-# SET IN THIS FUNCTION THE FORM OF DESIDERED SETPOINT (COMMAND)
-
-def setpoint(t,stat):
-
-     if setpoint_type=='Constant':
-        r = 2
-     elif setpoint_type=='Sinusoidal':
-         r = np.sin(t)
-     elif setpoint_type == 'Square':
-        if (t > 4 and t < 8) or (t > 12 and t < 16):
-            r = 8  # SQUARE WAVE
-        else:
-            r = 3
-     elif setpoint_type == 'Custom':
-          r = 3*abs(np.sin(t))
-
-     return r
-
-
 start = timeit.default_timer()
 
 ###############################  S I S T E M - P A R A M E T E R S  ####################################################
@@ -193,55 +187,17 @@ class Rocket:
 Nstates = 5
 Ncontrols = 2
 
-
-rise_time = 0.1                                                                             # rising time [s]
-
-# FIND MAX VALUE OF POSITION SET POINT
-
-tempo = np.linspace(1e-05, 400, 1e3)
-maxsetpoint = np.zeros(len(tempo), dtype='float')
-ii = 0
-
-'''for i in tempo:
-    maxsetpoint[ii] = setpoint(i,setpoint_type)
-    ii = ii + 1
-r_max = np.amax(maxsetpoint)'''
-
-
 old = 0
 
-size_pop = 200                                                                             # Pop size
-size_gen = 5                                                                              # Gen size
+size_pop = 300                                                                             # Pop size
+size_gen = 200                                                                             # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.5)
 
-limit_height = 17                                                                   # Max height (complexity) of the controller law
-limit_size = 400                                                                    # Max size (complexity) of the controller law
+limit_height = 20                                                                   # Max height (complexity) of the controller law
+limit_size = 300                                                                    # Max size (complexity) of the controller law
 
 nbCPU = multiprocessing.cpu_count()
-
-def info_sys(a0, a1, a2, rise_time):
-    print("\n")
-
-    print("M = %.2f [Kg]\nC = %.2f [Ns/m]\nK = %.2f [N/m]" % (a0, a1, a2))
-    sn = np.sqrt(a2 / a0)  # NON DUMPING NATURAL PULSATION
-    print("s_n = %.2f [rad/s]" % sn)
-
-    C_cr = 2 * np.sqrt(a2 * a0)  # CRITICAL DAMPING RATIO
-    zeta = a1 / C_cr  # ADIMENSIONAL DAMPING RATIO
-
-    if zeta < 1:
-        print("zeta = %.2f:  Under-damped system" % zeta)
-    elif zeta > 1:
-        print("zeta = %.2f:  Over-damped system" % zeta)
-    elif zeta == 1:
-        print("zeta = %.2f:  Critically damped system" % zeta)
-
-    print("\n")
-
-    print("Rising time defined by user: %.2f [s]" % rise_time)
-
-    return "\n"
 
 ################################# M A I N     D E L    P R O G R A M M A ###############################################
 
@@ -311,10 +267,9 @@ def main():
 
     ####################################################################################################################
 
-    '''stop = timeit.default_timer()
+    stop = timeit.default_timer()
     total_time = stop - start
-    mins, secs = divmod(total_time, 60)
-    hours, mins = divmod(mins, 60)
+    tformat = str(datetime.timedelta(seconds=int(total_time)))
 
     gen = log.select("gen")
     fit_max = log.chapters["fitness"].select('max')
@@ -342,55 +297,71 @@ def main():
     lns = line1 + line2
     labs = [l.get_label() for l in lns]
     ax1.legend(lns, labs, loc="center right")
-    textstr = ('Total Running Time:\n  %dh %dm %.3fs' % (hours, mins, secs))
+    textstr = ('Total Running Time: {}'.format(tformat))
     ax1.text(0.65, 0.9, textstr, transform=ax1.transAxes, fontsize=10,
              horizontalalignment='right')
 
     plt.savefig('Stats')
     plt.show()
 
+    '''print("\n")
+    print("THE BEST VALUES ARE:")
+    print(hof.items[0][0])
+    print(hof.items[0][1])
     print("\n")
-    print("THE BEST VALUE IS:")
-    print(hof[0])
+    print("THE HEIGHT OF THE BEST INDIVIDUALS ARE:")
+    print(hof.items[0][0].height)
+    print(hof.items[0][1].height)
     print("\n")
-    print("THE HEIGHT OF THE BEST INDIVIDUAL IS:")
-    print(hof[0].height)
-    print("\n")
-    print("THE SIZE OF THE BEST INDIVIDUAL IS:")
-    print(len(hof[0]))
+    print("THE SIZE OF THE BEST INDIVIDUALS ARE:")
+    print(len(hof.items[0][0]))
+    print(len(hof.items[0][1]))
 
    
     value = toolbox.evaluate(hof[0])
     print("THE EVALUATION OF THE BEST INDIVIDUAL IS:")
     print(value)
-    print("\n")
+    print("\n")'''
 
-    expr = hof[0]
-    nodes, edges, labels = gp.graph(expr)
+    expr1 = hof.items[0][0]
+    expr2 = hof.items[0][1]
+    nodes1, edges1, labels1 = gp.graph(expr1)
+    nodes2, edges2, labels2 = gp.graph(expr2)
     g = pgv.AGraph()
-    g.add_nodes_from(nodes)
-    g.add_edges_from(edges)
+    g.add_nodes_from(nodes1)
+    g.add_edges_from(edges1)
     g.layout(prog="dot")
-    for i in nodes:
+    for i in nodes1:
         n = g.get_node(i)
-        n.attr["label"] = labels[i]
-    g.draw("tree.png")
+        n.attr["label"] = labels1[i]
+    g.draw("tree1.png")
 
-    image = plt.imread('tree.png')
-    fig, ax = plt.subplots()
-    im = ax.imshow(image)
-    ax.axis('off')
+    g = pgv.AGraph()
+    g.add_nodes_from(nodes2)
+    g.add_edges_from(edges2)
+    g.layout(prog="dot")
+    for i in nodes2:
+        n = g.get_node(i)
+        n.attr["label"] = labels2[i]
+    g.draw("tree2.png")
+
+    image1 = plt.imread('tree1.png')
+    fig1, ax1 = plt.subplots()
+    im1 = ax1.imshow(image1)
+    ax1.axis('off')
+    image2 = plt.imread('tree2.png')
+    fig2, ax2 = plt.subplots()
+    im2 = ax2.imshow(image2)
+    ax2.axis('off')
     plt.show()
 
-    sys.stdout.write("TOTAL RUNNING TIME:\n %d (h):%d (m):%.3f (s) \n" % (hours, mins, secs))'''
+    sys.stdout.write("TOTAL RUNNING TIME: {} \n".format(tformat))
 
     #################################### P O S T - P R O C E S S I N G #################################################
 
-    x_ini = [1e-05, 1e-05, 1e-05]  # initial conditions
-
-    acc = []
-    time_acc = []
-    controller_value = []
+    fTr = toolbox.compile(expr=hof.items[0][0])
+    fTt = toolbox.compile(expr=hof.items[0][1])
+    x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
 
     def sys2GP(t, x):
         R = x[0]
@@ -398,10 +369,19 @@ def main():
         Vr = x[2]
         Vt = x[3]
         m = x[4]
-        Tr = setpoint(t, setpoint_type)
-        Tt = setpoint(t, setpoint_type)
 
-        e = r - R
+        r = Rfun(t)
+        th = Thetafun(t)
+        vr = Vrfun(t)
+        vt = Vtfun(t)
+        mf = mfun(t)
+
+        er = r - R
+        et = th - theta
+        evr = vr - Vr
+        evt = vt - Vt
+        em = mf - m
+        dxdt = np.zeros(Nstates)
 
         rho = obj.air_density(R - obj.Re)
         Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) \
@@ -411,56 +391,37 @@ def main():
         g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
         g0 = obj.g0
         Isp = obj.Isp
-        dxdt = np.zeros(Nstates)
+
         dxdt[0] = Vr
         dxdt[1] = Vt / R
-        dxdt[2] = Tr / m - Dr / m - g + Vt ** 2 / R
-        dxdt[3] = Tt / m - Dt / m - (Vr * Vt) / R
-        dxdt[4] = - np.sqrt(Tr ** 2 + Tt ** 2) / g0 / Isp
+        dxdt[2] = fTr(er, et, evr, evt, em) / m - Dr / m - g + Vt ** 2 / R
+        dxdt[3] = fTt(er, et, evr, evt, em) / m - Dt / m - (Vr * Vt) / R
+        dxdt[4] = - np.sqrt(fTr(er, et, evr, evt, em) ** 2 + fTt(er, et, evr, evt, em) ** 2) / g0 / Isp
 
         return [dxdt[0], dxdt[1], dxdt[2], dxdt[3], dxdt[4]]
 
-    tevals = np.linspace(1e-05, 20, 100000)
+    #tevals = np.linspace(0.0, tfin, 1000)
 
-    #solgp = solve_ivp(sys2GP, [1e-05, 20], x_ini, first_step=0.0001, t_eval=tevals)
-    #ygp = solgp.y[0, :]
-    #dyy = solgp.y[1, :]
-    #ttgp = solgp.t
-    #acc_gp = np.array(acc)
-    #tt_gp = np.array(time_acc)
-    #controller_value = np.array(controller_value)
+    solgp = solve_ivp(sys2GP, [0.0, tfin], x_ini, first_step=0.0001)
+    ygp = solgp.y[0, :]
+    tgp = solgp.t
+    rrr = np.zeros(len(tgp), dtype='float')
+    ii = 0
+    for i in tgp:
+        rrr[ii] = Rfun(i)
+        ii = ii + 1
 
-    #rrr = np.zeros(len(ttgp), dtype='float')
+    errgp = rrr - ygp  # Error system with genetic programming
 
-    #ii = 0
-    #for i in ttgp:
-    #    rrr[ii] = setpoint(i,setpoint_type)
-    #    ii = ii + 1
-
-    #errgp = rrr - ygp  # Error system with genetic programming
-
-    '''fig, ax2 = plt.subplots()
+    fig, ax2 = plt.subplots()
     ax2.set_xlabel("time [s]")
-    ax2.set_ylabel("position [m]")
-    plt.plot(ttgp, ygp, label="GENETIC PROGRAMMING")
-    plt.plot(ttgp, rrr, 'r--', label="SET POINT")
+    ax2.set_ylabel("position [km]")
+    plt.plot(tgp, (ygp-obj.Re)/1e3, label="GENETIC PROGRAMMING")
+    plt.plot(tgp, (rrr-obj.Re)/1e3, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
     plt.savefig('Position plot.png')
-    plt.show()'''
+    plt.show()
 
-    # PRINT PLOT WITH POSITION, VELOCITY, ACCELERATION, ERROR INFO OF THE CONTROLLED SYSTEM BY GENETIC PROGRAMMING CONTROLLER LAW
-
-    '''fig1, ax3 = plt.subplots()
-    plt.ylim(-r_max, 2 * r_max)
-    ax3.set_xlabel("time [s]")
-    plt.plot(ttgp, ygp, label="POSITION [m]")
-    plt.plot(ttgp, errgp, label="ERROR [m]")
-    plt.plot(ttgp, dyy, label="VELOCITY [m/s]")
-    #plt.plot(tt_gp, acc_gp, label="ACCELERATION [m/s^2]")
-    plt.plot(ttgp, rrr, 'r--', label="SET POINT [m]")
-    plt.legend(loc="lower right")
-    plt.savefig('Motion graphs.png')
-    plt.show()'''
 
     # Backup Python Console data in a Excel file
 
@@ -509,7 +470,7 @@ def main():
 flag = False
 pas = False
 stat_evoo = [0, 0, 0, 0]
-#max_force = 0
+
 fitnnesoldvalue = 0
 fitness_old=1e10
 
@@ -535,8 +496,6 @@ def evaluate(individual):
     fTr= toolbox.compile(expr=individual[0])
     fTt = toolbox.compile(expr=individual[1])
     x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
-    #max_force = 0
-    #force_constraint = a1 * vr + a2 * yr + a0 * ar
 
     def sys(t, x):
 
@@ -685,7 +644,7 @@ def evaluate(individual):
         r[pp] = Rfun(i)
         pp += 1
 
-    err1 = r - yy
+    err1 = (r - yy)-obj.Re
 
     # STEP TIME SIZE
     i = 0
@@ -728,7 +687,7 @@ pset = gp.PrimitiveSet("MAIN", 5)
 pset.addPrimitive(operator.add, 2,name="Add")
 pset.addPrimitive(operator.sub, 2,name="Sub")
 pset.addPrimitive(Mul, 2)
-#pset.addPrimitive(Div, 2)                      #rallentamento per gli ndarray utilizzati
+pset.addPrimitive(Div, 2)                      #rallentamento per gli ndarray utilizzati
 pset.addPrimitive(Sqrt, 1)
 pset.addPrimitive(Log, 1)
 pset.addPrimitive(Exp, 1)
@@ -750,7 +709,7 @@ creator.create("Fitness", base.Fitness, weights=(-1.0,))    # MINIMIZATION OF TH
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
-creator.create("SubIndividual", gp.PrimitiveTree, fitness=creator.Fitness, arity=5)
+creator.create("SubIndividual", gp.PrimitiveTree, fitness=creator.Fitness, arity=limit_size)
 
 toolbox = base.Toolbox()
 # toolbox.register("expr", gp.genFull, pset=pset, min_=1, max_=2)   #### OLD ####
@@ -800,5 +759,4 @@ toolbox.decorate("mutate", history.decorator)
 if __name__ == "__main__":
     obj = Rocket()
     pop, log, hof = main()
-    print(hof.items[0][0])
-    print(hof.items[0][1])
+
