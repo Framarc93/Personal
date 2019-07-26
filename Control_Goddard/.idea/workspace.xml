@@ -1,26 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="bce31c34-7559-466c-9cda-779bcb21621f" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/libraries/R_User_Library.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/GP_Multi_Example.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/Control_Goddard.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Control_Goddard.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/GP_Goddard.py" beforeDir="false" afterPath="$PROJECT_DIR$/GP_Goddard.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/SLSQP_solver/MS_SLSQP_Final.py" beforeDir="false" afterPath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/SLSQP_solver/MS_SLSQP_Final.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/goddardMS/MultiContInterpGoddardExample.py" beforeDir="false" afterPath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/goddardMS/MultiContInterpGoddardExample.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/goddardMS/MultiShootingGoddardNoJac_20190612-115513_M.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/goddardMS/MultiShootingGoddardNoJac_20190612-115513_Tr.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/goddardMS/MultiShootingGoddardNoJac_20190612-115513_Tt.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/goddardMS/MultiShootingGoddardNoJac_20190612-115513_V.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/goddardMS/MultiShootingGoddardNoJac_20190612-115513_acceleration.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/goddardMS/MultiShootingGoddardNoJac_20190612-115513_altitude.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/goddardMS/MultiShootingGoddardNoJac_20190612-115513_force.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/goddardMS/MultiShootingGoddardNoJac_20190612-115513_theta.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/../OptimalControl_FESTIP/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../OptimalControl_FESTIP/smooth_fun.py" beforeDir="false" afterPath="$PROJECT_DIR$/../OptimalControl_FESTIP/smooth_fun.py" afterDir="false" />
-    </list>
+    <list default="true" id="bce31c34-7559-466c-9cda-779bcb21621f" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -181,8 +162,16 @@
       <workItem from="1564000068069" duration="398000" />
       <workItem from="1564046104204" duration="64000" />
       <workItem from="1564048881316" duration="4761000" />
-      <workItem from="1564069745165" duration="22214000" />
+      <workItem from="1564069745165" duration="22463000" />
     </task>
+    <task id="LOCAL-00001" summary="Update on GP control. Managed to obtain 2 control laws">
+      <created>1564148025990</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1564148025990</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -198,6 +187,10 @@
         </entry>
       </map>
     </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Update on GP control. Managed to obtain 2 control laws" />
+    <option name="LAST_COMMIT_MESSAGE" value="Update on GP control. Managed to obtain 2 control laws" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Control_Goddard$GP_Multi_Example.coverage" NAME="GP_Multi_Example Coverage Results" MODIFIED="1564076980315" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />

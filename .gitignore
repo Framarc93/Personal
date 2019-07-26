@@ -6,3 +6,13 @@ OptimalControl_FESTIP/\.idea/inspectionProfiles/
 OptimalControl_FESTIP/\.idea/libraries/
 
 OptimalControl_FESTIP/\.idea/
+
+Control_Goddard/\.idea/inspectionProfiles/
+
+Control_Goddard/\.idea/
+
+*.txt
+
+*.png
+
+OptimalControl_FESTIP/__pycache__/
