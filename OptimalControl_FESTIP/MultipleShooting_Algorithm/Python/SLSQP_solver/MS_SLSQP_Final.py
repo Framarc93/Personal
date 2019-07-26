@@ -14,10 +14,11 @@ import sys
 from functools import partial
 from smooth_fun import *
 from multiprocessing import Pool
+from mpl_toolkits.mplot3d import Axes3D
 
 
-sys.path.insert(0, 'home/francesco/Desktop/PhD/FESTIP_Work')
-sys.path.insert(1, 'home/francesco/Desktop/PhD/FESTIP_Work/MultipleShooting_Algorithm')
+#sys.path.insert(0, 'home/francesco/Desktop/PhD/FESTIP_Work')
+#sys.path.insert(1, 'home/francesco/Desktop/PhD/FESTIP_Work/MultipleShooting_Algorithm')
 
 
 '''modified initial guess for controls so it has more points than states. States points are only in the conjunction of legs while controls are also inside'''
@@ -78,19 +79,6 @@ class Spaceplane:
         self.bad = 0
         self.UBV = np.zeros((0))
         self.LBV = np.zeros((0))
-
-
-def conversionStatesToOrig(var, len):
-    new_var = np.zeros((len*Nstates))
-    for i in range(len):
-        new_var[i * Nstates] = v_toOrig(var[i * Nstates])
-        new_var[i * Nstates + 1] = chi_toOrig(var[i * Nstates + 1])
-        new_var[i * Nstates + 2] = gamma_toOrig(var[i * Nstates + 2])
-        new_var[i * Nstates + 3] = teta_toOrig(var[i * Nstates + 3])
-        new_var[i * Nstates + 4] = lam_toOrig(var[i * Nstates + 4], obj)
-        new_var[i * Nstates + 5] = h_toOrig(var[i * Nstates + 5])
-        new_var[i * Nstates + 6] = m_toOrig(var[i * Nstates + 6], obj)
-    return new_var
 
 
 def dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int):
@@ -437,6 +425,7 @@ def MultiShooting(var, dyn):
     tres = np.zeros((0))
 
     states_atNode = np.zeros((0))
+    controls_atNode = np.zeros((0))
 
     varD = var * (obj.UBV - obj.LBV) + obj.LBV
 
@@ -457,8 +446,8 @@ def MultiShooting(var, dyn):
         deltafres = np.hstack((deltafres, leg[10]))
         taures = np.hstack((taures, leg[11]))
         mures = np.hstack((mures, leg[12]))
-        states_atNode = np.hstack((states_atNode, (
-            (vres[-1], chires[-1], gammares[-1], tetares[-1], lamres[-1], hres[-1], mres[-1]))))  # new intervals
+        states_atNode = np.hstack((states_atNode, ((vres[-1], chires[-1], gammares[-1], tetares[-1], lamres[-1], hres[-1], mres[-1]))))  # new intervals
+        controls_atNode = np.hstack((controls_atNode, ((alfares[-1], deltares[-1], deltafres[-1], taures[-1], mures[-1]))))
 
     vrescol = np.reshape(vres, (Nint*Nleg, 1))
     chirescol = np.reshape(chires, (Nint*Nleg, 1))
@@ -532,7 +521,7 @@ def MultiShooting(var, dyn):
     obj.States = states_after
     obj.Controls = controls_after
 
-    eq_c = equality(varD, states_atNode)
+    eq_c = equality(varD, states_atNode, controls_atNode)
     obj.eqOld = eq_c
 
     ineq_c = inequalityAll(states_after, controls_after, Nint*Nleg)
@@ -558,13 +547,6 @@ def MultiShooting(var, dyn):
 
     obj.varOld = var
 
-    #if obj.bad == 1:
-    #    eq_c = eq_c + 1000
-     #   ineq_c = ineq_c - 1000
-     #   cost = -obj.m10/obj.M0
-     #   obj.costOld = cost
-     #   obj.ineqOld = ineq_c
-      #  obj.eqOld = eq_c
 
     return eq_c, ineq_c, cost
 
@@ -676,8 +658,6 @@ def plot(var, Nint):
                 isp) + "\n" + "c: "
                 + str(c) + "\n" + "Mach: " + str(M) + "\n" + "Time vector: " + str(timeTotal) + "\n" + "Press: " + str(
                 Press) + "\n" + "Dens: " + str(rho) + "\n" + "Time elapsed during optimization: " + tformat)
-
-        downrange = (vres ** 2) / g * np.sin(2 * gammares)
 
         plt.figure(0)
         plt.title("Velocity")
@@ -847,17 +827,6 @@ def plot(var, Nint):
         if flag_save:
             plt.savefig(savefig_file + "accelerations" + ".png")
 
-
-        plt.figure(14)
-        plt.title("Downrange")
-        plt.plot(downrange / 1000, hres / 1000)
-        plt.grid()
-        plt.ylabel("km")
-        plt.xlabel("km")
-        if flag_save:
-            plt.savefig(savefig_file + "downrange" + ".png")
-
-
         plt.figure(15)
         plt.title("Forces")
         plt.plot(timeTotal, T / 1000, color='r')
@@ -894,7 +863,20 @@ def plot(var, Nint):
         if flag_save:
             plt.savefig(savefig_file + "moment" + ".png")
 
+        figs = plt.figure(18)
+        ax = figs.add_subplot(111, projection='3d')
+        ax.plot(np.rad2deg(tetares), np.rad2deg(lamres), hres / 1e3, color='b', label="3d Trajectory")
+        ax.set_xlabel('Longitude [deg]')
+        ax.set_ylabel('Latitude [deg]')
+        ax.set_zlabel('Altitude [km]')
+        ax.legend()
+        if flag_save:
+            plt.savefig(savefig_file + "traj" + ".png")
+
+
         timestart = timeend
+
+
 
     print("m before Ho : {0:.5f}".format(mres[-1]))
     print("mf          : {0:.5f}".format(mf[-1]))
@@ -918,13 +900,13 @@ def plot(var, Nint):
     plt.close(11)
     plt.close(12)
     plt.close(13)
-    plt.close(14)
     plt.close(15)
     plt.close(16)
     plt.close(17)
+    plt.close(18)
 
 
-def equality(var, conj):
+def equality(var, conj, cont_conj):
     h = conj[varStates - 2]
     lam = conj[varStates - 3]
     stat = conj[varStates - Nstates:]
@@ -941,10 +923,14 @@ def equality(var, conj):
     else:
         chifin = 0.5 * np.pi + np.arcsin(np.cos(obj.incl) / np.cos(lam))
     div = np.tile([100,1,1,1,1,100,1000], Nleg - 1)
-
+    #contr_check = np.zeros((0))
+    #for i in range(Nbar-1):
+     #   if i > 0:
+      #      contr_check = np.hstack((contr_check, var[varStates+NContPoints*Ncontrols*i-Ncontrols:varStates+NContPoints*Ncontrols*i]))
     eq_cond = np.zeros((0))
-    eq_cond = np.concatenate((eq_cond, var[0:7] - states_init))
+    eq_cond = np.concatenate((eq_cond, (var[0] - states_init[0],), var[2:7]-states_init[2:]))
     eq_cond = np.concatenate((eq_cond, (var[Nstates:varStates] - conj[:Nstates * (Nleg - 1)])/div))  # knotting conditions
+    #eq_cond = np.concatenate((eq_cond, contr_check - cont_conj[:Ncontrols * (Nleg - 1)]))  # knotting conditions
     eq_cond = np.concatenate((eq_cond, var[varStates:varStates + Ncontrols] - cont_init))  # init cond on alpha
     eq_cond = np.concatenate((eq_cond, ((vvv - vtAbs)/vvv,)))
     eq_cond = np.concatenate((eq_cond, ((chifin - chiass)/chifin,)))
@@ -983,6 +969,7 @@ def do(eps, dx, jac, x0, sp, f0, count):
     jac[count] = (cost_fun(x0 + dx, sp) - f0) / eps
     dx[count] = 0.0
     return dx, jac
+
 
 def JacFunSave(var, sp):
     x0 = np.asfarray(var)
@@ -1093,7 +1080,7 @@ if __name__ == '__main__':
     savefig_file = "MultiShooting_{}_{}_".format(os.path.basename(__file__), timestr)
     flag_save = False
     obj = Spaceplane()
-    start=time.time()
+    start = time.time()
 
     '''reading of aerodynamic coefficients and specific impulse from file'''
 
@@ -1142,7 +1129,7 @@ if __name__ == '__main__':
     Nbar = 6  # number of conjunction points
     Nleg = Nbar - 1  # number of multiple shooting sub intervals
     NContPoints = 7  # number of control points for interpolation inside each interval
-    Nint = 150  # number of points for each single shooting integration
+    Nint = 200  # number of points for each single shooting integration
     Nstates = 7  # number of states
     Ncontrols = 5  # number of controls
     varStates = Nstates * Nleg  # total number of optimization variables for states
@@ -1152,16 +1139,17 @@ if __name__ == '__main__':
     tnew = np.linspace(0, time_tot, Nbar)  # time vector used for interpolation of states initial guess
     tcontr = np.linspace(0, time_tot,
                          int(varControls / Ncontrols))  # time vector used for interpolation of controls intial guess
+    tstat = np.linspace(0, time_tot, Nleg)
     unit_t = 1000
     Nintplot = 1000
 
     '''NLP solver parameters'''
-    maxiter = 1  # max number of iterations for nlp solver
+    maxiter = 20  # max number of iterations for nlp solver
     ftol = 1e-8  # numeric tolerance of nlp solver
     # eps = 1e-10
     eps = 1e-09  # increment of the derivative
     # u = 2.220446049250313e-16
-    maxIterator = 1  # max number of optimization iterations
+    maxIterator = 5  # max number of optimization iterations
 
     '''definiton of initial conditions'''
 
@@ -1169,7 +1157,7 @@ if __name__ == '__main__':
     X = np.zeros((0))
     U = np.zeros((0))
 
-    vars = smooth_init(Nleg, NContPoints)
+    '''vars = smooth_init(Nleg, NContPoints)
 
     v_init = vars[0]
     chi_init = vars[1]
@@ -1194,7 +1182,20 @@ if __name__ == '__main__':
     delta_init[0] = 1.0
     deltaf_init[0] = 0.0
     tau_init[0] = 0.0
-    mu_init[0] = 0.0
+    mu_init[0] = 0.0'''
+    v_init = Guess.linear(tstat, 1, obj.Vtarget)
+    chi_init = Guess.linear(tstat, obj.chistart, obj.chi_fin)
+    gamma_init = Guess.linear(tstat, obj.gammastart, 0.0)
+    teta_init = Guess.constant(tstat, obj.longstart)
+    lam_init = Guess.constant(tstat, obj.latstart)
+    h_init = Guess.linear(tstat, 1, obj.Hini)
+    m_init = Guess.linear(tstat, obj.M0, obj.m10)
+
+    alfa_init = Guess.zeros(tcontr)
+    delta_init = Guess.linear(tcontr, 1.0, 0.05)
+    deltaf_init = Guess.zeros(tcontr)
+    tau_init = Guess.zeros(tcontr)
+    mu_init = Guess.zeros(tcontr)
 
     states_init = np.array((v_init[0], chi_init[0], gamma_init[0], teta_init[0], lam_init[0], h_init[0], m_init[0]))
     cont_init = np.array((alfa_init[0], delta_init[0], deltaf_init[0], tau_init[0], mu_init[0]))
@@ -1218,8 +1219,8 @@ if __name__ == '__main__':
         '''creation of vector of time intervals'''
         dt = np.hstack((dt, tnew[i + 1] - tnew[i]))
 
-    uplimx = np.tile([1e4, np.deg2rad(270), np.deg2rad(89.99), 0.0, np.deg2rad(25), 2e5, obj.M0], Nleg)
-    inflimx = np.tile([1.0, np.deg2rad(90), np.deg2rad(-89.99), np.deg2rad(-70), np.deg2rad(2), 1.0, obj.m10], Nleg)
+    uplimx = np.tile([1e4, np.deg2rad(150), np.deg2rad(89.9), 0.0, np.deg2rad(25), 2e5, obj.M0], Nleg)
+    inflimx = np.tile([1.0, np.deg2rad(110), np.deg2rad(-50), np.deg2rad(-60), np.deg2rad(2), 1.0, obj.m10], Nleg)
     uplimu = np.tile([np.deg2rad(40), 1.0, np.deg2rad(30), 1.0, np.deg2rad(90)], Nleg * NContPoints)
     inflimu = np.tile([np.deg2rad(-2), 0.0001, np.deg2rad(-20), -1.0, np.deg2rad(-90)], Nleg * NContPoints)
 
@@ -1236,8 +1237,91 @@ if __name__ == '__main__':
     X0d = np.hstack((X, U, dt))  # vector of initial conditions here all the angles are in degrees!!!!!
     obj.varOld = np.zeros((len(X0d)))
 
+    #LbS, LbC, UbS, UbC = bound_def(X, U, uplimx, inflimx, uplimu, inflimu)
 
-    LbS, LbC, UbS, UbC = bound_def(X, U, uplimx, inflimx, uplimu, inflimu)
+    LbS = [0.5, np.deg2rad(110), np.deg2rad(88), np.deg2rad(-53), np.deg2rad(4.8), 0.5, obj.M0 - 10,
+           10, np.deg2rad(100), np.deg2rad(50), np.deg2rad(-60), np.deg2rad(2.0), 1e3, 2.5e5,
+           100, np.deg2rad(100), np.deg2rad(0), np.deg2rad(-60), np.deg2rad(2.0), 1e4, 1.5e5,
+           500, np.deg2rad(100), np.deg2rad(-50), np.deg2rad(-60), np.deg2rad(2.0), 2e4, 1e5,
+           1000, np.deg2rad(100), np.deg2rad(-20), np.deg2rad(-60), np.deg2rad(2.0), 5e4, 5e4]
+
+    UbS = [1.5, np.deg2rad(115), np.deg2rad(89.99), np.deg2rad(-51), np.deg2rad(5.8), 1.5, obj.M0 +10,
+           1000, np.deg2rad(150), np.deg2rad(70), np.deg2rad(-45), np.deg2rad(8.0), 3e4, 3.5e5,
+           2000, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(15.0), 8e4, 3e5,
+           4000, np.deg2rad(150), np.deg2rad(20), np.deg2rad(-45), np.deg2rad(25.0), 8e4, 2e5,
+           6000, np.deg2rad(150), np.deg2rad(10), np.deg2rad(-45), np.deg2rad(25.0), 8e4, 1e5]
+
+    LbC = [np.deg2rad(-1.0), 0.95, np.deg2rad(-20.0), -0.1, np.deg2rad(-1),
+           np.deg2rad(-1.0), 0.95, np.deg2rad(-20.0), -0.2, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -0.3, np.deg2rad(-5),
+           np.deg2rad(-2.0), 0.95, np.deg2rad(-10.0), -0.5, np.deg2rad(-10),
+           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -0.9, np.deg2rad(-15),
+           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-20),
+           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-25), # leg1
+           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-30),
+           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-35),
+           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-40),
+           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-50),
+           np.deg2rad(-2.0), 0.8, np.deg2rad(-20.0), -1, np.deg2rad(-60),
+           np.deg2rad(-2.0), 0.7, np.deg2rad(-20.0), -1, np.deg2rad(-70),
+           np.deg2rad(-2.0), 0.7, np.deg2rad(-20.0), -1, np.deg2rad(-80), # leg2
+           np.deg2rad(-2.0), 0.6, np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.6, np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.5, np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.5, np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.4, np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.4, np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.3, np.deg2rad(-20.0), -1, np.deg2rad(-90), # leg3
+           np.deg2rad(-2.0), 0.3, np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.2, np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.2, np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.1, np.deg2rad(-20.0), -1, np.deg2rad(-80),
+           np.deg2rad(-2.0), 0.1, np.deg2rad(-20.0), -1, np.deg2rad(-50),
+           np.deg2rad(-2.0), 0.05, np.deg2rad(-20.0), -1, np.deg2rad(-20),
+           np.deg2rad(-2.0), 0.01, np.deg2rad(-20.0), -0.5, np.deg2rad(-10), # leg4
+           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1)] # leg5
+
+    UbC = [np.deg2rad(1.0), 1.0, np.deg2rad(30), 0.1, np.deg2rad(1),
+           np.deg2rad(1.0), 1.0, np.deg2rad(30.0), 0.2, np.deg2rad(1),
+           np.deg2rad(3.0), 1.0, np.deg2rad(30.0), 0.3, np.deg2rad(5),
+           np.deg2rad(5.0), 1.0, np.deg2rad(10.0), 0.5, np.deg2rad(10),
+           np.deg2rad(10.0), 1.0, np.deg2rad(30.0), 0.9, np.deg2rad(15),
+           np.deg2rad(15.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(20),
+           np.deg2rad(20.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(25), # leg1
+           np.deg2rad(25.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(30),
+           np.deg2rad(30.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(35),
+           np.deg2rad(35.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(40),
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(50),
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(60),
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(70),
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(80), # leg2
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90),
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90),
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 0.7, np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 0.6, np.deg2rad(30.0), 1, np.deg2rad(90),
+           np.deg2rad(40.0), 0.6, np.deg2rad(30.0), 1, np.deg2rad(90.0), # leg3
+           np.deg2rad(40.0), 0.5, np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 0.5, np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 0.5, np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 0.4, np.deg2rad(30.0), 1, np.deg2rad(80.0),
+           np.deg2rad(40.0), 0.4, np.deg2rad(30.0), 1, np.deg2rad(50.0),
+           np.deg2rad(40.0), 0.3, np.deg2rad(30.0), 1, np.deg2rad(20.0),
+           np.deg2rad(40.0), 0.25, np.deg2rad(30.0), 0.5, np.deg2rad(10.0), # leg4
+           np.deg2rad(40.0), 0.25, np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1)] #leg5
 
     Tlb = [1.0]
     Tub = [200]
@@ -1253,35 +1337,10 @@ if __name__ == '__main__':
     bndX = ((0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0))
     bndU = ((0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0))
     bndT = ((0.0, 1.0),)
-    # bndX = ((None, None),(None, None), (None, None), (None, None), (None, None), (None, None), (None, None))
-    # bndU = ((None, None),(None, None),(None, None),(None, None),(None, None))
-    # bndT = ((0.001, 1.0),)
-
-    # Xlb = ([v_toNew(0.001), chi_toNew(np.deg2rad(90)), gamma_toNew(0.0), teta_toNew(np.deg2rad(-90)), lam_toNew(-obj.incl, obj), h_toNew(0.001), m_toNew(obj.m10, obj)]) # states lower bounds
-    # Xub = ([v_toNew(1e4), chi_toNew(np.deg2rad(270)), gamma_toNew(np.deg2rad(90)), teta_toNew(0.0), lam_toNew(obj.incl, obj), h_toNew(2e5), m_toNew(obj.M0, obj)]) # states upper bounds
-
-    # Ulb = ([alfa_toNew(np.deg2rad(-2)), 0.0001, deltaf_toNew(np.deg2rad(-20)), tau_toNew(-1.0), mu_toNew(np.deg2rad(-90))]) # controls lower bounds
-    # Uub = ([alfa_toNew(np.deg2rad(40)), 1.0, deltaf_toNew(np.deg2rad(30)), tau_toNew(1.0), mu_toNew(np.deg2rad(90))]) # controls upper bounds
-
-    # Tlb = ([1/unit_t,]) # time lower bounds
-    # Tub = ([1.0,]) # time upper bounds
-
-    # lb = Xlb*Nleg + Ulb * (Nleg * NContPoints) + Tlb*Nleg
-    # ub = Xub*Nleg + Uub * (Nleg * NContPoints) + Tub*Nleg
-
-    # Ulb = ([0.0])
-    # Uub = ([1.0])
-
-    # Tlb = ([0.0]) # time lower bounds
-    # Tub = ([1.0]) # time upper bounds
-
-    # Vlb = Xlb*Nleg + Ulb * Ncontrols * (Nleg * NContPoints) + Tlb*Nleg
-    # Vub = Xub*Nleg + Uub * Ncontrols * (Nleg * NContPoints) + Tub*Nleg
-    # bnds = Bounds(Vlb, Vub)
     bnds = bndX * Nleg + bndU * Nleg * NContPoints + bndT * Nleg
 
     iterator = 0
-    p = Pool(processes=3)
+    p = Pool(processes=4)
 
     while iterator < maxIterator:
         print("---- iteration : {0} ----".format(iterator + 1))

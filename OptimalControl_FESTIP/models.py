@@ -538,7 +538,6 @@ def aeroForcesMulti(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass
     return L, D, Mom
 
 
-
 def thrustMulti(presamb, mass, presv, spimpv, delta, tau, npoint, slpres, wlo, we, lref, xcgf, xcg0):
     nimp = 17
     nmot = 1

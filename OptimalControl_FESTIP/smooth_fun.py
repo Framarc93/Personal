@@ -1,4 +1,4 @@
-from scipy.interpolate import splev, splrep
+from scipy.interpolate import splev, splrep, PchipInterpolator
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io as sio

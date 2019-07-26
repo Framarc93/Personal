@@ -329,7 +329,14 @@ def MultiPlot(var, dynamics, Nint):
     time = np.zeros((1))
     TrContPoint = np.zeros((Nleg, NContPoints))
     TtContPoint = np.zeros((Nleg, NContPoints))
-
+    Rtot = []
+    Tetatot = []
+    Vrtot = []
+    Vttot = []
+    mtot = []
+    Trtot = []
+    Tttot = []
+    timeTot = []
     for i in range(Nleg):
         Tr = np.zeros((NContPoints))
         Tt = np.zeros((NContPoints))
@@ -351,7 +358,14 @@ def MultiPlot(var, dynamics, Nint):
 
         Rres, tetares, Vrres, Vtres, mres, tres, Trres, Ttres , Trinterp, Ttinterp= SingleShooting(
             states, controls, dynamics, timestart, timeend, Nint)
-
+        Rtot = np.hstack((Rtot, Rres))
+        Tetatot = np.hstack((Tetatot, tetares))
+        Vrtot = np.hstack((Vrtot, Vrres))
+        Vttot = np.hstack((Vttot, Vtres))
+        mtot = np.hstack((mtot, mres))
+        Trtot = np.hstack((Trtot, Trres))
+        Tttot = np.hstack((Tttot, Ttres))
+        timeTot = np.hstack((timeTot, tres))
         rho = obj.air_density(Rres - obj.Re)
         Dr = 0.5 * rho * Vrres * np.sqrt(Vrres ** 2 + Vtres ** 2) \
              * obj.Cd * obj.A  # [N]
@@ -438,8 +452,15 @@ def MultiPlot(var, dynamics, Nint):
         plt.legend(["Tr", "Tt", "Thrust", "Dr", "Dt", "Gravity"], loc="best")
         plt.savefig(savefig_file + "force" + ".png")
 
-
     plt.show()
+    np.save("R", Rtot)
+    np.save("Theta", Tetatot)
+    np.save("Vr", Vrtot)
+    np.save("Vt", Vttot)
+    np.save("m", mtot)
+    np.save("Tr", Trtot)
+    np.save("Tt", Tttot)
+    np.save("time", timeTot)
 
 
 def equality(var, conj):
@@ -626,7 +647,7 @@ while iterator < maxIterator:
                             X0,
                             constraints=cons,
                             bounds=bnds,
-			    jac=JacFun,
+			                jac=JacFun,
                             method='SLSQP',
                             options={"ftol": ftol,
                                      "maxiter": maxiter,
