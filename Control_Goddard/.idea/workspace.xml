@@ -3,7 +3,10 @@
   <component name="ChangeListManager">
     <list default="true" id="bce31c34-7559-466c-9cda-779bcb21621f" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+<<<<<<< Updated upstream
       <change beforePath="$PROJECT_DIR$/GP_Goddard.py" beforeDir="false" afterPath="$PROJECT_DIR$/GP_Goddard.py" afterDir="false" />
+=======
+>>>>>>> Stashed changes
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -183,7 +186,11 @@
       <workItem from="1564046104204" duration="64000" />
       <workItem from="1564048881316" duration="4761000" />
       <workItem from="1564069745165" duration="22463000" />
+<<<<<<< Updated upstream
       <workItem from="1564152378155" duration="13290000" />
+=======
+      <workItem from="1564148631279" duration="37000" />
+>>>>>>> Stashed changes
     </task>
     <task id="LOCAL-00001" summary="Update on GP control. Managed to obtain 2 control laws">
       <created>1564148025990</created>

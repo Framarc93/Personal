@@ -83,12 +83,12 @@ class Spaceplane:
 
 def dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int):
     '''this functions receives the states and controls unscaled and calculates the dynamics'''
-    v = states[0]
+    v = np.nan_to_num(states[0])
     chi = states[1]
     gamma = states[2]
     teta = states[3]
     lam = states[4]
-    h = states[5]
+    h = np.nan_to_num(states[5])
     m = states[6]
     alfa = float(alfa_Int(t))
     delta = float(delta_Int(t))
@@ -132,12 +132,12 @@ def dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int):
 def dynamicsVel(states, contr):
     '''this functions receives the states and controls unscaled and calculates the dynamics'''
 
-    v = states[0]
+    v = np.nan_to_num(states[0])
     chi = states[1]
     gamma = states[2]
     teta = states[3]
     lam = states[4]
-    h = states[5]
+    h = np.nan_to_num(states[5])
     m = states[6]
     alfa = contr[0]
     delta = contr[1]
@@ -183,18 +183,18 @@ def dynamicsVel(states, contr):
 
 def inequalityAll(states, controls, varnum):
     '''this function takes states and controls unscaled'''
-    v = np.transpose(states[:, 0])
-    chi = np.transpose(states[:, 1])
-    gamma = np.transpose(states[:, 2])
+    v = np.transpose(np.nan_to_num(states[:, 0]))
+    #chi = np.transpose(states[:, 1])
+    #gamma = np.transpose(states[:, 2])
     #teta = np.transpose(states[:, 3])
     #lam = np.transpose(states[:, 4])
-    h = np.transpose(states[:, 5])
+    h = np.transpose(np.nan_to_num(states[:, 5]))
     m = np.transpose(states[:, 6])
     alfa = np.transpose(controls[:, 0])
     delta = np.transpose(controls[:, 1])
     deltaf = np.transpose(controls[:, 2])
     tau = np.transpose(controls[:, 3])  # tau back to [-1, 1] interval
-    #u = np.transpose(controls[:, 4])
+    #mu = np.transpose(controls[:, 4])
 
 
     Press, rho, c = isaMulti(h, obj.psl, obj.g0, obj.Re)
@@ -1340,7 +1340,7 @@ if __name__ == '__main__':
     bnds = bndX * Nleg + bndU * Nleg * NContPoints + bndT * Nleg
 
     iterator = 0
-    p = Pool(processes=4)
+    p = Pool(processes=5)
 
     while iterator < maxIterator:
         print("---- iteration : {0} ----".format(iterator + 1))
