@@ -176,7 +176,7 @@ num_states = [5]
 num_controls = [2]
 max_iteration = 50
 
-flag_savefig = True
+flag_savefig = False
 savefig_file = "SSTO_"
 
 # ------------------------
@@ -371,7 +371,16 @@ for i in range(Npoints):
         X = np.hstack((X, Xval[j][i]))
 
 Rres, tetares, Vrres, Vtres, mres, Trres, Ttres, tres = SingleShooting(X, Uval, dynamicsInt, time, Nint)
-print(mres[-1])
+
+np.save("R", Rres)
+np.save("Theta", tetares)
+np.save("Vr", Vrres)
+np.save("Vt", Vtres)
+np.save("m", mres)
+np.save("Tr", Trres)
+np.save("Tt", Ttres)
+np.save("time", tres)
+
 # ------------------------
 # Calculate necessary variables
 rho = obj.air_density(R - obj.Re)

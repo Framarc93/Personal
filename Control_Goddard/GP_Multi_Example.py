@@ -89,7 +89,7 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 toolbox.register("lambdify", gp.lambdify, pset=pset)
 toolbox.register("stringify", gp.lambdify, pset=pset)
 
-toolbox.register('evaluate', evalFitness, toolbox=toolbox, sourceData=data,minTrades=minTrades, log=False)
+toolbox.register('evaluate', evalFitness, toolbox=toolbox, sourceData=data, minTrades=minTrades, log=False)
 toolbox.register("select", xselDoubleTournament, fitness_size=3, parsimony_size=1.4, fitness_first=True)
 
 toolbox.register("mate", xmate)
@@ -101,6 +101,8 @@ hof = tools.HallOfFame(1)
 
 pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu=individuals, lambda_=individuals,
                           cxpb=0.5, mutpb=0.1, ngen=generations, stats=stats, halloffame=hof, verbose=True)
+
+
 
 gen = log.select("gen")
 fit_max = log.chapters["fitness"].select('max')

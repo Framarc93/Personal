@@ -1,9 +1,5 @@
-import tkinter as tk
-import time
 from scipy.integrate import solve_ivp
 import numpy as np
-#import networkx as nx
-#from networkx.drawing.nx_agraph import graphviz_layout
 import operator
 import pygraphviz as pgv
 import random
@@ -11,9 +7,6 @@ from deap import gp
 import matplotlib.pyplot as plt
 import sys
 import timeit
-import pandas as pd
-from functools import reduce
-from operator import add, itemgetter
 from deap import algorithms
 from deap import base
 from deap import creator
@@ -82,11 +75,22 @@ def Sin(x):
 
 
 def xmate(ind1, ind2):
-    global flag
+    global flag, old1, old2
+
+    #if ind1[0].height == np.nan or ind1[1].height == np.nan or ind2[0].height == np.nan or ind2[1].height == np.nan:
+     #   ind1 = old1
+      #  ind2 = old2
+    '''try:
+        print(
+    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError,
+            ValueError):'''
+
     i1 = random.randrange(len(ind1))
     i2 = random.randrange(len(ind2))
     try:
         ind1[i1], ind2[i2] = gp.cxOnePoint(ind1[i1], ind2[i2])
+    #old1 = ind1
+    #old2 = ind2
         return ind1, ind2
     except (
     RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
@@ -97,14 +101,15 @@ def xmate(ind1, ind2):
 def xmut(ind, expr):
     global flag
     i1 = random.randrange(len(ind))
-    try:
-        indx = gp.mutUniform(ind[i1], expr, pset=pset)
-        ind[i1] = indx[0]
-        return ind,
-    except (
-    RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
-        flag = True
-        return ind,
+
+    #try:
+    indx = gp.mutUniform(ind[i1], expr, pset=pset)
+    ind[i1] = indx[0]
+    return ind,
+    #except (
+    #RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+    #    flag = True
+    #    return ind,
 
 
 
@@ -120,8 +125,8 @@ def xselDoubleTournament(individuals, k, fitness_size, parsimony_size, fitness_f
             prob = parsimony_size / 2.
             ind1, ind2 = select(individuals, k=2)
 
-            lind1 = sum([len(gpt) for gpt in ind1])
-            lind2 = sum([len(gpt) for gpt in ind2])
+            lind1 = sum([len(gpt) for gpt in ind1]) #extra
+            lind2 = sum([len(gpt) for gpt in ind2]) #extra
             if lind1 > lind2:
                 ind1, ind2 = ind2, ind1
             elif lind1 == lind2:
@@ -151,7 +156,7 @@ def xselDoubleTournament(individuals, k, fitness_size, parsimony_size, fitness_f
 
 start = timeit.default_timer()
 
-###############################  S I S T E M - P A R A M E T E R S  ####################################################
+###############################  S Y S T E M - P A R A M E T E R S  ####################################################
 
 class Rocket:
 
@@ -189,17 +194,17 @@ Ncontrols = 2
 
 old = 0
 
-size_pop = 300                                                                             # Pop size
-size_gen = 200                                                                             # Gen size
+size_pop = 50                                                                     # Pop size
+size_gen = 30                                                                         # Gen size
 Mu = int(size_pop)
-Lambda = int(size_pop * 1.5)
+Lambda = int(size_pop)
 
-limit_height = 20                                                                   # Max height (complexity) of the controller law
-limit_size = 300                                                                    # Max size (complexity) of the controller law
+limit_height = 30                                                                   # Max height (complexity) of the controller law
+limit_size = 50                                                                    # Max size (complexity) of the controller law
 
 nbCPU = multiprocessing.cpu_count()
 
-################################# M A I N     D E L    P R O G R A M M A ###############################################
+################################# M A I N ###############################################
 
 def main():
     global size_gen, size_pop, Mu, Lambda
@@ -208,6 +213,9 @@ def main():
     global stat_evoo
     global Rfun, Thetafun, Vrfun, Vtfun, mfun
     global tfin
+    global old1, old2
+    old1 = 1
+    old2 = 2
 
     Rref = np.load("R.npy")
     Thetaref = np.load("Theta.npy")
@@ -217,16 +225,6 @@ def main():
     tref = np.load("time.npy")
     tfin = tref[-1]
 
-    for i in range(len(Rref)-4):
-        if tref[i] == tref[i-1]:
-            Rref = np.delete(Rref, i)
-            Thetaref = np.delete(Thetaref, i)
-            Vrref = np.delete(Vrref, i)
-            Vtref = np.delete(Vtref, i)
-            mref = np.delete(mref, i)
-            tref = np.delete(tref, i)
-
-
     Rfun = PchipInterpolator(tref, Rref)
     Thetafun = PchipInterpolator(tref, Thetaref)
     Vrfun = PchipInterpolator(tref, Vrref)
@@ -235,7 +233,7 @@ def main():
 
     pool = multiprocessing.Pool(nbCPU)
 
-    toolbox.register("map", pool.map)
+    toolbox.register("map", map)
 
     print("INITIAL POP SIZE: %d" % size_pop)
 
@@ -262,7 +260,7 @@ def main():
 
     # pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.2, size_gen, stats=mstats, halloffame=hof,
                                          # verbose=True)  ### OLD ###
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu=Mu, lambda_=Lambda, cxpb=0.6, mutpb=0.2, ngen=size_gen,
+    pop, log = algorithms.eaSimple(pop, toolbox, cxpb=0.6, mutpb=0.0, ngen=size_gen,
                               stats=mstats, halloffame=hof, verbose=True)  ### NEW ###
 
     ####################################################################################################################
@@ -272,31 +270,31 @@ def main():
     tformat = str(datetime.timedelta(seconds=int(total_time)))
 
     gen = log.select("gen")
-    fit_max = log.chapters["fitness"].select('max')
+    fit_avg = log.chapters["fitness"].select('avg')
 
     perform = []
     p = 0
-    for items in fit_max:
-        perform.append(fit_max[p][0])
+    for items in fit_avg:
+        perform.append(fit_avg[p][0])
         p = p + 1
 
-    size_avgs = log.chapters["size"].select("avg")
+    #size_avgs = log.chapters["size"].select("avg")
     fig, ax1 = plt.subplots()
-    line1 = ax1.plot(gen, perform, "b-", label="Maximum Fitness Performance")
+    ax1.plot(gen, perform, "b-", label="Average Fitness Performance")
     ax1.set_xlabel("Generation")
     ax1.set_ylabel("Fitness", color="b")
     for tl in ax1.get_yticklabels():
         tl.set_color("b")
 
-    ax2 = ax1.twinx()
-    line2 = ax2.plot(gen, size_avgs, "r-", label="Average Size")
-    ax2.set_ylabel("Size", color="r")
-    for tl in ax2.get_yticklabels():
-        tl.set_color("r")
+    #ax2 = ax1.twinx()
+    #line2 = ax2.plot(gen, size_avgs, "r-", label="Average Size")
+    #ax2.set_ylabel("Size", color="r")
+    #for tl in ax2.get_yticklabels():
+    #    tl.set_color("r")
 
-    lns = line1 + line2
-    labs = [l.get_label() for l in lns]
-    ax1.legend(lns, labs, loc="center right")
+    #lns = line1 + line2
+    #labs = [l.get_label() for l in lns]
+    #ax1.legend(lns, labs, loc="center right")
     textstr = ('Total Running Time: {}'.format(tformat))
     ax1.text(0.65, 0.9, textstr, transform=ax1.transAxes, fontsize=10,
              horizontalalignment='right')
@@ -317,33 +315,31 @@ def main():
     print(len(hof.items[0][0]))
     print(len(hof.items[0][1]))
 
-   
+
     value = toolbox.evaluate(hof[0])
     print("THE EVALUATION OF THE BEST INDIVIDUAL IS:")
     print(value)
     print("\n")'''
-
-    expr1 = hof.items[0][0]
-    expr2 = hof.items[0][1]
+    expr1 = hof[0][0]
     nodes1, edges1, labels1 = gp.graph(expr1)
-    nodes2, edges2, labels2 = gp.graph(expr2)
-    g = pgv.AGraph()
-    g.add_nodes_from(nodes1)
-    g.add_edges_from(edges1)
-    g.layout(prog="dot")
+    nodes2, edges2, labels2 = gp.graph(hof[0][1])
+    g1 = pgv.AGraph()
+    g1.add_nodes_from(nodes1)
+    g1.add_edges_from(edges1)
+    g1.layout(prog="dot")
     for i in nodes1:
-        n = g.get_node(i)
+        n = g1.get_node(i)
         n.attr["label"] = labels1[i]
-    g.draw("tree1.png")
+    g1.draw("tree1.png")
 
-    g = pgv.AGraph()
-    g.add_nodes_from(nodes2)
-    g.add_edges_from(edges2)
-    g.layout(prog="dot")
+    g2 = pgv.AGraph()
+    g2.add_nodes_from(nodes2)
+    g2.add_edges_from(edges2)
+    g2.layout(prog="dot")
     for i in nodes2:
-        n = g.get_node(i)
+        n = g2.get_node(i)
         n.attr["label"] = labels2[i]
-    g.draw("tree2.png")
+    g2.draw("tree2.png")
 
     image1 = plt.imread('tree1.png')
     fig1, ax1 = plt.subplots()
@@ -398,28 +394,77 @@ def main():
         dxdt[3] = fTt(er, et, evr, evt, em) / m - Dt / m - (Vr * Vt) / R
         dxdt[4] = - np.sqrt(fTr(er, et, evr, evt, em) ** 2 + fTt(er, et, evr, evt, em) ** 2) / g0 / Isp
 
-        return [dxdt[0], dxdt[1], dxdt[2], dxdt[3], dxdt[4]]
+        return dxdt
 
     #tevals = np.linspace(0.0, tfin, 1000)
 
     solgp = solve_ivp(sys2GP, [0.0, tfin], x_ini, first_step=0.0001)
-    ygp = solgp.y[0, :]
+    rout = solgp.y[0, :]
+    thetaout = solgp.y[1, :]
+    vrout = solgp.y[2, :]
+    vtout = solgp.y[3, :]
+    mout = solgp.y[4, :]
     tgp = solgp.t
-    rrr = np.zeros(len(tgp), dtype='float')
+    rR = np.zeros(len(tgp), dtype='float')
+    tR = np.zeros(len(tgp), dtype='float')
+    vrR = np.zeros(len(tgp), dtype='float')
+    vtR = np.zeros(len(tgp), dtype='float')
+    mR = np.zeros(len(tgp), dtype='float')
+
     ii = 0
     for i in tgp:
-        rrr[ii] = Rfun(i)
+        rR[ii] = Rfun(i)
+        tR[ii] = Thetafun(i)
+        vrR[ii] = Vrfun(i)
+        vtR[ii] = Vtfun(i)
+        mR[ii] = mfun(i)
         ii = ii + 1
 
-    errgp = rrr - ygp  # Error system with genetic programming
+    errgp = rR - rout  # Error system with genetic programming
 
-    fig, ax2 = plt.subplots()
+    fig2, ax2 = plt.subplots()
     ax2.set_xlabel("time [s]")
     ax2.set_ylabel("position [km]")
-    plt.plot(tgp, (ygp-obj.Re)/1e3, label="GENETIC PROGRAMMING")
-    plt.plot(tgp, (rrr-obj.Re)/1e3, 'r--', label="SET POINT")
+    plt.plot(tgp, (rout-obj.Re)/1e3, label="GENETIC PROGRAMMING")
+    plt.plot(tgp, (rR-obj.Re)/1e3, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Position plot.png')
+    plt.savefig('Height plot.png')
+    plt.show()
+
+    fig3, ax3 = plt.subplots()
+    ax3.set_xlabel("time [s]")
+    ax3.set_ylabel("angle [deg]")
+    plt.plot(tgp, thetaout, label="GENETIC PROGRAMMING")
+    plt.plot(tgp, tR, 'r--', label="SET POINT")
+    plt.legend(loc="lower right")
+    plt.savefig('Angle plot.png')
+    plt.show()
+
+    fig4, ax4 = plt.subplots()
+    ax4.set_xlabel("time [s]")
+    ax4.set_ylabel("speed [m/s]")
+    plt.plot(tgp, vrout, label="GENETIC PROGRAMMING")
+    plt.plot(tgp, vrR, 'r--', label="SET POINT")
+    plt.legend(loc="lower right")
+    plt.savefig('Vr plot.png')
+    plt.show()
+
+    fig5, ax5 = plt.subplots()
+    ax5.set_xlabel("time [s]")
+    ax5.set_ylabel("speed [m/s]")
+    plt.plot(tgp, vtout, label="GENETIC PROGRAMMING")
+    plt.plot(tgp, vtR, 'r--', label="SET POINT")
+    plt.legend(loc="lower right")
+    plt.savefig('Speed plot.png')
+    plt.show()
+
+    fig6, ax6 = plt.subplots()
+    ax6.set_xlabel("time [s]")
+    ax6.set_ylabel("mass [kg]")
+    plt.plot(tgp, mout, label="GENETIC PROGRAMMING")
+    plt.plot(tgp, mR, 'r--', label="SET POINT")
+    plt.legend(loc="lower right")
+    plt.savefig('mass plot.png')
     plt.show()
 
 
@@ -469,17 +514,19 @@ def main():
 ##################################  F I T N E S S    F U N C T I O N    ################################################
 flag = False
 pas = False
-stat_evoo = [0, 0, 0, 0]
+#stat_evoo = [0, 0, 0, 0]
 
 fitnnesoldvalue = 0
-fitness_old=1e10
+fitness_old1 = 1e10
+fitness_old4 = 1e10
+fitness_old5 = 1e10
 
 def evaluate(individual):
     global flag
     global pas
     global old
     global zeta
-    global fitnnesoldvalue,fitness_old
+    global fitnnesoldvalue,fitness_old1, fitness_old5, fitness_old4
     global rise_time
     global ar, vr, yr
     global stat_evoo
@@ -548,108 +595,99 @@ def evaluate(individual):
         evt = vt - Vt
         em = mf - m
         dxdt = np.zeros(Nstates)
-        #print(R, Vr, Vt, m)
-
+        #print("Ft: ", fTt(er, et, evr, evt, em))
+        #print("Fr: ", fTr(er, et, evr, evt, em))
+        rho = obj.air_density(R - obj.Re)
+        Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) \
+             * obj.Cd * obj.A  # [N]
+        Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) \
+             * obj.Cd * obj.A  # [N]
+        g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
+        g0 = obj.g0
+        Isp = obj.Isp
+        dxdt[0] = Vr
+        dxdt[1] = Vt / R
         if abs(fTr(er, et, evr, evt, em)) > obj.Tmax and not (np.isinf(fTr(er, et, evr, evt, em)) or np.isnan(fTr(er, et, evr, evt, em)) or np.iscomplex(fTr(er, et, evr, evt, em))):
-            rho = obj.air_density(R - obj.Re)
-            Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) \
-                 * obj.Cd * obj.A  # [N]
-            Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) \
-                 * obj.Cd * obj.A  # [N]
-            g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
-            g0 = obj.g0
-            Isp = obj.Isp
-            dxdt[0] = Vr
-            dxdt[1] = Vt / R
+
             dxdt[2] = obj.Tmax / m - Dr / m - g + Vt ** 2 / R
             dxdt[3] = fTt(er, et, evr, evt, em) / m - Dt / m - (Vr * Vt) / R
             dxdt[4] = - np.sqrt(obj.Tmax ** 2 + fTt(er, et, evr, evt, em) ** 2) / g0 / Isp
             flag = True
 
         elif abs(fTt(er, et, evr, evt, em)) > obj.Tmax and not (np.isinf(fTt(er, et, evr, evt, em)) or np.isnan(fTt(er, et, evr, evt, em)) or np.iscomplex(fTt(er, et, evr, evt, em))):
-            rho = obj.air_density(R - obj.Re)
-            Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) \
-                 * obj.Cd * obj.A  # [N]
-            Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) \
-                 * obj.Cd * obj.A  # [N]
-            g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
-            g0 = obj.g0
-            Isp = obj.Isp
-            dxdt[0] = Vr
-            dxdt[1] = Vt / R
+
             dxdt[2] = fTr(er, et, evr, evt, em) / m - Dr / m - g + Vt ** 2 / R
             dxdt[3] = obj.Tmax / m - Dt / m - (Vr * Vt) / R
             dxdt[4] = - np.sqrt(fTr(er, et, evr, evt, em) ** 2 + obj.Tmax ** 2) / g0 / Isp
             flag = True
 
+        elif fTr(er, et, evr, evt, em) < 0.0 and not (np.isinf(fTr(er, et, evr, evt, em)) or np.isnan(fTr(er, et, evr, evt, em)) or np.iscomplex(fTr(er, et, evr, evt, em))):
+
+            dxdt[2] = - Dr / m - g + Vt ** 2 / R
+            dxdt[3] = fTt(er, et, evr, evt, em) / m - Dt / m - (Vr * Vt) / R
+            dxdt[4] = - np.sqrt(fTt(er, et, evr, evt, em) ** 2) / g0 / Isp
+            flag = True
+
+        elif fTt(er, et, evr, evt, em) < 0.0 and not (np.isinf(fTt(er, et, evr, evt, em)) or np.isnan(fTt(er, et, evr, evt, em)) or np.iscomplex(fTt(er, et, evr, evt, em))):
+
+            dxdt[2] = fTr(er, et, evr, evt, em) / m - Dr / m - g + Vt ** 2 / R
+            dxdt[3] = - Dt / m - (Vr * Vt) / R
+            dxdt[4] = - np.sqrt(fTr(er, et, evr, evt, em) ** 2) / g0 / Isp
+            flag = True
+
         elif np.isinf(fTr(er, et, evr, evt, em)) or np.isnan(fTr(er, et, evr, evt, em)) or np.iscomplex(fTr(er, et, evr, evt, em)):
-            rho = obj.air_density(R - obj.Re)
-            Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) \
-                 * obj.Cd * obj.A  # [N]
-            Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) \
-                 * obj.Cd * obj.A  # [N]
-            g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
-            g0 = obj.g0
-            Isp = obj.Isp
-            dxdt[0] = Vr
-            dxdt[1] = Vt / R
+
             dxdt[2] = np.nan_to_num(fTr(er, et, evr, evt, em)) / m - Dr / m - g + Vt ** 2 / R
             dxdt[3] = fTt(er, et, evr, evt, em) / m - Dt / m - (Vr * Vt) / R
-            dxdt[4] = - np.sqrt(1 ** 2 + fTt(er, et, evr, evt, em) ** 2) / g0 / Isp
+            dxdt[4] = - np.sqrt(np.nan_to_num(fTr(er, et, evr, evt, em)) ** 2 + fTt(er, et, evr, evt, em) ** 2) / g0 / Isp
             flag = True
 
         elif np.isinf(fTt(er, et, evr, evt, em)) or np.isnan(fTt(er, et, evr, evt, em)) or np.iscomplex(fTt(er, et, evr, evt, em)):
-            rho = obj.air_density(R - obj.Re)
-            Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) \
-                 * obj.Cd * obj.A  # [N]
-            Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) \
-                 * obj.Cd * obj.A  # [N]
-            g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
-            g0 = obj.g0
-            Isp = obj.Isp
-            dxdt[0] = Vr
-            dxdt[1] = Vt / R
+
             dxdt[2] = fTr(er, et, evr, evt, em) / m - Dr / m - g + Vt ** 2 / R
             dxdt[3] = np.nan_to_num(fTt(er, et, evr, evt, em)) / m - Dt / m - (Vr * Vt) / R
-            dxdt[4] = - np.sqrt(fTr(er, et, evr, evt, em) ** 2 + 1 ** 2) / g0 / Isp
+            dxdt[4] = - np.sqrt(fTr(er, et, evr, evt, em) ** 2 + np.nan_to_num(fTt(er, et, evr, evt, em)) ** 2) / g0 / Isp
             flag = True
 
         else:
-            rho = obj.air_density(R - obj.Re)
-            Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) \
-                 * obj.Cd * obj.A  # [N]
-            Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) \
-                 * obj.Cd * obj.A  # [N]
-            g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
-            g0 = obj.g0
-            Isp = obj.Isp
-            dxdt[0] = Vr
-            dxdt[1] = Vt / R
+
             dxdt[2] = fTr(er, et, evr, evt, em) / m - Dr / m - g + Vt ** 2 / R
             dxdt[3] = fTt(er, et, evr, evt, em) / m - Dt / m - (Vr * Vt) / R
             dxdt[4] = - np.sqrt(fTr(er, et, evr, evt, em) ** 2 + fTt(er, et, evr, evt, em) ** 2) / g0 / Isp
-            oldTr = fTr(er, et, evr, evt, em)
-            oldTt = fTt(er, et, evr, evt, em)
 
         return [dxdt[0], dxdt[1], dxdt[2], dxdt[3], dxdt[4]]
 
     sol = solve_ivp(sys, [0.0, tfin], x_ini, first_step=0.0001)
-    yy = sol.y[0, :]
-    #dyy = sol.y[1, :]
-    # yi = sol.y[2,:]
+    y1 = sol.y[0, :]
+    y2 = sol.y[1, :]
+    y3 = sol.y[2, :]
+    y4 = sol.y[3, :]
+    y5 = sol.y[4, :]
     tt = sol.t
     pp = 0
     r = np.zeros(len(tt), dtype='float')
+    theta = np.zeros(len(tt), dtype='float')
+    vr = np.zeros(len(tt), dtype='float')
+    vt = np.zeros(len(tt), dtype='float')
+    m = np.zeros(len(tt), dtype='float')
     for i in tt:
         r[pp] = Rfun(i)
+        theta[pp] = Thetafun(i)
+        vr[pp] = Vrfun(i)
+        vt[pp] = Vtfun(i)
+        m[pp] = mfun(i)
         pp += 1
 
-    err1 = (r - yy)-obj.Re
+    err1 = r - y1
+    err2 = theta - y2
+    err3 = vr - y3
+    err4 = vt - y4
+    err5 = m - y5
 
     # STEP TIME SIZE
     i = 0
     pp = 1
-    step = np.zeros(len(yy), dtype='float')
+    step = np.zeros(len(y1), dtype='float')
     step[0] = 0.0001
     while i < len(tt) - 1:
         step[pp] = tt[i + 1] - tt[i]
@@ -657,29 +695,42 @@ def evaluate(individual):
         pp = pp + 1
 
     # INTEGRAL OF ABSOLUTE ERROR (PERFORMANCE INDEX)
-    IAE = np.empty(len(yy), dtype='float')
+    IAE = np.zeros((3, len(err1)))
     j = 0
     alpha = 0.1
-    for p, n in zip(err1, step):
-        IAE[j] = n * abs(p)# + alpha * abs(m))
+    for a, b, c, n in zip(err1, err4, err5, step):
+        IAE[0][j] = n * abs(a) / obj.Re
+        IAE[1][j] = n * abs(b) / obj.Vtarget
+        IAE[2][j] = n * abs(c) / obj.M0  # + alpha * abs(m))
         j = j + 1
-
 
     # PENALIZING INDIVIDUALs
     #For the stats if the multiprocessing is used, there could be problems to print the correct values (parallel process(?))
 
     if flag is True:
         pas = True
-        x = np.random.uniform(fitness_old * 1.5, fitness_old * 1.6)
-        stat_evoo[0] += 1
+        x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
+         # np.random.uniform(fitness_old2 * 1.5, fitness_old2 * 1.6),
+         # np.random.uniform(fitness_old3 * 1.5, fitness_old4 * 1.6),
+         np.random.uniform(fitness_old4 * 1.5, fitness_old4 * 1.6),
+         np.random.uniform(fitness_old5 * 1.5, fitness_old5 * 1.6)]
+
 
     if flag is False:
-        stat_evoo[3] += 1
-        fitness = np.sum(IAE)
-        if fitness < fitness_old:
-            fitness_old=fitness
+        fitness1 = sum(IAE[0])
+        fitness4 = sum(IAE[1])
+        fitness5 = sum(IAE[2])
+        if fitness1 < fitness_old1:
+            fitness_old1 = fitness1
+        if fitness4 < fitness_old4:
+            fitness_old4 = fitness4
+        if fitness5 < fitness_old5:
+            fitness_old5 = fitness5
+        fitness = [fitness1,
+                    fitness4,
+                    fitness5]
 
-    return (x,) if pas is True else (fitness,)
+    return x if pas is True else fitness
 
 ####################################    P R I M I T I V E  -  S E T     ################################################
 
@@ -694,9 +745,8 @@ pset.addPrimitive(Exp, 1)
 pset.addPrimitive(Sin, 1)
 pset.addTerminal(np.pi,"pi")
 pset.addTerminal(np.e,name="nap")                   #e Napier constant number
-pset.addTerminal(2)
-pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-10, 10), 1))
-#pset.addEphemeralConstant("rand101",lambda: random.uniform(-5, 5))
+#pset.addTerminal(2)
+pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-5, 5), 2))
 pset.renameArguments(ARG0='errR')
 pset.renameArguments(ARG1='errTheta')
 pset.renameArguments(ARG2='errVr')
@@ -705,15 +755,15 @@ pset.renameArguments(ARG4='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-1.0,))    # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))    # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
-creator.create("SubIndividual", gp.PrimitiveTree, fitness=creator.Fitness, arity=limit_size)
+creator.create("SubIndividual", gp.PrimitiveTree, fitness=creator.Fitness, arity=1)
 
 toolbox = base.Toolbox()
 # toolbox.register("expr", gp.genFull, pset=pset, min_=1, max_=2)   #### OLD ####
-toolbox.register("expr", gp.genFull, pset=pset, type_=pset.ret, min_=1, max_=4)  ### NEW ###
+toolbox.register("expr", gp.genHalfAndHalf, pset=pset, type_=pset.ret, min_=1, max_=4)  ### NEW ###
 
 toolbox.register("leg", tools.initIterate, creator.SubIndividual, toolbox.expr)  ### NEW ###
 toolbox.register("legs", tools.initRepeat, list, toolbox.leg, n=Ncontrols)  ### NEW ###
@@ -724,8 +774,8 @@ toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.le
 # toolbox.register("population", tools.initRepeat, list, toolbox.individual)  #### OLD ####
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)  ### NEW ###
 
-toolbox.register("lambdify", gp.compile, pset=pset) ### NEW ###
-toolbox.register("stringify", gp.compile, pset=pset) ### NEW ###
+#toolbox.register("lambdify", gp.compile, pset=pset) ### NEW ###
+#toolbox.register("stringify", gp.compile, pset=pset) ### NEW ###
 
 toolbox.register("compile", gp.compile, pset=pset)
 
@@ -745,7 +795,7 @@ toolbox.register("mutate", xmut, expr=toolbox.expr_mut) ### NEW ###
 toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
 toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
 
-toolbox.decorate("mate", gp.staticLimit(key=len, max_value=limit_size))
+toolbox.decorate("mate", gp.staticLimit(key=len , max_value=limit_size))
 toolbox.decorate("mutate", gp.staticLimit(key=len, max_value=limit_size))
 
 history = tools.History()

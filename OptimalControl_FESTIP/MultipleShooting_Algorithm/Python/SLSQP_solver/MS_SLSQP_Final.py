@@ -76,29 +76,46 @@ class Spaceplane:
         self.Controls = np.zeros((0))
         self.time = np.zeros((0))
         self.Conj = np.zeros((0))
-        self.bad = 0
+        self.bad = False
         self.UBV = np.zeros((0))
         self.LBV = np.zeros((0))
 
 
 def dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int):
     '''this functions receives the states and controls unscaled and calculates the dynamics'''
-    v = np.nan_to_num(states[0])
+    v = states[0]
     chi = states[1]
     gamma = states[2]
-    teta = states[3]
+    #teta = states[3]
     lam = states[4]
-    h = np.nan_to_num(states[5])
+    h = states[5]
     m = states[6]
     alfa = float(alfa_Int(t))
     delta = float(delta_Int(t))
     deltaf = float(deltaf_Int(t))
     tau = float(tau_Int(t))
     mu = float(mu_Int(t))
-    #print("states", states)
-    #print("controls", alfa, delta, deltaf, tau, mu)
+    if abs(v) > 1e10:
+        if v > 0:
+            v = 1e10
+        else:
+            v = -1e10
+        obj.bad = True
+    if abs(h) > 1e20:
+        if h > 0:
+            h = 1e20
+        else:
+            h = -1e20
+        obj.bad = True
+    if np.isnan(v):
+        v = 0.1
+        obj.bad = True
+    if np.isnan(h):
+        h = 0.1
+        obj.bad = True
     if gamma >=np.deg2rad(90):
         gamma = np.deg2rad(89.9)
+        obj.bad = True
 
     Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
     M = v / c
@@ -132,20 +149,40 @@ def dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int):
 def dynamicsVel(states, contr):
     '''this functions receives the states and controls unscaled and calculates the dynamics'''
 
-    v = np.nan_to_num(states[0])
+    v = states[0]
     chi = states[1]
     gamma = states[2]
-    teta = states[3]
+    #teta = states[3]
     lam = states[4]
-    h = np.nan_to_num(states[5])
+    h = states[5]
     m = states[6]
     alfa = contr[0]
     delta = contr[1]
     deltaf = contr[2]
     tau = contr[3]
     mu = contr[4]
+    if abs(v) > 1e10:
+        if v > 0:
+            v = 1e10
+        else:
+            v = -1e10
+        obj.bad = True
+    if abs(h) > 1e20:
+        if h > 0:
+            h = 1e20
+        else:
+            h = -1e20
+        obj.bad = True
+    if np.isnan(v):
+        v = 0.1
+        obj.bad = True
+    if np.isnan(h):
+        h = 0.1
+        obj.bad = True
     if gamma >=np.deg2rad(90):
         gamma = np.deg2rad(89.9)
+        obj.bad = True
+
     Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
 
     M = v / c
@@ -183,12 +220,12 @@ def dynamicsVel(states, contr):
 
 def inequalityAll(states, controls, varnum):
     '''this function takes states and controls unscaled'''
-    v = np.transpose(np.nan_to_num(states[:, 0]))
+    v = np.transpose(states[:, 0])
     #chi = np.transpose(states[:, 1])
     #gamma = np.transpose(states[:, 2])
     #teta = np.transpose(states[:, 3])
     #lam = np.transpose(states[:, 4])
-    h = np.transpose(np.nan_to_num(states[:, 5]))
+    h = np.transpose(states[:, 5])
     m = np.transpose(states[:, 6])
     alfa = np.transpose(controls[:, 0])
     delta = np.transpose(controls[:, 1])
@@ -196,6 +233,26 @@ def inequalityAll(states, controls, varnum):
     tau = np.transpose(controls[:, 3])  # tau back to [-1, 1] interval
     #mu = np.transpose(controls[:, 4])
 
+    for i in range(len(v)):
+        if abs(v[i]) > 1e10:
+            if v[i] > 0:
+                v[i] = 1e10
+            else:
+                v[i] = -1e10
+            obj.bad = True
+        elif np.isnan(v[i]):
+            v[i] = 0.1
+            obj.bad = True
+    for i in range(len(h)):
+        if abs(h[i]) > 1e20:
+            if h[i] > 0:
+                h[i] = 1e20
+            else:
+                h[i] = -1e20
+            obj.bad = True
+        elif np.isnan(h[i]):
+            h[i] = 0.1
+            obj.bad = True
 
     Press, rho, c = isaMulti(h, obj.psl, obj.g0, obj.Re)
     Press = np.asarray(Press, dtype=np.float64)
@@ -541,10 +598,13 @@ def MultiShooting(var, dyn):
     Dv1 = np.sqrt(obj.GMe / r1) * (np.sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1)
     Dv2 = np.sqrt(obj.GMe / obj.r2) * (1 - np.sqrt((2 * r1) / (r1 + obj.r2)))
     mf = m / np.exp((Dv1 + Dv2) / (obj.g0 * isp))
-
     cost = -mf / obj.M0
-    obj.costOld = cost
 
+    if obj.bad:
+        cost = 1
+        obj.bad = False
+
+    obj.costOld = cost
     obj.varOld = var
 
 
@@ -1245,23 +1305,23 @@ if __name__ == '__main__':
            500, np.deg2rad(100), np.deg2rad(-50), np.deg2rad(-60), np.deg2rad(2.0), 2e4, 1e5,
            1000, np.deg2rad(100), np.deg2rad(-20), np.deg2rad(-60), np.deg2rad(2.0), 5e4, 5e4]
 
-    UbS = [1.5, np.deg2rad(115), np.deg2rad(89.99), np.deg2rad(-51), np.deg2rad(5.8), 1.5, obj.M0 +10,
+    UbS = [1.5, np.deg2rad(115), np.deg2rad(89.99), np.deg2rad(-51), np.deg2rad(5.8), 1.5, obj.M0,
            1000, np.deg2rad(150), np.deg2rad(70), np.deg2rad(-45), np.deg2rad(8.0), 3e4, 3.5e5,
            2000, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(15.0), 8e4, 3e5,
-           4000, np.deg2rad(150), np.deg2rad(20), np.deg2rad(-45), np.deg2rad(25.0), 8e4, 2e5,
-           6000, np.deg2rad(150), np.deg2rad(10), np.deg2rad(-45), np.deg2rad(25.0), 8e4, 1e5]
+           5000, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(25.0), 8e4, 2e5,
+           6500, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(25.0), 8e4, 1e5]
 
-    LbC = [np.deg2rad(-1.0), 0.95, np.deg2rad(-20.0), -0.1, np.deg2rad(-1),
-           np.deg2rad(-1.0), 0.95, np.deg2rad(-20.0), -0.2, np.deg2rad(-1),
-           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -0.3, np.deg2rad(-5),
-           np.deg2rad(-2.0), 0.95, np.deg2rad(-10.0), -0.5, np.deg2rad(-10),
-           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -0.9, np.deg2rad(-15),
-           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-20),
-           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-25), # leg1
-           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-30),
-           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-35),
-           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-40),
-           np.deg2rad(-2.0), 0.95, np.deg2rad(-20.0), -1, np.deg2rad(-50),
+    LbC = [np.deg2rad(-1.0), 0.9, np.deg2rad(-20.0), -0.1, np.deg2rad(-1),
+           np.deg2rad(-1.0), 0.9, np.deg2rad(-20.0), -0.2, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.3, np.deg2rad(-5),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.5, np.deg2rad(-10),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.9, np.deg2rad(-15),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-20),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-25), # leg1
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-30),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-35),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-40),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-50),
            np.deg2rad(-2.0), 0.8, np.deg2rad(-20.0), -1, np.deg2rad(-60),
            np.deg2rad(-2.0), 0.7, np.deg2rad(-20.0), -1, np.deg2rad(-70),
            np.deg2rad(-2.0), 0.7, np.deg2rad(-20.0), -1, np.deg2rad(-80), # leg2
@@ -1276,8 +1336,8 @@ if __name__ == '__main__':
            np.deg2rad(-2.0), 0.2, np.deg2rad(-20.0), -1, np.deg2rad(-90),
            np.deg2rad(-2.0), 0.2, np.deg2rad(-20.0), -1, np.deg2rad(-90),
            np.deg2rad(-2.0), 0.1, np.deg2rad(-20.0), -1, np.deg2rad(-80),
-           np.deg2rad(-2.0), 0.1, np.deg2rad(-20.0), -1, np.deg2rad(-50),
-           np.deg2rad(-2.0), 0.05, np.deg2rad(-20.0), -1, np.deg2rad(-20),
+           np.deg2rad(-2.0), 0.1, np.deg2rad(-20.0), -0.9, np.deg2rad(-50),
+           np.deg2rad(-2.0), 0.05, np.deg2rad(-20.0), -0.8, np.deg2rad(-20),
            np.deg2rad(-2.0), 0.01, np.deg2rad(-20.0), -0.5, np.deg2rad(-10), # leg4
            np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
            np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
@@ -1290,7 +1350,7 @@ if __name__ == '__main__':
     UbC = [np.deg2rad(1.0), 1.0, np.deg2rad(30), 0.1, np.deg2rad(1),
            np.deg2rad(1.0), 1.0, np.deg2rad(30.0), 0.2, np.deg2rad(1),
            np.deg2rad(3.0), 1.0, np.deg2rad(30.0), 0.3, np.deg2rad(5),
-           np.deg2rad(5.0), 1.0, np.deg2rad(10.0), 0.5, np.deg2rad(10),
+           np.deg2rad(5.0), 1.0, np.deg2rad(30.0), 0.5, np.deg2rad(10),
            np.deg2rad(10.0), 1.0, np.deg2rad(30.0), 0.9, np.deg2rad(15),
            np.deg2rad(15.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(20),
            np.deg2rad(20.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(25), # leg1
@@ -1312,8 +1372,8 @@ if __name__ == '__main__':
            np.deg2rad(40.0), 0.5, np.deg2rad(30.0), 1, np.deg2rad(90.0),
            np.deg2rad(40.0), 0.5, np.deg2rad(30.0), 1, np.deg2rad(90.0),
            np.deg2rad(40.0), 0.4, np.deg2rad(30.0), 1, np.deg2rad(80.0),
-           np.deg2rad(40.0), 0.4, np.deg2rad(30.0), 1, np.deg2rad(50.0),
-           np.deg2rad(40.0), 0.3, np.deg2rad(30.0), 1, np.deg2rad(20.0),
+           np.deg2rad(40.0), 0.4, np.deg2rad(30.0), 0.9, np.deg2rad(50.0),
+           np.deg2rad(40.0), 0.3, np.deg2rad(30.0), 0.8, np.deg2rad(20.0),
            np.deg2rad(40.0), 0.25, np.deg2rad(30.0), 0.5, np.deg2rad(10.0), # leg4
            np.deg2rad(40.0), 0.25, np.deg2rad(30.0), 0.01, np.deg2rad(1),
            np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
@@ -1323,7 +1383,7 @@ if __name__ == '__main__':
            np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
            np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1)] #leg5
 
-    Tlb = [1.0]
+    Tlb = [3.0]
     Tub = [200]
 
     obj.LBV = np.hstack((LbS, LbC, np.repeat(Tlb, Nleg)))
