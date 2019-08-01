@@ -15,21 +15,18 @@ import multiprocessing
 from scipy.interpolate import PchipInterpolator
 from functools import partial
 import datetime
-import math
+#from sympy.integrals import inverse_laplace_transform
+#from sympy.abc import t, s
+from sympy import var
+from mpmath import invertlaplace
+import itertools
+from operator import add, sub
+
+
+
 
 '''References:
     [1] - Automatic creation of human competitive Programs and Controllers by Means of Genetic Programming. Koza, Keane, Yu, Bennet, Mydlowec. 2000'''
-
-def Abs(x):
-    return abs(x)
-
-def Div(left, right):
-    try:
-        x = left / right
-        return x
-    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError, FloatingPointError, OverflowError):
-        return 0.0
-
 
 def Mul(left, right):
     try:
@@ -38,47 +35,29 @@ def Mul(left, right):
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError, FloatingPointError, OverflowError):
         return left
 
+def Inverter(x):
+    return -x
 
-def Sqrt(x):
-    try:
-        if x > 0:
-            return np.sqrt(x)
-        else:
-            return abs(x)
-    except (
-    RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
-        return 0
+def Differentiator(x, y):
+    return x*y
 
+def Integrator(x,y):
+    return x/y
 
-def Log(x):
-    try:
-        if x > 0:
-            return np.log(x)
-        else:
-            return abs(x)
-    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
-        return np.e
+def Differential_Input_Integrator(x, y):
+    return (x-y)*(1/s)
 
+def Lead(x, y):
+    return x*(1+tau*y)
 
-def Exp(x):
-    try:
-        return np.exp(x)
-    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
-        return 1
+def Lag(x, y):
+    return x/(1+tau*y)
 
+def Abs(x):
+    return abs(x)
 
-def Sin(x):
-    try:
-        return np.sin(x)
-    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
-        return 0
-
-def Cos(x):
-    try:
-        return np.cos(x)
-    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
-        return 1
-
+def Gain(x):
+    return x*gain
 
 def xmate(ind1, ind2):
     i1 = random.randrange(len(ind1))
@@ -197,7 +176,8 @@ Nstates = 5
 Ncontrols = 2
 
 old = 0
-
+tau = 0.5
+gain = 1.2
 size_pop = 80# Pop size
 size_gen = 200                                                                         # Gen size
 Mu = int(size_pop)
@@ -509,8 +489,16 @@ def evaluate(individual):
 
     flag = False
     pas = False
+    lap1 = False
+    lap2 = False
 
     # Transform the tree expression in a callable function
+    for i in range(len(individual[0])):
+        if individual[0][i].name == "Integrator" or individual[0][i].name == "Differentiator" or individual[0][i].name == "Lag":
+            lap1 = True
+    for i in range(len(individual[1])):
+        if individual[1][i].name == "Integrator" or individual[1][i].name == "Differentiator" or individual[1][i].name == "Lag":
+            lap2 = True
 
     fTr = toolbox.compile(expr=individual[0])
     fTt = toolbox.compile(expr=individual[1])
@@ -562,11 +550,11 @@ def evaluate(individual):
         vt = Vtfun(t)
         mf = mfun(t)
 
-        er = r - R
-        et = th - theta
-        evr = vr - Vr
-        evt = vt - Vt
-        em = mf - m
+        er = 1#r - R
+        et = 1#th - theta
+        evr = 1#vr - Vr
+        evt = 1#vt - Vt
+        em = 1#mf - m
         dxdt = np.zeros(Nstates)
         #print("Ft: ", fTt(er, et, evr, evt, em))
         #print("Fr: ", fTr(er, et, evr, evt, em))
@@ -576,23 +564,34 @@ def evaluate(individual):
         g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
         g0 = obj.g0
         Isp = obj.Isp
+        s = var('s')
 
-        Tr = fTr(er, et, evr, evt, em)
-        Tt = fTt(er, et, evr, evt, em)
+        if lap1 == True:
+            Tr = fTr(er, et, evr, evt, em, s)
+            Trnew = lambda s: Tr
+            Tr = invertlaplace(Trnew, t)
+        else:
+            Tr = fTr(er, et, evr, evt, em, s)
+        if lap2 == True:
+            Tt = fTt(er, et, evr, evt, em, s)
+            Ttnew = lambda s: Tt
+            Tt = invertlaplace(Ttnew, t)
+        else:
+            Tt = fTt(er, et, evr, evt, em, s)
 
-        if abs(fTr(er, et, evr, evt, em)) > obj.Tmax or np.isinf(fTr(er, et, evr, evt, em)):
+        if abs(Tr) > obj.Tmax or np.isinf(Tr):
             Tr = obj.Tmax
             flag = True
 
-        elif fTr(er, et, evr, evt, em) < 0.0 or np.isnan(fTr(er, et, evr, evt, em)):
+        elif Tr < 0.0 or np.isnan(Tr):
             Tr = 0.0
             flag = True
 
-        if abs(fTt(er, et, evr, evt, em)) > obj.Tmax or np.isinf(fTt(er, et, evr, evt, em)):
+        if abs(Tt) > obj.Tmax or np.isinf(Tt):
             Tt = obj.Tmax
             flag = True
 
-        elif fTt(er, et, evr, evt, em) < 0.0 or np.isnan(fTt(er, et, evr, evt, em)):
+        elif Tt < 0.0 or np.isnan(Tt):
             Tt = 0.0
             flag = True
 
@@ -604,7 +603,7 @@ def evaluate(individual):
 
         return dxdt
 
-    sol = solve_ivp(sys, [0.0, tfin], x_ini, first_step=0.0001)
+    sol = solve_ivp(sys, [1e-3, tfin], x_ini)
     y1 = sol.y[0, :]
     y2 = sol.y[1, :]
     y3 = sol.y[2, :]
@@ -637,7 +636,7 @@ def evaluate(individual):
     i = 0
     pp = 1
     step = np.zeros(len(y1), dtype='float')
-    step[0] = 0.0001
+    step[0] = tt[1] - tt[0]
     while i < len(tt) - 1:
         step[pp] = tt[i + 1] - tt[i]
         i = i + 1
@@ -692,37 +691,47 @@ def evaluate(individual):
 
 ####################################    P R I M I T I V E  -  S E T     ################################################
 
-pset = gp.PrimitiveSet("MAIN", 5)
-pset.addPrimitive(operator.add, 2, name="Add")
-pset.addPrimitive(operator.sub, 2, name="Sub")
-pset.addPrimitive(operator.mul, 2, name="Mul")
+pset = gp.PrimitiveSetTyped("main",  [float, float, float, float, float, bool], float)
+pset.addPrimitive(operator.add, [float, float], float)
+pset.addPrimitive(sub, [float, float], float)
+pset.addPrimitive(Mul, [float, float], float)
+pset.addPrimitive(Inverter, [float], bool)
+pset.addPrimitive(Differentiator, [float, bool], bool)
+pset.addPrimitive(Integrator, [float, bool], bool)
+#pset.addPrimitive(Lead, 1)
+pset.addPrimitive(Lag, [float, bool], float)
+pset.addPrimitive(Gain, [float], float)
 #pset.addPrimitive(operator.truediv, 2, name="Div")
 #pset.addPrimitive(operator.pow, 2, name="Pow")
 #pset.addPrimitive(Mul, 2)
-pset.addPrimitive(Abs, 1)
+pset.addPrimitive(Abs, [float], float)
 #pset.addPrimitive(Div, 2)                      #rallentamento per gli ndarray utilizzati
 #pset.addPrimitive(Sqrt, 1)
 #pset.addPrimitive(Log, 1)
 #pset.addPrimitive(Exp, 1)
 #pset.addPrimitive(Sin, 1)
 #pset.addPrimitive(Cos, 1)
-pset.addTerminal(np.pi, "pi")
-pset.addTerminal(np.e, name="nap")                   #e Napier constant number
-#pset.addTerminal(2)
-pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-5, 5), 4))
-pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-10, 10), 4))
-pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-15, 15), 4))
-pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-20, 20), 4))
+#pset.addTerminal(np.pi, "pi")
+#pset.addTerminal(np.e, name="nap")                   #e Napier constant number
+pset.addTerminal(1, bool)
+pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-5, 5), 4), float)
+pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-5, 5), 4), float)
+pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-5, 5), 4), float)
+pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-5, 5), 4), float)
 #pset.addADF(pset)
+
 pset.renameArguments(ARG0='errR')
 pset.renameArguments(ARG1='errTheta')
 pset.renameArguments(ARG2='errVr')
 pset.renameArguments(ARG3='errVt')
 pset.renameArguments(ARG4='errm')
+pset.renameArguments(ARG5='s')
+
+
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-1.0, -0.5, -0.8, -1.0, -0.9))    # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-1.0, -0.5, -0.8, -1.0, -1.0))    # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", list, fitness=creator.Fitness, height=1)
 

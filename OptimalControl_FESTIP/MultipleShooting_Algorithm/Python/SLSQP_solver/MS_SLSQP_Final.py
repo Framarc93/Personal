@@ -305,7 +305,7 @@ def inequalityAll(states, controls, varnum):
        #             (np.deg2rad(40) - alfa)/unit_alfa, 1.0 - delta, (np.deg2rad(30) - deltaf)/unit_deltaf, 1.0 - tau, (np.deg2rad(90) - mu)/unit_mu,
         #            (obj.MaxAx - ax)/obj.MaxAx, (obj.MaxAz - az)/obj.MaxAz, (obj.MaxQ - q)/obj.MaxQ, (obj.k-MomTotA)/(obj.k*1e2), (mf-obj.m10)/obj.M0))
     iC = np.hstack(((obj.MaxAx - ax) / obj.MaxAx, (obj.MaxAz - az) / obj.MaxAz, (obj.MaxQ - q) / obj.MaxQ,
-                    (obj.k - MomTot) / (obj.k), (MomTot + obj.k) / (obj.k), (mf - obj.m10) / obj.m10))
+                    (obj.k - MomTot) / (obj.k), (MomTot + obj.k) / (obj.k), (mf - obj.m10) / obj.m10, (56300 - mf)/obj.m10))
                     #(chi - np.deg2rad(90))/np.deg2rad(270), (np.deg2rad(270)-chi)/np.deg2rad(270)))
     #for j in range(len(iC)):
      #   if iC[j] > 1:
@@ -320,7 +320,7 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
               dyn: dynamic equations
               tstart: initial time
               tfin: final time
-              Nint: unmber of integration steps'''
+              Nint: number of integration steps'''
     '''states and controls must be given with real values!!! not scaled!!!'''
     '''needed a fixed step integrator'''
     '''tstart and tfin are the initial and final time of the considered leg'''
@@ -579,10 +579,8 @@ def MultiShooting(var, dyn):
     obj.Controls = controls_after
 
     eq_c = equality(varD, states_atNode, controls_atNode)
-    obj.eqOld = eq_c
 
     ineq_c = inequalityAll(states_after, controls_after, Nint*Nleg)
-    obj.ineqOld = ineq_c
 
     h = states_after[-1, 5]
     m = states_after[-1, 6]
@@ -601,12 +599,15 @@ def MultiShooting(var, dyn):
     cost = -mf / obj.M0
 
     if obj.bad:
-        cost = 1
+        cost = -0.05
+        ineq_c = ineq_c * 1e3
+        eq_c = eq_c * 1e3
         obj.bad = False
 
     obj.costOld = cost
     obj.varOld = var
-
+    obj.ineqOld = ineq_c
+    obj.eqOld = eq_c
 
     return eq_c, ineq_c, cost
 
@@ -1209,7 +1210,7 @@ if __name__ == '__main__':
     # eps = 1e-10
     eps = 1e-09  # increment of the derivative
     # u = 2.220446049250313e-16
-    maxIterator = 5  # max number of optimization iterations
+    maxIterator = 10  # max number of optimization iterations
 
     '''definiton of initial conditions'''
 

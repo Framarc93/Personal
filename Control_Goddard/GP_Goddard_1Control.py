@@ -14,25 +14,22 @@ from deap import tools
 import multiprocessing
 from scipy.interpolate import PchipInterpolator
 import datetime
+import math
 
 
 def Div(left, right):
-    with np.errstate(divide='ignore', invalid='ignore'):
-        x = np.divide(left, right)
-        if isinstance(x, np.ndarray):
-            x[np.isinf(x)] = 1
-            x[np.isnan(x)] = 1
-        elif np.isinf(x) or np.isnan(x):
-            x = 1
-    return x
+    try:
+        x = left / right
+        return x
+    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError, FloatingPointError, OverflowError):
+        return 0.0
 
 
 def Mul(left, right):
     try:
-        np.seterr(invalid='raise')
+        #np.seterr(invalid='raise')
         return left * right
-    except (
-            RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError,
+    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError,
             FloatingPointError, OverflowError):
         return left
 
@@ -40,42 +37,34 @@ def Mul(left, right):
 def Sqrt(x):
     try:
         if x > 0:
-            return math.sqrt(x)
+            return np.sqrt(x)
         else:
             return abs(x)
-    except (
-            RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError,
-            ValueError):
+    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
         return 0
 
 
 def Log(x):
     try:
         if x > 0:
-            return math.log(x)
+            return np.log(x)
         else:
             return abs(x)
-    except (
-            RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError,
-            ValueError):
+    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
         return 0
 
 
 def Exp(x):
     try:
-        return math.exp(x)
-    except (
-            RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError,
-            ValueError):
+        return np.exp(x)
+    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
         return 0
 
 
 def Sin(x):
     try:
-        return math.sin(x)
-    except (
-            RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError,
-            ValueError):
+        return np.sin(x)
+    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
         return 0
 
 
@@ -118,7 +107,7 @@ Ncontrols = 2
 old = 0
 
 size_pop = 100 # Pop size
-size_gen = 300  # Gen size
+size_gen = 500  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -180,7 +169,7 @@ def main():
 
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.1, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.7, 0.1, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
 
     ####################################################################################################################
 
@@ -401,6 +390,22 @@ def evaluate(individual):
     # Transform the tree expression in a callable function
 
     fTt = toolbox.compile(expr=individual)
+
+    '''nodes1, edges1, labels1 = gp.graph(individual)
+    g1 = pgv.AGraph()
+    g1.add_nodes_from(nodes1)
+    g1.add_edges_from(edges1)
+    g1.layout(prog="dot")
+    for i in nodes1:
+        n = g1.get_node(i)
+        n.attr["label"] = labels1[i]
+    g1.draw("tree1.png")
+    image1 = plt.imread('tree1.png')
+    fig1, ax1 = plt.subplots()
+    im1 = ax1.imshow(image1)
+    ax1.axis('off')
+    plt.show()'''
+
     x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
 
     def sys(t, x):
@@ -414,38 +419,35 @@ def evaluate(individual):
         Vt = x[3]
         m = x[4]
 
-        if R < obj.Re:
+        if np.isnan(theta) or np.isinf(theta):
+            np.nan_to_num(theta)
+
+        if R < 0 or np.isnan(R):
             R = obj.Re
-            #flag = True
-            #print("R < 0")
+            flag = True
         if np.isinf(R):
-            #print("R inf")
-            R = 1e10
-            #flag = True
-        if m < 0:
+            R = obj.Rtarget
+            flag = True
+        if m < 0 or np.isnan(m):
             m = obj.M0 - obj.Mp
-            #flag = True
-            #print("m < 0")
-        elif m > obj.M0:
+            flag = True
+        elif m > obj.M0 or np.isinf(m):
             m = obj.M0
-            #flag = True
-            #print("m > max")
-        if abs(Vr) > np.sqrt(np.nan_to_num(np.inf))/1e150:
-            #print("Vr inf")
+            flag = True
+        if abs(Vr) > 1e4 or np.isinf(Vr):
             if Vr > 0:
                 Vr = 1e4
-                #flag = True
+                flag = True
             else:
                 Vr = -1e4
-                #flag = True
-        if abs(Vt) > np.sqrt(np.nan_to_num(np.inf))/1e150:
-            #print("Vt inf")
+                flag = True
+        if abs(Vt) > 1e4 or np.isinf(Vt):
             if Vt > 0:
                 Vt = 1e4
-                #flag = True
+                flag = True
             else:
                 Vt = -1e4
-                #flag = True
+                flag = True
 
 
         r = Rfun(t)
@@ -471,35 +473,21 @@ def evaluate(individual):
         g0 = obj.g0
         Isp = obj.Isp
 
+        Tt = fTt(er, et, evr, evt, em)
+
+        if abs(fTt(er, et, evr, evt, em)) > obj.Tmax or np.isinf(fTt(er, et, evr, evt, em)):
+            Tt = obj.Tmax
+            flag = True
+
+        elif fTt(er, et, evr, evt, em) < 0.0 or np.isnan(fTt(er, et, evr, evt, em)):
+            Tt = 0.0
+            flag = True
+
         dxdt[0] = Vr
         dxdt[1] = Vt / R
         dxdt[2] = Tr / m - Dr / m - g + Vt ** 2 / R
-
-        if abs(fTt(er, et, evr, evt, em)) > obj.Tmax and not (np.isinf(fTt(er, et, evr, evt, em)) or np.isnan(fTt(er, et, evr, evt, em)) or np.iscomplex(fTt(er, et, evr, evt, em))):
-
-            dxdt[3] = obj.Tmax / m - Dt / m - (Vr * Vt) / R
-            dxdt[4] = - np.sqrt(obj.Tmax**2 + Tr**2) / g0 / Isp
-            flag = True
-            #print("Tt > Tmax")
-
-        elif fTt(er, et, evr, evt, em) < 0.0 and not (np.isinf(fTt(er, et, evr, evt, em)) or np.isnan(fTt(er, et, evr, evt, em)) or np.iscomplex(fTt(er, et, evr, evt, em))):
-
-            dxdt[3] = - Dt / m - (Vr * Vt) / R
-            dxdt[4] = - Tr/g0/Isp
-            flag = True
-            #print("Tt < 0")
-
-        elif np.isinf(fTt(er, et, evr, evt, em)) or np.isnan(fTt(er, et, evr, evt, em)) or np.iscomplex(fTt(er, et, evr, evt, em)):
-
-            dxdt[3] = np.nan_to_num(fTt(er, et, evr, evt, em)) / m - Dt / m - (Vr * Vt) / R
-            dxdt[4] = - np.sqrt(np.nan_to_num(fTt(er, et, evr, evt, em))**2 + Tr**2) / g0 / Isp
-            flag = True
-            #print("Tt inf or nan or complex")
-
-        else:
-            dxdt[3] = fTt(er, et, evr, evt, em) / m - Dt / m - (Vr * Vt) / R
-            dxdt[4] = -np.sqrt(fTt(er, et, evr, evt, em)**2 + Tr**2) / g0 / Isp
-
+        dxdt[3] = Tt / m - Dt / m - (Vr * Vt) / R
+        dxdt[4] = -np.sqrt(Tt ** 2 + Tr ** 2) / g0 / Isp
         return dxdt
 
     sol = solve_ivp(sys, [0.0, tfin], x_ini)
@@ -507,6 +495,8 @@ def evaluate(individual):
     y4 = sol.y[3, :]
     y5 = sol.y[4, :]
     tt = sol.t
+    if sol.t[-1] != tfin:
+        flag = True
     pp = 0
     r = np.zeros(len(tt), dtype='float')
     theta = np.zeros(len(tt), dtype='float')
@@ -585,14 +575,15 @@ pset = gp.PrimitiveSet("MAIN", 5)
 pset.addPrimitive(operator.add, 2, name="Add")
 pset.addPrimitive(operator.sub, 2, name="Sub")
 pset.addPrimitive(Mul, 2)
-pset.addPrimitive(Div, 2)  # rallentamento per gli ndarray utilizzati
+#pset.addPrimitive(Div, 2)
 pset.addPrimitive(Sqrt, 1)
 pset.addPrimitive(Log, 1)
-pset.addPrimitive(Exp, 1)
+#pset.addPrimitive(Exp, 1)
 pset.addPrimitive(Sin, 1)
 pset.addTerminal(np.pi, "pi")
 pset.addTerminal(np.e, name="nap")  # e Napier constant number
 # pset.addTerminal(2)
+pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-10, 10), 2))
 pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-10, 10), 2))
 pset.renameArguments(ARG0='errR')
 pset.renameArguments(ARG1='errTheta')
