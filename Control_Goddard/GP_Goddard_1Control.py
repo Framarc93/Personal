@@ -67,6 +67,36 @@ def Sin(x):
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
         return 0
 
+def Cos(x):
+    try:
+        return np.cos(x)
+    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+        return 0
+
+
+def mut(ind, expr, strp):
+
+    i1 = random.randrange(len(ind))
+    i2 = random.randrange(len(ind[i1]))
+    choice = random.random()
+    if choice < strp:
+        indx = gp.mutUniform(ind[i1], expr, pset=pset)
+        ind[i1] = indx[0]
+        return ind,
+    else:
+        '''this part execute the mutation on a random constant'''
+        try:
+            val = float(ind[i1][i2].value)
+            new_val = round(random.uniform(-10, 10), 4)
+            #new_val_gauss = np.random.normal(ind[i1][i2].value, 1.0)  # new value of the constant determined by gaussian distribution suggested by Koza in [1]
+            ind[i1][i2].value = new_val
+            ind[i1][i2].name = "{}".format(new_val)
+            return ind,
+        except (ValueError, AttributeError):
+            indx = gp.mutUniform(ind[i1], expr, pset=pset)
+            ind[i1] = indx[0]
+            return ind,
+
 
 start = timeit.default_timer()
 
@@ -107,7 +137,7 @@ Ncontrols = 2
 old = 0
 
 size_pop = 100 # Pop size
-size_gen = 500  # Gen size
+size_gen = 200  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -169,7 +199,7 @@ def main():
 
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.7, 0.1, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.2, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
 
     ####################################################################################################################
 
@@ -580,11 +610,14 @@ pset.addPrimitive(Sqrt, 1)
 pset.addPrimitive(Log, 1)
 #pset.addPrimitive(Exp, 1)
 pset.addPrimitive(Sin, 1)
+pset.addPrimitive(Cos, 1)
 pset.addTerminal(np.pi, "pi")
 pset.addTerminal(np.e, name="nap")  # e Napier constant number
 # pset.addTerminal(2)
 pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-10, 10), 2))
-pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-10, 10), 2))
+pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-10, 10), 2))
+pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-10, 10), 2))
+pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-10, 10), 2))
 pset.renameArguments(ARG0='errR')
 pset.renameArguments(ARG1='errTheta')
 pset.renameArguments(ARG2='errVr')

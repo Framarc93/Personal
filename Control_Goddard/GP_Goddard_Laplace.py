@@ -15,12 +15,14 @@ import multiprocessing
 from scipy.interpolate import PchipInterpolator
 from functools import partial
 import datetime
-#from sympy.integrals import inverse_laplace_transform
+from sympy.integrals import inverse_laplace_transform
 #from sympy.abc import t, s
-from sympy import var
+from sympy import var, symbols
 from mpmath import invertlaplace
 import itertools
 from operator import add, sub
+from sympy.utilities.lambdify import lambdify, implemented_function, lambdastr
+
 
 
 
@@ -38,20 +40,23 @@ def Mul(left, right):
 def Inverter(x):
     return -x
 
-def Differentiator(x, y):
-    return x*y
+def Differentiator(x):
+    #s = symbols('s')
+    return x*s
 
-def Integrator(x,y):
-    return x/y
+def Integrator(x):
+    #s = symbols('s')
+    return x/s
 
 def Differential_Input_Integrator(x, y):
     return (x-y)*(1/s)
 
-def Lead(x, y):
-    return x*(1+tau*y)
+def Lead(x):
+    return x*(1+tau*s)
 
-def Lag(x, y):
-    return x/(1+tau*y)
+def Lag(x):
+    #s = symbols('s')
+    return x/(1+tau*s)
 
 def Abs(x):
     return abs(x)
@@ -177,8 +182,8 @@ Ncontrols = 2
 
 old = 0
 tau = 0.5
-gain = 1.2
-size_pop = 80# Pop size
+gain = 100
+size_pop = 120# Pop size
 size_gen = 200                                                                         # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop*1.5)
@@ -567,17 +572,21 @@ def evaluate(individual):
         s = var('s')
 
         if lap1 == True:
-            Tr = fTr(er, et, evr, evt, em, s)
-            Trnew = lambda s: Tr
-            Tr = invertlaplace(Trnew, t)
+            Tr =fTr(er, et, evr, evt, em).evalf()
+            #Trnew = lambdify(s, Tr(s))
+            Tr = implemented_function('Tr', lambda s: Tr).evalf()
+            #Trnew = lambdify(s, Tr(s))
+            Tr = invertlaplace(Tr, 10)
         else:
-            Tr = fTr(er, et, evr, evt, em, s)
+            Tr = fTr(er, et, evr, evt, em)
         if lap2 == True:
-            Tt = fTt(er, et, evr, evt, em, s)
-            Ttnew = lambda s: Tt
-            Tt = invertlaplace(Ttnew, t)
+            Tt = fTt(er, et, evr, evt, em).evalf()
+            #Tt = implemented_function('Tt', lambda s: Tt)
+            Ttnew = lambdastr(s, Tt(s)).evalf()
+            #Ttnew = lambda s: Tt
+            Tt = inverse_laplace_transform(Tt, s, t)
         else:
-            Tt = fTt(er, et, evr, evt, em, s)
+            Tt = fTt(er, et, evr, evt, em)
 
         if abs(Tr) > obj.Tmax or np.isinf(Tr):
             Tr = obj.Tmax
@@ -691,20 +700,20 @@ def evaluate(individual):
 
 ####################################    P R I M I T I V E  -  S E T     ################################################
 
-pset = gp.PrimitiveSetTyped("main",  [float, float, float, float, float, bool], float)
-pset.addPrimitive(operator.add, [float, float], float)
-pset.addPrimitive(sub, [float, float], float)
-pset.addPrimitive(Mul, [float, float], float)
-pset.addPrimitive(Inverter, [float], bool)
-pset.addPrimitive(Differentiator, [float, bool], bool)
-pset.addPrimitive(Integrator, [float, bool], bool)
+pset = gp.PrimitiveSet("main",  5)
+pset.addPrimitive(add, 2)
+pset.addPrimitive(sub, 2)
+pset.addPrimitive(Mul, 2)
+pset.addPrimitive(Inverter, 1)
+pset.addPrimitive(Differentiator, 1)
+pset.addPrimitive(Integrator, 1)
 #pset.addPrimitive(Lead, 1)
-pset.addPrimitive(Lag, [float, bool], float)
-pset.addPrimitive(Gain, [float], float)
+pset.addPrimitive(Lag, 1)
+pset.addPrimitive(Gain, 1)
 #pset.addPrimitive(operator.truediv, 2, name="Div")
 #pset.addPrimitive(operator.pow, 2, name="Pow")
 #pset.addPrimitive(Mul, 2)
-pset.addPrimitive(Abs, [float], float)
+pset.addPrimitive(Abs, 1)
 #pset.addPrimitive(Div, 2)                      #rallentamento per gli ndarray utilizzati
 #pset.addPrimitive(Sqrt, 1)
 #pset.addPrimitive(Log, 1)
@@ -713,19 +722,17 @@ pset.addPrimitive(Abs, [float], float)
 #pset.addPrimitive(Cos, 1)
 #pset.addTerminal(np.pi, "pi")
 #pset.addTerminal(np.e, name="nap")                   #e Napier constant number
-pset.addTerminal(1, bool)
-pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-5, 5), 4), float)
-pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-5, 5), 4), float)
-pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-5, 5), 4), float)
-pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-5, 5), 4), float)
+#pset.addTerminal(1, bool)
+pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-5, 5), 4))
+pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-5, 5), 4))
+pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-5, 5), 4))
+pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-5, 5), 4))
 #pset.addADF(pset)
-
 pset.renameArguments(ARG0='errR')
 pset.renameArguments(ARG1='errTheta')
 pset.renameArguments(ARG2='errVr')
 pset.renameArguments(ARG3='errVt')
 pset.renameArguments(ARG4='errm')
-pset.renameArguments(ARG5='s')
 
 
 

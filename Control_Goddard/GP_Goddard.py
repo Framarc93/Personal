@@ -106,7 +106,7 @@ def xmut(ind, expr, strp):
             ind[i1][i2].name = "{}".format(new_val)
             return ind,
         except (ValueError, AttributeError):
-            indx = gp.mutUniform(ind[i1], expr, pset=pset)
+            indx = gp.mutEphemeral(ind[i1], "one")
             ind[i1] = indx[0]
             return ind,
 
@@ -198,8 +198,8 @@ Ncontrols = 2
 
 old = 0
 
-size_pop = 80# Pop size
-size_gen = 200                                                                         # Gen size
+size_pop = 100# Pop size
+size_gen = 300                                                                         # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop*1.5)
 
@@ -235,7 +235,7 @@ def main():
 
     pool = multiprocessing.Pool(nbCPU)
 
-    toolbox.register("map", map)
+    toolbox.register("map", pool.map)
 
     print("INITIAL POP SIZE: %d" % size_pop)
 
@@ -262,7 +262,7 @@ def main():
 
     # pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.2, size_gen, stats=mstats, halloffame=hof,
                                          # verbose=True)  ### OLD ###
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu=Mu, lambda_=Lambda, cxpb=0.5, mutpb=0.3, ngen=size_gen,
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu=Mu, lambda_=Lambda, cxpb=0.6, mutpb=0.35, ngen=size_gen,
                               stats=mstats, halloffame=hof, verbose=True)  ### NEW ###
 
     ####################################################################################################################
@@ -532,7 +532,7 @@ def evaluate(individual):
         if R<0 or np.isnan(R):
             R = obj.Re
             flag = True
-        if np.isinf(R):
+        if np.isinf(R) or R > obj.Rtarget:
             R = obj.Rtarget
             flag = True
         if m<0 or np.isnan(m):
@@ -701,11 +701,11 @@ pset.addPrimitive(operator.mul, 2, name="Mul")
 #pset.addPrimitive(Mul, 2)
 pset.addPrimitive(Abs, 1)
 #pset.addPrimitive(Div, 2)                      #rallentamento per gli ndarray utilizzati
-#pset.addPrimitive(Sqrt, 1)
-#pset.addPrimitive(Log, 1)
+pset.addPrimitive(Sqrt, 1)
+pset.addPrimitive(Log, 1)
 #pset.addPrimitive(Exp, 1)
-#pset.addPrimitive(Sin, 1)
-#pset.addPrimitive(Cos, 1)
+pset.addPrimitive(Sin, 1)
+pset.addPrimitive(Cos, 1)
 pset.addTerminal(np.pi, "pi")
 pset.addTerminal(np.e, name="nap")                   #e Napier constant number
 #pset.addTerminal(2)
@@ -753,8 +753,8 @@ toolbox.register("evaluate", evaluate) ### OLD ###
 toolbox.register("select", xselDoubleTournament, fitness_size=4, parsimony_size=1.4, fitness_first=True) ### NEW ###
 
 toolbox.register("mate", xmate) ### NEW ###
-toolbox.register("expr_mut", gp.genFull, min_=1, max_=3) ### NEW ###
-toolbox.register("mutate", xmut, expr=toolbox.expr_mut, strp=0.5) ### NEW ###
+toolbox.register("expr_mut", gp.genFull, min_=1, max_=4) ### NEW ###
+toolbox.register("mutate", xmut, expr=toolbox.expr_mut, strp=0.6) ### NEW ###
 
 # toolbox.register("mate", gp.cxOnePointLeafBiased,termpb=0.1) ### OLD ###
 # toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset) ### OLD ###

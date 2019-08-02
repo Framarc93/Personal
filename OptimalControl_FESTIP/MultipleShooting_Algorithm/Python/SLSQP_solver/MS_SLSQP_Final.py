@@ -305,7 +305,7 @@ def inequalityAll(states, controls, varnum):
        #             (np.deg2rad(40) - alfa)/unit_alfa, 1.0 - delta, (np.deg2rad(30) - deltaf)/unit_deltaf, 1.0 - tau, (np.deg2rad(90) - mu)/unit_mu,
         #            (obj.MaxAx - ax)/obj.MaxAx, (obj.MaxAz - az)/obj.MaxAz, (obj.MaxQ - q)/obj.MaxQ, (obj.k-MomTotA)/(obj.k*1e2), (mf-obj.m10)/obj.M0))
     iC = np.hstack(((obj.MaxAx - ax) / obj.MaxAx, (obj.MaxAz - az) / obj.MaxAz, (obj.MaxQ - q) / obj.MaxQ,
-                    (obj.k - MomTot) / (obj.k), (MomTot + obj.k) / (obj.k), (mf - obj.m10) / obj.m10, (56300 - mf)/obj.m10))
+                    (obj.k - MomTot) / (obj.k), (MomTot + obj.k) / (obj.k), (mf - obj.m10) / obj.m10, (54048 - mf)/obj.m10))
                     #(chi - np.deg2rad(90))/np.deg2rad(270), (np.deg2rad(270)-chi)/np.deg2rad(270)))
     #for j in range(len(iC)):
      #   if iC[j] > 1:
@@ -1307,8 +1307,8 @@ if __name__ == '__main__':
            1000, np.deg2rad(100), np.deg2rad(-20), np.deg2rad(-60), np.deg2rad(2.0), 5e4, 5e4]
 
     UbS = [1.5, np.deg2rad(115), np.deg2rad(89.99), np.deg2rad(-51), np.deg2rad(5.8), 1.5, obj.M0,
-           1000, np.deg2rad(150), np.deg2rad(70), np.deg2rad(-45), np.deg2rad(8.0), 3e4, 3.5e5,
-           2000, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(15.0), 8e4, 3e5,
+           1500, np.deg2rad(150), np.deg2rad(70), np.deg2rad(-45), np.deg2rad(8.0), 3e4, 3.5e5,
+           3000, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(15.0), 8e4, 3e5,
            5000, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(25.0), 8e4, 2e5,
            6500, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(25.0), 8e4, 1e5]
 
@@ -1321,11 +1321,11 @@ if __name__ == '__main__':
            np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-25), # leg1
            np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-30),
            np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-35),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-40),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-50),
-           np.deg2rad(-2.0), 0.8, np.deg2rad(-20.0), -1, np.deg2rad(-60),
-           np.deg2rad(-2.0), 0.7, np.deg2rad(-20.0), -1, np.deg2rad(-70),
-           np.deg2rad(-2.0), 0.7, np.deg2rad(-20.0), -1, np.deg2rad(-80), # leg2
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-60),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-70),
+           np.deg2rad(-2.0), 0.8, np.deg2rad(-20.0), -1, np.deg2rad(-70),
+           np.deg2rad(-2.0), 0.7, np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.7, np.deg2rad(-20.0), -1, np.deg2rad(-90), # leg2
            np.deg2rad(-2.0), 0.6, np.deg2rad(-20.0), -1, np.deg2rad(-90),
            np.deg2rad(-2.0), 0.6, np.deg2rad(-20.0), -1, np.deg2rad(-90),
            np.deg2rad(-2.0), 0.5, np.deg2rad(-20.0), -1, np.deg2rad(-90),
@@ -1357,11 +1357,11 @@ if __name__ == '__main__':
            np.deg2rad(20.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(25), # leg1
            np.deg2rad(25.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(30),
            np.deg2rad(30.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(35),
-           np.deg2rad(35.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(40),
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(50),
            np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(60),
            np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(70),
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(80), # leg2
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(70),
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90),
+           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90), # leg2
            np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90),
            np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90),
            np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90.0),
