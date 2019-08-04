@@ -217,11 +217,14 @@ def main():
     global stat_evoo
     global Rfun, Thetafun, Vrfun, Vtfun, mfun
     global tfin
-    global probcx, probmut, fitnesshistory, fitness_mean, fitness_mean_history, counter
+    global probcx, probmut, counter, fit_min_old, fit_min, fit_current
     counter = 0
-    fitnesshistory = np.ones((1,5))
-    fitness_mean = []
-    fitness_mean_history = np.zeros((1,5))
+    probcx = 0.6
+    probmut = 0.35
+    fit_min_old = sum([600, 300, 60, 700, 800])
+    fit_current = []
+    fit_min = fit_min_old
+
 
     Rref = np.load("R.npy")
     Thetaref = np.load("Theta.npy")
@@ -261,8 +264,7 @@ def main():
     mstats.register("avg", np.mean, axis=0)
     mstats.register("min", np.min, axis=0)
     mstats.register("max", np.max, axis=0)
-    probcx = 0.6
-    probmut = 0.35
+
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
     # pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.2, size_gen, stats=mstats, halloffame=hof,
@@ -377,8 +379,8 @@ def main():
 
     #################################### P O S T - P R O C E S S I N G #################################################
 
-    fTr = toolbox.compile(expr=expr1)
-    fTt = toolbox.compile(expr=expr2)
+    fTr = toolbox.compile(expr=expr2)
+    fTt = toolbox.compile(expr=expr1)
     x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
 
     def sys2GP(t, x):
@@ -507,7 +509,7 @@ def evaluate(individual):
     global flag, pas
     global fitness_old1, fitness_old2, fitness_old3, fitness_old4, fitness_old5
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Trfun, tfin
-    global fitnesshistory, fitness_mean, fitness_mean_history, probmut, probcx
+    global fit_min_old, fit_min, fit_current, probmut, probcx
     global counter
 
     flag = False
@@ -515,11 +517,13 @@ def evaluate(individual):
 
     # Transform the tree expression in a callable function
 
-    fTr = toolbox.compile(expr=individual[0])
-    fTt = toolbox.compile(expr=individual[1])
+    fTr = toolbox.compile(expr=individual[1])
+    fTt = toolbox.compile(expr=individual[0])
     x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
 
     def sys(t, x):
+        global fitnesshistory, fitness_mean, fitness_mean_history, probmut, probcx
+        global counter
         R = x[0]
         theta = x[1]
         Vr = x[2]
@@ -570,8 +574,8 @@ def evaluate(individual):
         rho = obj.air_density(R - obj.Re)
         Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) * obj.Cd * obj.A  # [N]
         Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) * obj.Cd * obj.A  # [N]
-        g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
         g0 = obj.g0
+        g = g0 * (obj.Re / R) ** 2  # [m/s2]
         Isp = obj.Isp
 
         Tr = fTr(er, et, evr, evt, em)
@@ -659,7 +663,7 @@ def evaluate(individual):
         pas = True
         x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
          np.random.uniform(fitness_old2 * 1.5, fitness_old2 * 1.6),
-         np.random.uniform(fitness_old3 * 1.5, fitness_old4 * 1.6),
+         np.random.uniform(fitness_old3 * 1.5, fitness_old3 * 1.6),
          np.random.uniform(fitness_old4 * 1.5, fitness_old4 * 1.6),
          np.random.uniform(fitness_old5 * 1.5, fitness_old5 * 1.6)]
 
@@ -684,34 +688,37 @@ def evaluate(individual):
                    fitness3,
                    fitness4,
                    fitness5]
-    if counter > 5000:
+    if counter > 1000:
         if pas:
-            fitnesshistory = np.vstack((fitnesshistory, x))
-            fitness_mean = np.mean(fitnesshistory, axis=0)
-            if fitness_mean < fitness_mean_history[-1] * 1.05 and fitness_mean > fitness_mean_history[-1] * 0.95:
+            fit_current = sum(x)
+            if fit_current < fit_min * 1.1 and fit_current > fit_min* 0.9:
                 probmut = 0.6
                 probcx = 0.4
                 counter += 1
+                print(probmut)
             else:
                 probmut = 0.35
                 probcx = 0.6
                 counter += 1
-            fitness_mean_history = np.vstack((fitness_mean_history, fitness_mean))
+            fit_min = min(fit_current, fit_min_old)
+            fit_min_old = fit_min
             return x
         else:
-            fitnesshistory = np.vstack((fitnesshistory, fitness))
-            fitness_mean = np.mean(fitnesshistory, axis=0)
-            if fitness_mean.any() < fitness_mean_history[-1][:].any() * 1.05 and fitness_mean.any() > fitness_mean_history[-1][:].any() * 0.95:
+            fit_current = sum(fitness)
+            if fit_current < fit_min * 1.1 and fit_current > fit_min* 0.9:
                 probmut = 0.6
                 probcx = 0.4
                 counter += 1
+                print(probmut)
             else:
                 probmut = 0.35
                 probcx = 0.6
                 counter += 1
-            fitness_mean_history = np.vstack((fitness_mean_history, fitness_mean))
+            fit_min = min(fit_current, fit_min_old)
+            fit_min_old = fit_min
             return fitness
     else:
+        fit_min_old = sum(x if pas is True else fitness)
         counter += 1
         return x if pas is True else fitness
 
