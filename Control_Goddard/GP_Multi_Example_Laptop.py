@@ -240,6 +240,8 @@ def main():
     Vtfun = PchipInterpolator(tref, Vtref)
     mfun = PchipInterpolator(tref, mref)
 
+    del Rref, Thetaref, Vrref, Vtref, mref, tref
+
     pool = multiprocessing.Pool(nbCPU)
 
     toolbox.register("map", pool.map)
@@ -496,6 +498,7 @@ def main():
 ##################################  F I T N E S S    F U N C T I O N    ################################################
 flag = False
 pas = False
+flagDeath = False
 #stat_evoo = [0, 0, 0, 0]
 
 fitnnesoldvalue = 0
@@ -506,7 +509,7 @@ fitness_old4 = 1e5
 fitness_old5 = 1e5
 
 def evaluate(individual):
-    global flag, pas
+    global flag, pas, flagDeath
     global fitness_old1, fitness_old2, fitness_old3, fitness_old4, fitness_old5
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Trfun, tfin
     global fit_min_old, fit_min, fit_current, probmut, probcx
@@ -514,6 +517,7 @@ def evaluate(individual):
 
     flag = False
     pas = False
+    flagDeath = False
 
     # Transform the tree expression in a callable function
 
@@ -613,7 +617,7 @@ def evaluate(individual):
     y5 = sol.y[4, :]
     tt = sol.t
     if sol.t[-1] != tfin:
-        flag = True
+        flagDeath = True
     pp = 0
     r = np.zeros(len(tt), dtype='float')
     theta = np.zeros(len(tt), dtype='float')
@@ -660,12 +664,12 @@ def evaluate(individual):
     #For the stats if the multiprocessing is used, there could be problems to print the correct values (parallel process(?))
 
     if flag is True:
-        pas = True
         x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
          np.random.uniform(fitness_old2 * 1.5, fitness_old2 * 1.6),
          np.random.uniform(fitness_old3 * 1.5, fitness_old3 * 1.6),
          np.random.uniform(fitness_old4 * 1.5, fitness_old4 * 1.6),
          np.random.uniform(fitness_old5 * 1.5, fitness_old5 * 1.6)]
+
 
     if flag is False:
         fitness1 = sum(IAE[0])
@@ -688,14 +692,22 @@ def evaluate(individual):
                    fitness3,
                    fitness4,
                    fitness5]
-    if counter > 1000:
+
+    if flagDeath is True:
+        y = [1e5, 1e5, 1e5, 1e5, 1e5]
+        return y
+
+    if counter > 5000:
         if pas:
             fit_current = sum(x)
             if fit_current < fit_min * 1.1 and fit_current > fit_min* 0.9:
-                probmut = 0.6
-                probcx = 0.4
-                counter += 1
-                print(probmut)
+                if probmut == 0.6:
+                    counter += 1
+                else:
+                    probmut = 0.6
+                    probcx = 0.4
+                    counter += 1
+                    print(probmut)
             else:
                 probmut = 0.35
                 probcx = 0.6
@@ -706,10 +718,13 @@ def evaluate(individual):
         else:
             fit_current = sum(fitness)
             if fit_current < fit_min * 1.1 and fit_current > fit_min* 0.9:
-                probmut = 0.6
-                probcx = 0.4
-                counter += 1
-                print(probmut)
+                if probmut == 0.6:
+                    counter += 1
+                else:
+                    probmut = 0.6
+                    probcx = 0.4
+                    counter += 1
+                    print(probmut)
             else:
                 probmut = 0.35
                 probcx = 0.6
@@ -754,7 +769,7 @@ pset.renameArguments(ARG4='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-0.7, -0.7, -0.7, -1.0, -0.7))    # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0, -0.5, -1.0))    # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", list, fitness=creator.Fitness, height=1)
 
@@ -782,7 +797,7 @@ toolbox.register("evaluate", evaluate) ### OLD ###
 #toolbox.register('evaluate', evaluate, toolbox=toolbox, sourceData=data, minTrades=minTrades, log=False) ###NEW ###
 
 # toolbox.register("select", tools.selDoubleTournament, fitness_size=3, parsimony_size=1, fitness_first=True) ### OLD ###
-toolbox.register("select", xselDoubleTournament, fitness_size=4, parsimony_size=1.4, fitness_first=True) ### NEW ###
+toolbox.register("select", xselDoubleTournament, fitness_size=10, parsimony_size=1, fitness_first=True) ### NEW ###
 
 toolbox.register("mate", xmate) ### NEW ###
 toolbox.register("expr_mut", gp.genFull, min_=1, max_=4) ### NEW ###

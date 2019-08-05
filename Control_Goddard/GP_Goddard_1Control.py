@@ -16,6 +16,14 @@ from scipy.interpolate import PchipInterpolator
 import datetime
 import math
 
+def Gain1(x):
+    return x*g1
+
+def Gain2(x):
+    return x*g2
+
+def Gain3(x):
+    return x*g3
 
 def Div(left, right):
     try:
@@ -66,6 +74,7 @@ def Sin(x):
         return np.sin(x)
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
         return 0
+
 
 def Cos(x):
     try:
@@ -153,7 +162,19 @@ nbCPU = multiprocessing.cpu_count()
 def main():
     global size_gen, size_pop, Mu, Lambda
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Trfun
-    global tfin
+    global tfin, g1, g2, g3, flag, pas, flagDeath
+    global fitness_old1, fitness_old4, fitness_old5
+
+    flag = False
+    pas = False
+    flagDeath = False
+
+    fitness_old1 = 1e5
+    fitness_old4 = 1e5
+    fitness_old5 = 1e5
+    g1 = round(random.uniform(-20, 10), 4)
+    g2 = round(random.uniform(-10, 10), 4)
+    g3 = round(random.uniform(-5, 5), 4)
 
     Rref = np.load("R.npy")
     Thetaref = np.load("Theta.npy")
@@ -171,6 +192,8 @@ def main():
     Vtfun = PchipInterpolator(tref, Vtref)
     mfun = PchipInterpolator(tref, mref)
     Trfun = PchipInterpolator(tref, Trref)
+
+    del Rref, Thetaref, Vrref, Vtref, mref, Trref, tref
 
     pool = multiprocessing.Pool(nbCPU)
 
@@ -235,7 +258,7 @@ def main():
     ax1.text(0.65, 0.9, textstr, transform=ax1.transAxes, fontsize=10,
              horizontalalignment='right')
 
-    plt.savefig('Stats')
+    plt.savefig('Stats_1Contr')
     plt.show()
 
     '''print("\n")
@@ -268,8 +291,8 @@ def main():
     for i in nodes1:
         n = g1.get_node(i)
         n.attr["label"] = labels1[i]
-    g1.draw("tree1.png")
-    image1 = plt.imread('tree1.png')
+    g1.draw("tree1_1Contr.png")
+    image1 = plt.imread('tree1_1Contr.png')
     fig1, ax1 = plt.subplots()
     im1 = ax1.imshow(image1)
     ax1.axis('off')
@@ -353,7 +376,7 @@ def main():
     plt.plot(tgp, (rout - obj.Re) / 1e3, label="GENETIC PROGRAMMING")
     plt.plot(tgp, (rR - obj.Re) / 1e3, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Height plot.png')
+    plt.savefig('Height plot_1Contr.png')
 
     fig3, ax3 = plt.subplots()
     ax3.set_xlabel("time [s]")
@@ -361,7 +384,7 @@ def main():
     plt.plot(tgp, thetaout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, tR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Angle plot.png')
+    plt.savefig('Angle plot_1Contr.png')
 
     fig4, ax4 = plt.subplots()
     ax4.set_xlabel("time [s]")
@@ -369,7 +392,7 @@ def main():
     plt.plot(tgp, vrout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, vrR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Vr plot.png')
+    plt.savefig('Vr plot_1Contr.png')
 
     fig5, ax5 = plt.subplots()
     ax5.set_xlabel("time [s]")
@@ -377,7 +400,7 @@ def main():
     plt.plot(tgp, vtout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, vtR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Speed plot.png')
+    plt.savefig('Speed plot_1Contr.png')
 
     fig6, ax6 = plt.subplots()
     ax6.set_xlabel("time [s]")
@@ -385,14 +408,14 @@ def main():
     plt.plot(tgp, mout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, mR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('mass plot.png')
+    plt.savefig('mass plot_1Contr.png')
 
     fig7, ax7 = plt.subplots()
     ax7.set_xlabel("time [s]")
     ax7.set_ylabel("Thrust (Tr) [N]")
     plt.plot(tgp, TrR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('thrust plot.png')
+    plt.savefig('thrust plot_1Contr.png')
     plt.show()
 
     pool.close()
@@ -400,22 +423,15 @@ def main():
 
 
 ##################################  F I T N E S S    F U N C T I O N    ################################################
-flag = False
-pas = False
-
-fitness_old1 = 1e5
-fitness_old4 = 1e5
-fitness_old5 = 1e5
 
 def evaluate(individual):
-    global flag
-    global pas
+    global flag, flagDeath
     global fitnnesoldvalue, fitness_old1, fitness_old2, fitness_old3, fitness_old4, fitness_old5
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Trfun
-    global tfin
+    global tfin, g1, g2, g3
 
     flag = False
-    pas = False
+    flagDeath = False
 
     # Transform the tree expression in a callable function
 
@@ -526,7 +542,7 @@ def evaluate(individual):
     y5 = sol.y[4, :]
     tt = sol.t
     if sol.t[-1] != tfin:
-        flag = True
+        flagDeath = True
     pp = 0
     r = np.zeros(len(tt), dtype='float')
     theta = np.zeros(len(tt), dtype='float')
@@ -576,11 +592,15 @@ def evaluate(individual):
     # PENALIZING INDIVIDUALs
     # For the stats if the multiprocessing is used, there could be problems to print the correct values (parallel process(?))
 
+    if flagDeath is True:
+        y = [1e5, 1e5, 1e5]
+        return y
+
     if flag is True:
-        pas = True
         x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
              np.random.uniform(fitness_old4 * 1.5, fitness_old4 * 1.6),
              np.random.uniform(fitness_old5 * 1.5, fitness_old5 * 1.6)]
+        return x
 
     if flag is False:
         fitness1 = sum(IAE[0])
@@ -595,8 +615,7 @@ def evaluate(individual):
         fitness = [fitness1,
                    fitness4,
                    fitness5]
-
-    return x if pas is True else fitness
+        return fitness
 
 
 ####################################    P R I M I T I V E  -  S E T     ################################################
@@ -604,6 +623,9 @@ def evaluate(individual):
 pset = gp.PrimitiveSet("MAIN", 5)
 pset.addPrimitive(operator.add, 2, name="Add")
 pset.addPrimitive(operator.sub, 2, name="Sub")
+pset.addPrimitive(Gain1, 1)
+pset.addPrimitive(Gain2, 1)
+pset.addPrimitive(Gain3, 1)
 pset.addPrimitive(Mul, 2)
 #pset.addPrimitive(Div, 2)
 pset.addPrimitive(Sqrt, 1)
@@ -626,7 +648,7 @@ pset.renameArguments(ARG4='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-1.0, -0.8, -0.8))  # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-0.8, -0.1, -1.0))  # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
@@ -641,7 +663,7 @@ toolbox.register("compile", gp.compile, pset=pset)
 
 toolbox.register("evaluate", evaluate)  ### OLD ###
 
-toolbox.register("select", tools.selNSGA2) ### OLD ###
+toolbox.register("select", tools.selDoubleTournament, fitness_size=10, parsimony_size=1.2, fitness_first=True) ### OLD ###
 
 toolbox.register("mate", gp.cxOnePointLeafBiased, termpb=0.1) ### OLD ###
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset) ### OLD ###

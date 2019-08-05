@@ -984,14 +984,14 @@ def equality(var, conj, cont_conj):
     else:
         chifin = 0.5 * np.pi + np.arcsin(np.cos(obj.incl) / np.cos(lam))
     div = np.tile([100,1,1,1,1,100,1000], Nleg - 1)
-    contr_check = np.zeros((0))
-    for i in range(Nbar-1):
-        if i > 0:
-            contr_check = np.hstack((contr_check, var[varStates+NContPoints*Ncontrols*i-Ncontrols:varStates+NContPoints*Ncontrols*i]))
+    #contr_check = np.zeros((0))
+    #for i in range(Nbar-1):
+    #    if i > 0:
+    #        contr_check = np.hstack((contr_check, var[varStates+NContPoints*Ncontrols*i-Ncontrols:varStates+NContPoints*Ncontrols*i]))
     eq_cond = np.zeros((0))
     eq_cond = np.concatenate((eq_cond, (var[0] - states_init[0],), var[2:7]-states_init[2:]))
     eq_cond = np.concatenate((eq_cond, (var[Nstates:varStates] - conj[:Nstates * (Nleg - 1)])/div))  # knotting conditions
-    eq_cond = np.concatenate((eq_cond, contr_check - cont_conj[:Ncontrols * (Nleg - 1)]))  # knotting conditions
+    #eq_cond = np.concatenate((eq_cond, contr_check - cont_conj[:Ncontrols * (Nleg - 1)]))  # knotting conditions
     eq_cond = np.concatenate((eq_cond, var[varStates:varStates + Ncontrols] - cont_init))  # init cond on alpha
     eq_cond = np.concatenate((eq_cond, ((vvv - vtAbs)/vvv,)))
     eq_cond = np.concatenate((eq_cond, ((chifin - chiass)/chifin,)))
@@ -1205,7 +1205,7 @@ if __name__ == '__main__':
     Nintplot = 1000
 
     '''NLP solver parameters'''
-    maxiter = 20  # max number of iterations for nlp solver
+    maxiter = 30  # max number of iterations for nlp solver
     ftol = 1e-8  # numeric tolerance of nlp solver
     # eps = 1e-10
     eps = 1e-09  # increment of the derivative

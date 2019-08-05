@@ -233,6 +233,7 @@ def main():
     Vtfun = PchipInterpolator(tref, Vtref)
     mfun = PchipInterpolator(tref, mref)
 
+    del Rref, Thetaref, Vrref, Vtref, mref, tref
     pool = multiprocessing.Pool(nbCPU)
 
     toolbox.register("map", pool.map)
