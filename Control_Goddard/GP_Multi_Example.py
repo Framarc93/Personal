@@ -747,7 +747,7 @@ pset.renameArguments(ARG4='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-0.8, -0.8, -0.8, -1.0, -0.8))    # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-0.7, -0.7, -0.7, -1.0, -0.7))    # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", list, fitness=creator.Fitness, height=1)
 

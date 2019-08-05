@@ -137,7 +137,7 @@ Ncontrols = 2
 old = 0
 
 size_pop = 100 # Pop size
-size_gen = 200  # Gen size
+size_gen = 300  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -199,7 +199,7 @@ def main():
 
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.2, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.35, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
 
     ####################################################################################################################
 
@@ -626,7 +626,7 @@ pset.renameArguments(ARG4='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))  # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-1.0, -0.8, -0.8))  # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
