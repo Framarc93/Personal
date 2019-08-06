@@ -79,6 +79,8 @@ def Cos(x):
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
         return 1
 
+def TriAdd(x, y, z):
+    return x + y + z
 
 def xmate(ind1, ind2):
     i1 = random.randrange(len(ind1))
@@ -98,7 +100,10 @@ def xmut(ind, expr, strp):
         return ind,
     else:
         '''this part execute the mutation on a random constant'''
-        try:
+        indx = gp.mutEphemeral(ind[i1], "all")
+        ind[i1] = indx[0]
+        return ind,
+        '''try:
             val = float(ind[i1][i2].value)
             new_val = round(random.uniform(-10, 10), 4)
             #new_val_gauss = np.random.normal(ind[i1][i2].value, 1.0)  # new value of the constant determined by gaussian distribution suggested by Koza in [1]
@@ -106,9 +111,9 @@ def xmut(ind, expr, strp):
             ind[i1][i2].name = "{}".format(new_val)
             return ind,
         except (ValueError, AttributeError):
-            indx = gp.mutEphemeral(ind[i1], "one")
+            indx = gp.mutEphemeral(ind[i1], "all")
             ind[i1] = indx[0]
-            return ind,
+            return ind,'''
 
 
 
@@ -167,9 +172,6 @@ class Rocket:
     def __init__(self):
         self.GMe = 3.986004418 * 10 ** 14  # Earth gravitational constant [m^3/s^2]
         self.Re = 6371.0 * 1000  # Earth Radius [m]
-        self.Vr = np.sqrt(self.GMe / self.Re)  # m/s
-        self.H0 = 10.0  # m
-        self.V0 = 0.0
         self.M0 = 100000.0  # kg
         self.Mp = self.M0 * 0.99
         self.Cd = 0.6
@@ -177,15 +179,10 @@ class Rocket:
         self.Isp = 300.0  # s
         self.g0 = 9.80665  # m/s2
         self.Tmax = self.M0 * self.g0 * 1.5
-        self.MaxQ = 14000.0  # Pa
         self.MaxG = 8.0  # G
         self.Htarget = 400.0 * 1000  # m
         self.Rtarget = self.Re + self.Htarget  # m/s
         self.Vtarget = np.sqrt(self.GMe / self.Rtarget)  # m/s
-        self.cosOld = 0
-        self.eqOld = np.zeros((0))
-        self.ineqOld = np.zeros((0))
-        self.varOld = np.zeros((0))
 
     @staticmethod
     def air_density(h):
@@ -198,10 +195,10 @@ Ncontrols = 2
 
 old = 0
 
-size_pop = 100# Pop size
-size_gen = 200                                                                         # Gen size
+size_pop = 50# Pop size
+size_gen = 50                                                                         # Gen size
 Mu = int(size_pop)
-Lambda = int(size_pop*1.5)
+Lambda = int(size_pop*1.4)
 
 limit_height = 20                                                                   # Max height (complexity) of the controller law
 limit_size = 400                                                                    # Max size (complexity) of the controller law
@@ -219,8 +216,8 @@ def main():
     global tfin
     global probcx, probmut, counter, fit_min_old, fit_min, fit_current
     counter = 0
-    probcx = 0.6
-    probmut = 0.35
+    probcx = 0.5
+    probmut = 0.45
     fit_min_old = sum([600, 300, 60, 700, 800])
     fit_current = []
     fit_min = fit_min_old
@@ -285,24 +282,24 @@ def main():
 
     perform = []
     perform2 = []
-    perform3 = []
-    perform4 = []
+    #perform3 = []
+    #perform4 = []
     perform5 = []
     p = 0
     for items in fit_avg:
         perform.append(fit_avg[p][0])
         perform2.append(fit_avg[p][1])
-        perform3.append(fit_avg[p][2])
-        perform4.append(fit_avg[p][3])
-        perform5.append(fit_avg[p][4])
+        #perform3.append(fit_avg[p][2])
+        #perform4.append(fit_avg[p][3])
+        perform5.append(fit_avg[p][2])
         p = p + 1
 
     #size_avgs = log.chapters["size"].select("avg")
     fig, ax1 = plt.subplots()
     ax1.plot(gen[1:], perform[1:], "b-", label="Minimum Position Fitness Performance")
     ax1.plot(gen[1:], perform2[1:], "r-", label="Minimum Theta Fitness Performance")
-    ax1.plot(gen[1:], perform3[1:], "g-", label="Minimum Vr Fitness Performance")
-    ax1.plot(gen[1:], perform4[1:], "k-", label="Minumum Vt Fitness Performance")
+    #ax1.plot(gen[1:], perform3[1:], "g-", label="Minimum Vr Fitness Performance")
+    #ax1.plot(gen[1:], perform4[1:], "k-", label="Minumum Vt Fitness Performance")
     ax1.plot(gen[1:], perform5[1:], "m-", label="Minimum m Fitness Performance")
     ax1.set_xlabel("Generation")
     ax1.set_ylabel("Fitness", color="b")
@@ -634,8 +631,8 @@ def evaluate(individual):
 
     err1 = (r - y1) / obj.Htarget
     err2 = np.rad2deg(theta - y2)/60
-    err3 = (vr - y3) / obj.Vtarget
-    err4 = (vt - y4) / obj.Vtarget
+    #err3 = (vr - y3) / obj.Vtarget
+    #err4 = (vt - y4) / obj.Vtarget
     err5 = (m - y5) / obj.M0
 
     # STEP TIME SIZE
@@ -649,15 +646,15 @@ def evaluate(individual):
         pp = pp + 1
 
     # INTEGRAL OF ABSOLUTE ERROR (PERFORMANCE INDEX)
-    IAE = np.zeros((5, len(err1)))
+    IAE = np.zeros((3, len(err1)))
     j = 0
     alpha = 0.1
-    for a, b, c, d, e, n in zip(err1, err2, err3, err4, err5, step):
+    for a, b, e, n in zip(err1, err2, err5, step):
         IAE[0][j] = n * abs(a)
         IAE[1][j] = n * abs(b)
-        IAE[2][j] = n * abs(c)  # + alpha * abs(m))
-        IAE[3][j] = n * abs(d)
-        IAE[4][j] = n * abs(e)
+        #IAE[2][j] = n * abs(c)  # + alpha * abs(m))
+        #IAE[3][j] = n * abs(d)
+        IAE[2][j] = n * abs(e)
         j = j + 1
 
     # PENALIZING INDIVIDUALs
@@ -666,35 +663,35 @@ def evaluate(individual):
     if flag is True:
         x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
          np.random.uniform(fitness_old2 * 1.5, fitness_old2 * 1.6),
-         np.random.uniform(fitness_old3 * 1.5, fitness_old3 * 1.6),
-         np.random.uniform(fitness_old4 * 1.5, fitness_old4 * 1.6),
+         #np.random.uniform(fitness_old3 * 1.5, fitness_old3 * 1.6),
+         #np.random.uniform(fitness_old4 * 1.5, fitness_old4 * 1.6),
          np.random.uniform(fitness_old5 * 1.5, fitness_old5 * 1.6)]
 
 
     if flag is False:
         fitness1 = sum(IAE[0])
         fitness2 = sum(IAE[1])
-        fitness3 = sum(IAE[2])
-        fitness4 = sum(IAE[3])
-        fitness5 = sum(IAE[4])
+        #fitness3 = sum(IAE[2])
+        #fitness4 = sum(IAE[3])
+        fitness5 = sum(IAE[2])
         if fitness1 < fitness_old1:
             fitness_old1 = fitness1
         if fitness2 < fitness_old2:
             fitness_old2 = fitness2
-        if fitness3 < fitness_old3:
-            fitness_old3 = fitness3
-        if fitness4 < fitness_old4:
-            fitness_old4 = fitness4
+        #if fitness3 < fitness_old3:
+         #   fitness_old3 = fitness3
+        #if fitness4 < fitness_old4:
+         #   fitness_old4 = fitness4
         if fitness5 < fitness_old5:
             fitness_old5 = fitness5
         fitness = [fitness1,
                    fitness2,
-                   fitness3,
-                   fitness4,
+                   #fitness3,
+                   #fitness4,
                    fitness5]
 
     if flagDeath is True:
-        y = [1e5, 1e5, 1e5, 1e5, 1e5]
+        y = [1e5, 1e5, 1e5]
         return y
 
     if counter > 5000:
@@ -743,6 +740,7 @@ pset = gp.PrimitiveSet("MAIN", 5)
 pset.addPrimitive(operator.add, 2, name="Add")
 pset.addPrimitive(operator.sub, 2, name="Sub")
 pset.addPrimitive(operator.mul, 2, name="Mul")
+pset.addPrimitive(TriAdd, 3)
 #pset.addPrimitive(operator.truediv, 2, name="Div")
 #pset.addPrimitive(operator.pow, 2, name="Pow")
 #pset.addPrimitive(Mul, 2)
@@ -756,10 +754,11 @@ pset.addPrimitive(Cos, 1)
 pset.addTerminal(np.pi, "pi")
 pset.addTerminal(np.e, name="nap")                   #e Napier constant number
 #pset.addTerminal(2)
-pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-5, 5), 4))
-pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-10, 10), 4))
-pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-15, 15), 4))
-pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-20, 20), 4))
+pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-100, 100), 4))
+pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-100, 100), 4))
+pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-100, 100), 4))
+pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-100, 100), 4))
+pset.addEphemeralConstant("rand105", lambda: round(random.uniform(-100, 100), 4))
 #pset.addADF(pset)
 pset.renameArguments(ARG0='errR')
 pset.renameArguments(ARG1='errTheta')
@@ -769,7 +768,7 @@ pset.renameArguments(ARG4='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0, -0.5, -1.0))    # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-0.5, -1.0, -0.5))    # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", list, fitness=creator.Fitness, height=1)
 
@@ -777,7 +776,7 @@ creator.create("SubIndividual", gp.PrimitiveTree, fitness=creator.Fitness)
 
 toolbox = base.Toolbox()
 # toolbox.register("expr", gp.genFull, pset=pset, min_=1, max_=2)   #### OLD ####
-toolbox.register("expr", gp.genHalfAndHalf, pset=pset, type_=pset.ret, min_=1, max_=3)  ### NEW ###
+toolbox.register("expr", gp.genHalfAndHalf, pset=pset, type_=pset.ret, min_=2, max_=5)  ### NEW ###
 
 toolbox.register("leg", tools.initIterate, creator.SubIndividual, toolbox.expr)  ### NEW ###
 toolbox.register("legs", tools.initRepeat, list, toolbox.leg, n=Ncontrols)  ### NEW ###
@@ -797,11 +796,11 @@ toolbox.register("evaluate", evaluate) ### OLD ###
 #toolbox.register('evaluate', evaluate, toolbox=toolbox, sourceData=data, minTrades=minTrades, log=False) ###NEW ###
 
 # toolbox.register("select", tools.selDoubleTournament, fitness_size=3, parsimony_size=1, fitness_first=True) ### OLD ###
-toolbox.register("select", xselDoubleTournament, fitness_size=10, parsimony_size=1, fitness_first=True) ### NEW ###
+toolbox.register("select", xselDoubleTournament, fitness_size=10, parsimony_size=1.2, fitness_first=True) ### NEW ###
 
 toolbox.register("mate", xmate) ### NEW ###
-toolbox.register("expr_mut", gp.genFull, min_=1, max_=4) ### NEW ###
-toolbox.register("mutate", xmut, expr=toolbox.expr_mut, strp=0.6) ### NEW ###
+toolbox.register("expr_mut", gp.genHalfAndHalf, min_=2, max_=5) ### NEW ###
+toolbox.register("mutate", xmut, expr=toolbox.expr_mut, strp=0.5) ### NEW ###
 
 # toolbox.register("mate", gp.cxOnePointLeafBiased,termpb=0.1) ### OLD ###
 # toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset) ### OLD ###

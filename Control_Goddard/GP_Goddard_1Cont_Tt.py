@@ -16,6 +16,8 @@ from scipy.interpolate import PchipInterpolator
 import datetime
 import math
 
+def TriAdd(x, y, z):
+    return x + y + z
 
 def Div(left, right):
     try:
@@ -76,26 +78,16 @@ def Cos(x):
 
 def mut(ind, expr, strp):
 
-    i1 = random.randrange(len(ind))
-    i2 = random.randrange(len(ind[i1]))
     choice = random.random()
     if choice < strp:
-        indx = gp.mutUniform(ind[i1], expr, pset=pset)
-        ind[i1] = indx[0]
+        indx = gp.mutUniform(ind, expr, pset=pset)
+        ind = indx[0]
         return ind,
     else:
-        '''this part execute the mutation on a random constant'''
-        try:
-            val = float(ind[i1][i2].value)
-            new_val = round(random.uniform(-10, 10), 4)
-            #new_val_gauss = np.random.normal(ind[i1][i2].value, 1.0)  # new value of the constant determined by gaussian distribution suggested by Koza in [1]
-            ind[i1][i2].value = new_val
-            ind[i1][i2].name = "{}".format(new_val)
-            return ind,
-        except (ValueError, AttributeError):
-            indx = gp.mutUniform(ind[i1], expr, pset=pset)
-            ind[i1] = indx[0]
-            return ind,
+        indx = gp.mutEphemeral(ind, "all")
+        ind = indx[0]
+        return ind,
+
 
 
 start = timeit.default_timer()
@@ -136,8 +128,8 @@ Ncontrols = 2
 
 old = 0
 
-size_pop = 100 # Pop size
-size_gen = 40  # Gen size
+size_pop = 150 # Pop size
+size_gen = 50  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -153,12 +145,13 @@ nbCPU = multiprocessing.cpu_count()
 def main():
     global size_gen, size_pop, Mu, Lambda
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Ttfun
-    global tfin, flag, pas, fitness_old1, fitness_old4, fitness_old5
+    global tfin, flag, pas, fitness_old1, fitness_old4, fitness_old5, fitness_old2
 
     flag = False
     pas = False
 
     fitness_old1 = 1e5
+    fitness_old2 = 1e5
     fitness_old4 = 1e5
     fitness_old5 = 1e5
 
@@ -208,7 +201,7 @@ def main():
 
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.9, 0.05, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.75, 0.2, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
 
     ####################################################################################################################
 
@@ -232,7 +225,7 @@ def main():
     # size_avgs = log.chapters["size"].select("avg")
     fig, ax1 = plt.subplots()
     ax1.plot(gen[1:], perform1[1:], "b-", label="Min Position Fitness Performance")
-    ax1.plot(gen[1:], perform2[1:], "r-", label="Min Speed Fitness Performance")
+    ax1.plot(gen[1:], perform2[1:], "r-", label="Min Angle Fitness Performance")
     ax1.plot(gen[1:], perform3[1:], "g-", label="Min Mass Fitness Performance")
     ax1.set_xlabel("Generation")
     ax1.set_ylabel("Fitness", color="b")
@@ -439,7 +432,7 @@ def evaluate(individual):
         m = x[4]
 
         if np.isnan(theta) or np.isinf(theta):
-            np.nan_to_num(theta)
+            theta = np.nan_to_num(theta)
 
         if R < 0 or np.isnan(R):
             R = obj.Re
@@ -508,9 +501,11 @@ def evaluate(individual):
         dxdt[4] = -np.sqrt(Tt ** 2 + Tr ** 2) / g0 / Isp
         return dxdt
 
-    sol = solve_ivp(sys, [0.0, tfin], x_ini)
+    t_eval = np.linspace(0, tfin, 1000)
+    sol = solve_ivp(sys, [0.0, tfin], x_ini, t_eval=t_eval)
     y1 = sol.y[0, :]
-    y4 = sol.y[3, :]
+    y2 = sol.y[1, :]
+    #y4 = sol.y[3, :]
     y5 = sol.y[4, :]
     tt = sol.t
     if sol.t[-1] != tfin:
@@ -530,9 +525,9 @@ def evaluate(individual):
         pp += 1
 
     err1 = (r - y1)/obj.Htarget
-    #err2 = theta - y2
+    err2 = np.rad2deg(theta - y2)/60
     #err3 = vr - y3
-    err4 = (vt - y4)/obj.Vtarget
+    #err4 = (vt - y4)/obj.Vtarget
     err5 = (m - y5)/obj.M0
 
     # STEP TIME SIZE
@@ -548,7 +543,7 @@ def evaluate(individual):
     # INTEGRAL OF ABSOLUTE ERROR (PERFORMANCE INDEX)
     IAE = np.zeros((3, len(err1)))
     j = 0
-    for a, b, c, n in zip(err1, err4, err5, step):
+    for a, b, c, n in zip(err2, err1, err5, step):
        IAE[0][j] = n * abs(a)
        IAE[1][j] = n * abs(b)
        IAE[2][j] = n * abs(c)
@@ -560,21 +555,21 @@ def evaluate(individual):
     if flag is True:
         pas = True
         x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
-             np.random.uniform(fitness_old4 * 1.5, fitness_old4 * 1.6),
+             np.random.uniform(fitness_old2 * 1.5, fitness_old2 * 1.6),
              np.random.uniform(fitness_old5 * 1.5, fitness_old5 * 1.6)]
 
     if flag is False:
         fitness1 = sum(IAE[0])
-        fitness4 = sum(IAE[1])
+        fitness2 = sum(IAE[1])
         fitness5 = sum(IAE[2])
         if fitness1 < fitness_old1:
             fitness_old1 = fitness1
-        if fitness4 < fitness_old4:
-            fitness_old4 = fitness4
+        if fitness2 < fitness_old2:
+            fitness_old2 = fitness2
         if fitness5 < fitness_old5:
             fitness_old5 = fitness5
         fitness = [fitness1,
-                   fitness4,
+                   fitness2,
                    fitness5]
 
     return x if pas is True else fitness
@@ -586,19 +581,20 @@ pset = gp.PrimitiveSet("MAIN", 5)
 pset.addPrimitive(operator.add, 2, name="Add")
 pset.addPrimitive(operator.sub, 2, name="Sub")
 pset.addPrimitive(Mul, 2)
+pset.addPrimitive(TriAdd, 3)
 #pset.addPrimitive(Div, 2)
-pset.addPrimitive(Sqrt, 1)
-pset.addPrimitive(Log, 1)
+#pset.addPrimitive(Sqrt, 1)
+#pset.addPrimitive(Log, 1)
 #pset.addPrimitive(Exp, 1)
-pset.addPrimitive(Sin, 1)
-pset.addPrimitive(Cos, 1)
-pset.addTerminal(np.pi, "pi")
-pset.addTerminal(np.e, name="nap")  # e Napier constant number
+#pset.addPrimitive(Sin, 1)
+#pset.addPrimitive(Cos, 1)
+#pset.addTerminal(np.pi, "pi")
+#pset.addTerminal(np.e, name="nap")  # e Napier constant number
 # pset.addTerminal(2)
-pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-10, 10), 2))
-pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-10, 10), 2))
-pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-10, 10), 2))
-pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-10, 10), 2))
+pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-100, 100), 2))
+pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-100, 100), 2))
+pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-100, 100), 2))
+pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-100, 100), 2))
 pset.renameArguments(ARG0='errR')
 pset.renameArguments(ARG1='errTheta')
 pset.renameArguments(ARG2='errVr')
@@ -607,12 +603,12 @@ pset.renameArguments(ARG4='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))  # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-1.0, -0.5, -0.5))  # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
 toolbox = base.Toolbox()
-toolbox.register("expr", gp.genFull, pset=pset, min_=1, max_=5)   #### OLD ####
+toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=2, max_=5)   #### OLD ####
 
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr)  #### OLD ####
 
@@ -622,10 +618,10 @@ toolbox.register("compile", gp.compile, pset=pset)
 
 toolbox.register("evaluate", evaluate)  ### OLD ###
 
-toolbox.register("select", tools.selNSGA2) ### OLD ###
+toolbox.register("select", tools.selDoubleTournament, fitness_size=10, parsimony_size=1.4, fitness_first=True)
 
-toolbox.register("mate", gp.cxOnePointLeafBiased, termpb=0.1) ### OLD ###
-toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset) ### OLD ###
+toolbox.register("mate", gp.cxOnePoint)
+toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset)
 
 toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
 toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))

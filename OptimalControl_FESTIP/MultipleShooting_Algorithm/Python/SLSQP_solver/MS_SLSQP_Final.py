@@ -305,7 +305,7 @@ def inequalityAll(states, controls, varnum):
        #             (np.deg2rad(40) - alfa)/unit_alfa, 1.0 - delta, (np.deg2rad(30) - deltaf)/unit_deltaf, 1.0 - tau, (np.deg2rad(90) - mu)/unit_mu,
         #            (obj.MaxAx - ax)/obj.MaxAx, (obj.MaxAz - az)/obj.MaxAz, (obj.MaxQ - q)/obj.MaxQ, (obj.k-MomTotA)/(obj.k*1e2), (mf-obj.m10)/obj.M0))
     iC = np.hstack(((obj.MaxAx - ax) / obj.MaxAx, (obj.MaxAz - az) / obj.MaxAz, (obj.MaxQ - q) / obj.MaxQ,
-                    (obj.k - MomTot) / (obj.k), (MomTot + obj.k) / (obj.k), (mf - obj.m10) / obj.m10, (54048 - mf)/obj.m10))
+                    (obj.k - MomTot) / (obj.k), (MomTot + obj.k) / (obj.k), (mf - obj.m10) / obj.m10, (53147.2 - mf)/obj.m10))
                     #(chi - np.deg2rad(90))/np.deg2rad(270), (np.deg2rad(270)-chi)/np.deg2rad(270)))
     #for j in range(len(iC)):
      #   if iC[j] > 1:

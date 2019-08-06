@@ -145,8 +145,8 @@ Ncontrols = 2
 
 old = 0
 
-size_pop = 100 # Pop size
-size_gen = 300  # Gen size
+size_pop = 150 # Pop size
+size_gen = 50  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -636,10 +636,10 @@ pset.addPrimitive(Cos, 1)
 pset.addTerminal(np.pi, "pi")
 pset.addTerminal(np.e, name="nap")  # e Napier constant number
 # pset.addTerminal(2)
-pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-10, 10), 2))
-pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-10, 10), 2))
-pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-10, 10), 2))
-pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-10, 10), 2))
+pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-100, 100), 4))
+pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-100, 100), 4))
+pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-100, 100), 4))
+pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-100, 100), 4))
 pset.renameArguments(ARG0='errR')
 pset.renameArguments(ARG1='errTheta')
 pset.renameArguments(ARG2='errVr')
@@ -648,12 +648,12 @@ pset.renameArguments(ARG4='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-0.8, -0.1, -1.0))  # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-0.5, -1.0, -0.5))  # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
 toolbox = base.Toolbox()
-toolbox.register("expr", gp.genFull, pset=pset, min_=1, max_=4)   #### OLD ####
+toolbox.register("expr", gp.genHalfAndHalf, pset=pset, min_=2, max_=5)   #### OLD ####
 
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr)  #### OLD ####
 
@@ -663,9 +663,9 @@ toolbox.register("compile", gp.compile, pset=pset)
 
 toolbox.register("evaluate", evaluate)  ### OLD ###
 
-toolbox.register("select", tools.selDoubleTournament, fitness_size=10, parsimony_size=1.2, fitness_first=True) ### OLD ###
+toolbox.register("select", tools.selDoubleTournament, fitness_size=10, parsimony_size=1.4, fitness_first=True) ### OLD ###
 
-toolbox.register("mate", gp.cxOnePointLeafBiased, termpb=0.1) ### OLD ###
+toolbox.register("mate", gp.cxOnePoint) ### OLD ###
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset) ### OLD ###
 
 toolbox.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
