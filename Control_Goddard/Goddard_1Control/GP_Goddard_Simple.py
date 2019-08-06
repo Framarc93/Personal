@@ -14,7 +14,6 @@ from deap import tools
 import multiprocessing
 from scipy.interpolate import PchipInterpolator
 import datetime
-import math
 
 def TriAdd(x, y, z):
     return x + y + z
@@ -124,8 +123,8 @@ Nstates = 3
 Ncontrols = 1
 
 
-size_pop = 150 # Pop size
-size_gen = 50  # Gen size
+size_pop = 100 # Pop size
+size_gen = 20  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -190,7 +189,7 @@ def main():
 
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.75, 0.2, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.3, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
 
     ####################################################################################################################
 
@@ -272,7 +271,7 @@ def main():
     #################################### P O S T - P R O C E S S I N G #################################################
 
     fT = toolbox.compile(hof[0])
-    x_ini = [obj.Re, 0.0, obj.M0*obj.Mc]  # initial conditions
+    x_ini = [obj.Re, 0.0, obj.M0]  # initial conditions
 
     def sys2GP(t, x):
         R = x[0]
@@ -342,6 +341,7 @@ def main():
     plt.plot(tgp, mR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
     plt.savefig('mass plot.png')
+    plt.show()
 
     pool.close()
     return pop, log, hof
@@ -356,7 +356,7 @@ def evaluate(individual):
     global fitnnesoldvalue, fitness_old1, fitness_old2, fitness_old3
     global Rfun, Vfun, mfun
     global tfin
-
+    flagDeath = False
     flag = False
     pas = False
 
@@ -364,12 +364,9 @@ def evaluate(individual):
 
     fT = toolbox.compile(expr=individual)
 
-    x_ini = [obj.Re, 0.0, obj.M0*obj.Mc]  # initial conditions
+    x_ini = [obj.Re, 0.0, obj.M0]  # initial conditions
 
     def sys(t, x):
-        #print("------------------------iter-------------------------")
-        global flag, pas
-
         # State Variables
         R = x[0]
         V = x[1]
@@ -381,7 +378,7 @@ def evaluate(individual):
         if np.isinf(R):
             R = obj.Re + 50*1e3
             flag = True
-        if m < 0 or np.isnan(m):
+        if m < obj.M0*obj.Mc or np.isnan(m):
             m = obj.M0*obj.Mc
             flag = True
         elif m > obj.M0 or np.isinf(m):
@@ -435,7 +432,7 @@ def evaluate(individual):
     y3 = sol.y[2, :]
     tt = sol.t
     if sol.t[-1] != tfin:
-        flag = True
+        flagDeath = True
     pp = 0
     r = np.zeros(len(tt), dtype='float')
     v = np.zeros(len(tt), dtype='float')
@@ -472,13 +469,17 @@ def evaluate(individual):
     # PENALIZING INDIVIDUALs
     # For the stats if the multiprocessing is used, there could be problems to print the correct values (parallel process(?))
 
-    if flag is True:
-        pas = True
+    if flagDeath is True:
+        y = [1e5, 1e5, 1e5]
+        return y
+
+    elif flag is True:
         x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
              np.random.uniform(fitness_old2 * 1.5, fitness_old2 * 1.6),
              np.random.uniform(fitness_old3* 1.5, fitness_old3 * 1.6)]
+        return x
 
-    if flag is False:
+    else:
         fitness1 = sum(IAE[0])
         fitness2 = sum(IAE[1])
         fitness3 = sum(IAE[2])
@@ -491,8 +492,8 @@ def evaluate(individual):
         fitness = [fitness1,
                    fitness2,
                    fitness3]
+        return fitness
 
-    return x if pas is True else fitness
 
 
 ####################################    P R I M I T I V E  -  S E T     ################################################
@@ -522,7 +523,7 @@ pset.renameArguments(ARG2='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))  # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-0.5, -0.5, -1.0))  # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
