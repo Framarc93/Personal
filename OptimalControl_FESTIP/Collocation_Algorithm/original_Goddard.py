@@ -268,6 +268,7 @@ end = time.time()
 time_elapsed = end-start
 tformat = str(datetime.timedelta(seconds=int(time_elapsed)))
 print("Time elapsed for total optimization ", tformat)
+
 def dynamicsInt(t, states, Tr_int, Tt_int):
     '''this functions receives the states and controls unscaled and calculates the dynamics'''
     R = states[0]

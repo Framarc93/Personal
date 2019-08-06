@@ -17,12 +17,15 @@ import datetime
 import math
 
 def Gain1(x):
+    global g1
     return x*g1
 
 def Gain2(x):
+    global g2
     return x*g2
 
 def Gain3(x):
+    global g3
     return x*g3
 
 def Div(left, right):
@@ -32,6 +35,11 @@ def Div(left, right):
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError, FloatingPointError, OverflowError):
         return 0.0
 
+def TriAdd(x, y, z):
+    return x + y + z
+
+def Abs(x):
+    return abs(x)
 
 def Mul(left, right):
     try:
@@ -222,7 +230,7 @@ def main():
 
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.35, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.75, 0.2, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
 
     ####################################################################################################################
 
@@ -623,10 +631,9 @@ def evaluate(individual):
 pset = gp.PrimitiveSet("MAIN", 5)
 pset.addPrimitive(operator.add, 2, name="Add")
 pset.addPrimitive(operator.sub, 2, name="Sub")
-pset.addPrimitive(Gain1, 1)
-pset.addPrimitive(Gain2, 1)
-pset.addPrimitive(Gain3, 1)
 pset.addPrimitive(Mul, 2)
+pset.addPrimitive(TriAdd, 3)
+pset.addPrimitive(Abs, 1)
 #pset.addPrimitive(Div, 2)
 pset.addPrimitive(Sqrt, 1)
 pset.addPrimitive(Log, 1)
@@ -635,11 +642,11 @@ pset.addPrimitive(Sin, 1)
 pset.addPrimitive(Cos, 1)
 pset.addTerminal(np.pi, "pi")
 pset.addTerminal(np.e, name="nap")  # e Napier constant number
-# pset.addTerminal(2)
 pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-100, 100), 4))
 pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-100, 100), 4))
 pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-100, 100), 4))
 pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-100, 100), 4))
+pset.addEphemeralConstant("rand105", lambda: round(random.uniform(-100, 100), 4))
 pset.renameArguments(ARG0='errR')
 pset.renameArguments(ARG1='errTheta')
 pset.renameArguments(ARG2='errVr')
@@ -663,7 +670,7 @@ toolbox.register("compile", gp.compile, pset=pset)
 
 toolbox.register("evaluate", evaluate)  ### OLD ###
 
-toolbox.register("select", tools.selDoubleTournament, fitness_size=10, parsimony_size=1.4, fitness_first=True) ### OLD ###
+toolbox.register("select", tools.selNSGA2) ### OLD ###
 
 toolbox.register("mate", gp.cxOnePoint) ### OLD ###
 toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset) ### OLD ###

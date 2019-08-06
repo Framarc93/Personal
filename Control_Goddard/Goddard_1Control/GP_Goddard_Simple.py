@@ -19,8 +19,10 @@ import math
 def TriAdd(x, y, z):
     return x + y + z
 
+
 def Abs(x):
     return abs(x)
+
 
 def Div(left, right):
     try:
@@ -72,6 +74,7 @@ def Sin(x):
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
         return 0
 
+
 def Cos(x):
     try:
         return np.cos(x)
@@ -92,47 +95,37 @@ def mut(ind, expr, strp):
         return ind,
 
 
-
 start = timeit.default_timer()
 
 ###############################  S Y S T E M - P A R A M E T E R S  ####################################################
 
 
 class Rocket:
+    GMe = 3.986004418 * 10**14  # Earth gravitational constant [m^3/s^2]
+    Re = 6371.0 * 1000  # Earth Radius [m]
+    g0 = 9.80665  # Gravitational acceleration on Earth surface [m/s^2]
 
     def __init__(self):
-        self.GMe = 3.986004418 * 10 ** 14  # Earth gravitational constant [m^3/s^2]
-        self.Re = 6371.0 * 1000  # Earth Radius [m]
-        self.Vr = np.sqrt(self.GMe / self.Re)  # m/s
-        self.H0 = 10.0  # m
-        self.V0 = 0.0
-        self.M0 = 100000.0  # kg
-        self.Mp = self.M0 * 0.99
-        self.Cd = 0.6
-        self.A = 4.0  # m2
-        self.Isp = 300.0  # s
-        self.g0 = 9.80665  # m/s2
-        self.Tmax = self.M0 * self.g0 * 1.5
-        self.MaxQ = 14000.0  # Pa
-        self.MaxG = 8.0  # G
-        self.Htarget = 400.0 * 1000  # m
-        self.Rtarget = self.Re + self.Htarget  # m/s
-        self.Vtarget = np.sqrt(self.GMe / self.Rtarget)  # m/s
+        self.M0 = 5000  # Initial total mass [kg]
+        self.Mc = 0.4  # Initial Propellant mass over total mass
+        self.Cd = 0.2  # Drag Coefficient [-]
+        self.area = 10  # area [m2]
+        self.Isp = 300.0  # Isp [s]
+        self.max_thrust = 2  # maximum thrust to initial weight ratio
+        self.Tmax = self.max_thrust * self.M0 * self.g0
 
-    @staticmethod
-    def air_density(h):
-        beta = 1 / 8500.0  # scale factor [1/m]
+    def air_density(self, h):
+        beta = 1/8500.0  # scale factor [1/m]
         rho0 = 1.225  # kg/m3
-        return rho0 * np.exp(-beta * h)
+        return rho0*np.exp(-beta*h)
 
 
-Nstates = 5
-Ncontrols = 2
+Nstates = 3
+Ncontrols = 1
 
-old = 0
 
 size_pop = 150 # Pop size
-size_gen = 100  # Gen size
+size_gen = 50  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -147,35 +140,28 @@ nbCPU = multiprocessing.cpu_count()
 
 def main():
     global size_gen, size_pop, Mu, Lambda
-    global Rfun, Thetafun, Vrfun, Vtfun, mfun, Ttfun
-    global tfin, flag, pas, fitness_old1, fitness_old4, fitness_old5, fitness_old2
+    global Rfun, Vfun, mfun
+    global tfin, flag, pas, fitness_old1, fitness_old2, fitness_old3
 
     flag = False
     pas = False
 
     fitness_old1 = 1e5
     fitness_old2 = 1e5
-    fitness_old4 = 1e5
-    fitness_old5 = 1e5
+    fitness_old3 = 1e5
 
     Rref = np.load("R.npy")
-    Thetaref = np.load("Theta.npy")
-    Vrref = np.load("Vr.npy")
-    Vtref = np.load("Vt.npy")
+    Vref = np.load("V.npy")
     mref = np.load("m.npy")
     tref = np.load("time.npy")
-    Ttref = np.load("Tt.npy")
     tfin = tref[-1]
 
 
     Rfun = PchipInterpolator(tref, Rref)
-    Thetafun = PchipInterpolator(tref, Thetaref)
-    Vrfun = PchipInterpolator(tref, Vrref)
-    Vtfun = PchipInterpolator(tref, Vtref)
+    Vfun = PchipInterpolator(tref, Vref)
     mfun = PchipInterpolator(tref, mref)
-    Ttfun = PchipInterpolator(tref, Ttref)
 
-    del Rref, Thetaref, Vrref, Vtref, mref, tref, Ttref
+    del Rref, Vref, mref, tref
 
     pool = multiprocessing.Pool(nbCPU)
 
@@ -204,7 +190,7 @@ def main():
 
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.65, 0.3, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.75, 0.2, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
 
     ####################################################################################################################
 
@@ -228,7 +214,7 @@ def main():
     # size_avgs = log.chapters["size"].select("avg")
     fig, ax1 = plt.subplots()
     ax1.plot(gen[1:], perform1[1:], "b-", label="Min Position Fitness Performance")
-    ax1.plot(gen[1:], perform2[1:], "r-", label="Min Angle Fitness Performance")
+    ax1.plot(gen[1:], perform2[1:], "r-", label="Min Speed Fitness Performance")
     ax1.plot(gen[1:], perform3[1:], "g-", label="Min Mass Fitness Performance")
     ax1.set_xlabel("Generation")
     ax1.set_ylabel("Fitness", color="b")
@@ -285,44 +271,33 @@ def main():
 
     #################################### P O S T - P R O C E S S I N G #################################################
 
-    fTr = toolbox.compile(hof[0])
-    x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
+    fT = toolbox.compile(hof[0])
+    x_ini = [obj.Re, 0.0, obj.M0*obj.Mc]  # initial conditions
 
     def sys2GP(t, x):
         R = x[0]
-        theta = x[1]
-        Vr = x[2]
-        Vt = x[3]
-        m = x[4]
+        V = x[1]
+        m = x[2]
 
         r = Rfun(t)
-        th = Thetafun(t)
-        vr = Vrfun(t)
-        vt = Vtfun(t)
+        v = Vfun(t)
         mf = mfun(t)
-        Tt = Ttfun(t)
 
         er = r - R
-        et = th - theta
-        evr = vr - Vr
-        evt = vt - Vt
+        ev = v - V
         em = mf - m
         dxdt = np.zeros(Nstates)
 
         rho = obj.air_density(R - obj.Re)
-        Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) \
-             * obj.Cd * obj.A  # [N]
-        Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) \
-             * obj.Cd * obj.A  # [N]
-        g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
+        drag = 0.5 * rho * V ** 2 * obj.Cd * obj.area
+        g = obj.GMe / R ** 2
         g0 = obj.g0
         Isp = obj.Isp
-        Tr = fTr(er, et, evr, evt, em)
-        dxdt[0] = Vr
-        dxdt[1] = Vt / R
-        dxdt[2] = Tr/m - Dr/m - g + Vt ** 2 / R
-        dxdt[3] = Tt / m - Dt / m - (Vr * Vt) / R
-        dxdt[4] = - np.sqrt(Tt**2 + Tr**2) / g0 / Isp
+        T = fT(er, ev, em)
+
+        dxdt[0] = V
+        dxdt[1] = (T-drag)/m-g
+        dxdt[2] = - T / g0 / Isp
 
         return dxdt
 
@@ -330,26 +305,18 @@ def main():
 
     solgp = solve_ivp(sys2GP, [0.0, tfin], x_ini)
     rout = solgp.y[0, :]
-    thetaout = solgp.y[1, :]
-    vrout = solgp.y[2, :]
-    vtout = solgp.y[3, :]
-    mout = solgp.y[4, :]
+    vout = solgp.y[1, :]
+    mout = solgp.y[2, :]
     tgp = solgp.t
     rR = np.zeros(len(tgp), dtype='float')
-    tR = np.zeros(len(tgp), dtype='float')
-    vrR = np.zeros(len(tgp), dtype='float')
-    vtR = np.zeros(len(tgp), dtype='float')
+    vR = np.zeros(len(tgp), dtype='float')
     mR = np.zeros(len(tgp), dtype='float')
-    TtR = np.zeros(len(tgp), dtype='float')
 
     ii = 0
     for i in tgp:
         rR[ii] = Rfun(i)
-        tR[ii] = Thetafun(i)
-        vrR[ii] = Vrfun(i)
-        vtR[ii] = Vtfun(i)
+        vR[ii] = Vfun(i)
         mR[ii] = mfun(i)
-        TtR[ii] = Ttfun(i)
         ii = ii + 1
 
     fig2, ax2 = plt.subplots()
@@ -360,29 +327,13 @@ def main():
     plt.legend(loc="lower right")
     plt.savefig('Height plot.png')
 
-    fig3, ax3 = plt.subplots()
-    ax3.set_xlabel("time [s]")
-    ax3.set_ylabel("angle [deg]")
-    plt.plot(tgp, thetaout, label="GENETIC PROGRAMMING")
-    plt.plot(tgp, tR, 'r--', label="SET POINT")
-    plt.legend(loc="lower right")
-    plt.savefig('Angle plot.png')
-
     fig4, ax4 = plt.subplots()
     ax4.set_xlabel("time [s]")
     ax4.set_ylabel("speed [m/s]")
-    plt.plot(tgp, vrout, label="GENETIC PROGRAMMING")
-    plt.plot(tgp, vrR, 'r--', label="SET POINT")
+    plt.plot(tgp, vout, label="GENETIC PROGRAMMING")
+    plt.plot(tgp, vR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
     plt.savefig('Vr plot.png')
-
-    fig5, ax5 = plt.subplots()
-    ax5.set_xlabel("time [s]")
-    ax5.set_ylabel("speed [m/s]")
-    plt.plot(tgp, vtout, label="GENETIC PROGRAMMING")
-    plt.plot(tgp, vtR, 'r--', label="SET POINT")
-    plt.legend(loc="lower right")
-    plt.savefig('Speed plot.png')
 
     fig6, ax6 = plt.subplots()
     ax6.set_xlabel("time [s]")
@@ -391,14 +342,6 @@ def main():
     plt.plot(tgp, mR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
     plt.savefig('mass plot.png')
-
-    fig7, ax7 = plt.subplots()
-    ax7.set_xlabel("time [s]")
-    ax7.set_ylabel("Thrust (Tr) [N]")
-    plt.plot(tgp, TtR, 'r--', label="SET POINT")
-    plt.legend(loc="lower right")
-    plt.savefig('thrust plot.png')
-    plt.show()
 
     pool.close()
     return pop, log, hof
@@ -410,8 +353,8 @@ def main():
 def evaluate(individual):
     global flag
     global pas
-    global fitnnesoldvalue, fitness_old1, fitness_old2, fitness_old3, fitness_old4, fitness_old5
-    global Rfun, Thetafun, Vrfun, Vtfun, mfun, Ttfun
+    global fitnnesoldvalue, fitness_old1, fitness_old2, fitness_old3
+    global Rfun, Vfun, mfun
     global tfin
 
     flag = False
@@ -419,9 +362,9 @@ def evaluate(individual):
 
     # Transform the tree expression in a callable function
 
-    fTr = toolbox.compile(expr=individual)
+    fT = toolbox.compile(expr=individual)
 
-    x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
+    x_ini = [obj.Re, 0.0, obj.M0*obj.Mc]  # initial conditions
 
     def sys(t, x):
         #print("------------------------iter-------------------------")
@@ -429,109 +372,83 @@ def evaluate(individual):
 
         # State Variables
         R = x[0]
-        theta = x[1]
-        Vr = x[2]
-        Vt = x[3]
-        m = x[4]
-
-        if np.isnan(theta) or np.isinf(theta):
-            theta = np.nan_to_num(theta)
+        V = x[1]
+        m = x[2]
 
         if R < 0 or np.isnan(R):
             R = obj.Re
             flag = True
         if np.isinf(R):
-            R = obj.Rtarget
+            R = obj.Re + 50*1e3
             flag = True
         if m < 0 or np.isnan(m):
-            m = obj.M0 - obj.Mp
+            m = obj.M0*obj.Mc
             flag = True
         elif m > obj.M0 or np.isinf(m):
             m = obj.M0
             flag = True
-        if abs(Vr) > 1e4 or np.isinf(Vr):
-            if Vr > 0:
-                Vr = 1e4
+        if abs(V) > 1e4 or np.isinf(V):
+            if V > 0:
+                V = 1e4
                 flag = True
             else:
-                Vr = -1e4
-                flag = True
-        if abs(Vt) > 1e4 or np.isinf(Vt):
-            if Vt > 0:
-                Vt = 1e4
-                flag = True
-            else:
-                Vt = -1e4
+                V = -1e4
                 flag = True
 
 
         r = Rfun(t)
-        th = Thetafun(t)
-        vr = Vrfun(t)
-        vt = Vtfun(t)
+        v = Vfun(t)
         mf = mfun(t)
-        Tt = Ttfun(t)
 
         er = r - R
-        et = th - theta
-        evr = vr - Vr
-        evt = vt - Vt
+        ev = v - V
         em = mf - m
         dxdt = np.zeros(Nstates)
-        Tr = fTr(er, et, evr, evt, em)
+        T = fT(er, ev, em)
         # print("Fr: ", fTr(er, et, evr, evt, em))
 
         rho = obj.air_density(R - obj.Re)
-        Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) * obj.Cd * obj.A  # [N]
-        Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) * obj.Cd * obj.A  # [N]
-        g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
+        drag = 0.5 * rho * V ** 2 * obj.Cd * obj.area
+        g = obj.GMe / R ** 2
         g0 = obj.g0
         Isp = obj.Isp
+        T = fT(er, ev, em)
 
 
-        if abs(fTr(er, et, evr, evt, em)) > obj.Tmax or np.isinf(fTr(er, et, evr, evt, em)):
-            Tr = obj.Tmax
+        if abs(fT(er, ev, em)) > obj.Tmax or np.isinf(fT(er, ev, em)):
+            T = obj.Tmax
             flag = True
 
-        elif fTr(er, et, evr, evt, em) < 0.0 or np.isnan(fTr(er, et, evr, evt, em)):
-            Tr = 0.0
+        elif fT(er, ev, em) < 0.0 or np.isnan(fT(er, ev, em)):
+            T = 0.0
             flag = True
 
-        dxdt[0] = Vr
-        dxdt[1] = Vt / R
-        dxdt[2] = Tr / m - Dr / m - g + Vt ** 2 / R
-        dxdt[3] = Tt / m - Dt / m - (Vr * Vt) / R
-        dxdt[4] = -np.sqrt(Tt ** 2 + Tr ** 2) / g0 / Isp
+        dxdt[0] = V
+        dxdt[1] = (T - drag) / m - g
+        dxdt[2] = - T / g0 / Isp
         return dxdt
 
     t_eval = np.linspace(0, tfin, 1000)
     sol = solve_ivp(sys, [0.0, tfin], x_ini, t_eval=t_eval)
     y1 = sol.y[0, :]
     y2 = sol.y[1, :]
-    #y4 = sol.y[3, :]
-    y5 = sol.y[4, :]
+    y3 = sol.y[2, :]
     tt = sol.t
     if sol.t[-1] != tfin:
         flag = True
     pp = 0
     r = np.zeros(len(tt), dtype='float')
-    theta = np.zeros(len(tt), dtype='float')
-    vr = np.zeros(len(tt), dtype='float')
-    vt = np.zeros(len(tt), dtype='float')
+    v = np.zeros(len(tt), dtype='float')
     m = np.zeros(len(tt), dtype='float')
     for i in tt:
         r[pp] = Rfun(i)
-        theta[pp] = Thetafun(i)
-        vr[pp] = Vrfun(i)
-        vt[pp] = Vtfun(i)
+        v[pp] = Vfun(i)
         m[pp] = mfun(i)
         pp += 1
 
-    err1 = (r - y1)/obj.Htarget
-    err2 = np.rad2deg(theta - y2)/60
-    #err3 = vr - y3
-    #err4 = (vt - y4)/obj.Vtarget
-    err5 = (m - y5)/obj.M0
+    err1 = (r - y1)/(obj.Re+50*1e3)
+    err2 = (v - y2)/np.sqrt(obj.GMe/obj.Re)
+    err3 = (m - y3)/obj.M0
 
     # STEP TIME SIZE
     i = 0
@@ -546,7 +463,7 @@ def evaluate(individual):
     # INTEGRAL OF ABSOLUTE ERROR (PERFORMANCE INDEX)
     IAE = np.zeros((3, len(err1)))
     j = 0
-    for a, b, c, n in zip(err2, err1, err5, step):
+    for a, b, c, n in zip(err1, err2, err3, step):
        IAE[0][j] = n * abs(a)
        IAE[1][j] = n * abs(b)
        IAE[2][j] = n * abs(c)
@@ -559,28 +476,28 @@ def evaluate(individual):
         pas = True
         x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
              np.random.uniform(fitness_old2 * 1.5, fitness_old2 * 1.6),
-             np.random.uniform(fitness_old5 * 1.5, fitness_old5 * 1.6)]
+             np.random.uniform(fitness_old3* 1.5, fitness_old3 * 1.6)]
 
     if flag is False:
         fitness1 = sum(IAE[0])
         fitness2 = sum(IAE[1])
-        fitness5 = sum(IAE[2])
+        fitness3 = sum(IAE[2])
         if fitness1 < fitness_old1:
             fitness_old1 = fitness1
         if fitness2 < fitness_old2:
             fitness_old2 = fitness2
-        if fitness5 < fitness_old5:
-            fitness_old5 = fitness5
+        if fitness3 < fitness_old3:
+            fitness_old3 = fitness3
         fitness = [fitness1,
                    fitness2,
-                   fitness5]
+                   fitness3]
 
     return x if pas is True else fitness
 
 
 ####################################    P R I M I T I V E  -  S E T     ################################################
 
-pset = gp.PrimitiveSet("MAIN", 5)
+pset = gp.PrimitiveSet("MAIN", 3)
 pset.addPrimitive(operator.add, 2, name="Add")
 pset.addPrimitive(operator.sub, 2, name="Sub")
 pset.addPrimitive(Mul, 2)
@@ -600,14 +517,12 @@ pset.addEphemeralConstant("rand103", lambda: round(random.uniform(-100, 100), 4)
 pset.addEphemeralConstant("rand104", lambda: round(random.uniform(-100, 100), 4))
 pset.addEphemeralConstant("rand105", lambda: round(random.uniform(-100, 100), 4))
 pset.renameArguments(ARG0='errR')
-pset.renameArguments(ARG1='errTheta')
-pset.renameArguments(ARG2='errVr')
-pset.renameArguments(ARG3='errVt')
-pset.renameArguments(ARG4='errm')
+pset.renameArguments(ARG1='errV')
+pset.renameArguments(ARG2='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-1.0, -0.5, -0.5))  # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))  # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
