@@ -13,7 +13,10 @@ from deap import creator
 from deap import tools
 import multiprocessing
 from scipy.interpolate import PchipInterpolator
+import matplotlib.animation as animation
+from matplotlib import style
 import datetime
+from time import time
 
 def TriAdd(x, y, z):
     return x + y + z
@@ -37,7 +40,7 @@ def Mul(left, right):
         return left * right
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError,
             FloatingPointError, OverflowError):
-        return left
+        return min(left, right)
 
 
 def Sqrt(x):
@@ -93,11 +96,14 @@ def mut(ind, expr, strp):
         ind = indx[0]
         return ind,
 
+def top_endstop(t,top_end_stop):
+    return top_end_stop  # STOP RUNNING [m]
+def bot_endstop(t,bottom_end_stop):
+    return bottom_end_stop
 
 start = timeit.default_timer()
 
 ###############################  S Y S T E M - P A R A M E T E R S  ####################################################
-
 
 class Rocket:
     GMe = 3.986004418 * 10**14  # Earth gravitational constant [m^3/s^2]
@@ -118,13 +124,17 @@ class Rocket:
         rho0 = 1.225  # kg/m3
         return rho0*np.exp(-beta*h)
 
-
+obj = Rocket()
 Nstates = 3
 Ncontrols = 1
 
-
-size_pop = 100 # Pop size
-size_gen = 20  # Gen size
+top_end_stop = 80  # [km]
+bottom_end_stop = 0.0  # [km]
+mutpb = 0.3
+cxpb = 0.6
+change_time = 100
+size_pop = 70 # Pop size
+size_gen = 15  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -133,13 +143,18 @@ limit_size = 400  # Max size (complexity) of the controller law
 
 nbCPU = multiprocessing.cpu_count()
 
-
+tref = np.load("time.npy")
+total_time_simulation = tref[-1]
+del tref
+flag_seed_populations = False
+flag_offdesign = False
+flag_seed_populations1 = False
 ################################# M A I N ###############################################
 
 
 def main():
-    global size_gen, size_pop, Mu, Lambda
-    global Rfun, Vfun, mfun
+    global size_gen, size_pop, Mu, Lambda, flag_seed_populations, flag_offdesign, flag_seed_populations1
+    global Rfun, Vfun, mfun, mutpb, cxpb
     global tfin, flag, pas, fitness_old1, fitness_old2, fitness_old3
 
     flag = False
@@ -165,6 +180,7 @@ def main():
     pool = multiprocessing.Pool(nbCPU)
 
     toolbox.register("map", pool.map)
+    toolx.register("map", pool.map)
 
     print("INITIAL POP SIZE: %d" % size_pop)
 
@@ -189,8 +205,10 @@ def main():
 
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.3, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
-
+    if flag_offdesign is True:
+        pop, log = algorithms.eaMuPlusLambda(pop, toolx, Mu, Lambda, mutpb, cxpb, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
+    else:
+        pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, mutpb, cxpb, size_gen, stats=mstats, halloffame=hof, verbose=True)
     ####################################################################################################################
 
     stop = timeit.default_timer()
@@ -211,7 +229,7 @@ def main():
         p = p + 1
 
     # size_avgs = log.chapters["size"].select("avg")
-    fig, ax1 = plt.subplots()
+    '''fig, ax1 = plt.subplots()
     ax1.plot(gen[1:], perform1[1:], "b-", label="Min Position Fitness Performance")
     ax1.plot(gen[1:], perform2[1:], "r-", label="Min Speed Fitness Performance")
     ax1.plot(gen[1:], perform3[1:], "g-", label="Min Mass Fitness Performance")
@@ -226,7 +244,7 @@ def main():
              horizontalalignment='right')
 
     plt.savefig('Stats')
-    plt.show()
+    plt.show()'''
 
     '''print("\n")
     print("THE BEST VALUES ARE:")
@@ -247,7 +265,7 @@ def main():
     print(value)
     print("\n")'''
 
-    expr1 = hof[0]
+    '''expr1 = hof[0]
 
     nodes1, edges1, labels1 = gp.graph(expr1)
 
@@ -341,7 +359,7 @@ def main():
     plt.plot(tgp, mR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
     plt.savefig('mass plot.png')
-    plt.show()
+    plt.show()'''
 
     pool.close()
     return pop, log, hof
@@ -351,7 +369,7 @@ def main():
 
 
 def evaluate(individual):
-    global flag
+    global flag, flag_offdesign
     global pas
     global fitnnesoldvalue, fitness_old1, fitness_old2, fitness_old3
     global Rfun, Vfun, mfun
@@ -361,8 +379,10 @@ def evaluate(individual):
     pas = False
 
     # Transform the tree expression in a callable function
-
-    fT = toolbox.compile(expr=individual)
+    if flag_offdesign is True:
+        fT = toolx.compile(expr=individual)
+    else:
+        fT = toolbox.compile(expr=individual)
 
     x_ini = [obj.Re, 0.0, obj.M0]  # initial conditions
 
@@ -375,8 +395,8 @@ def evaluate(individual):
         if R < 0 or np.isnan(R):
             R = obj.Re
             flag = True
-        if np.isinf(R):
-            R = obj.Re + 50*1e3
+        if np.isinf(R) or R > obj.Re+80e3:
+            R = obj.Re + 80e3
             flag = True
         if m < obj.M0*obj.Mc or np.isnan(m):
             m = obj.M0*obj.Mc
@@ -384,12 +404,12 @@ def evaluate(individual):
         elif m > obj.M0 or np.isinf(m):
             m = obj.M0
             flag = True
-        if abs(V) > 1e4 or np.isinf(V):
+        if abs(V) > 1e3 or np.isinf(V):
             if V > 0:
-                V = 1e4
+                V = 1e3
                 flag = True
             else:
-                V = -1e4
+                V = -1e3
                 flag = True
 
 
@@ -401,7 +421,6 @@ def evaluate(individual):
         ev = v - V
         em = mf - m
         dxdt = np.zeros(Nstates)
-        T = fT(er, ev, em)
         # print("Fr: ", fTr(er, et, evr, evt, em))
 
         rho = obj.air_density(R - obj.Re)
@@ -425,14 +444,19 @@ def evaluate(individual):
         dxdt[2] = - T / g0 / Isp
         return dxdt
 
-    t_eval = np.linspace(0, tfin, 1000)
-    sol = solve_ivp(sys, [0.0, tfin], x_ini, t_eval=t_eval)
+    tin = 0.0
+    if flag_offdesign is True:
+        x_ini = xnew_ini
+        tin = change_time
+    sol = solve_ivp(sys, [tin, tfin], x_ini)
     y1 = sol.y[0, :]
     y2 = sol.y[1, :]
     y3 = sol.y[2, :]
     tt = sol.t
+
     if sol.t[-1] != tfin:
         flagDeath = True
+
     pp = 0
     r = np.zeros(len(tt), dtype='float')
     v = np.zeros(len(tt), dtype='float')
@@ -553,6 +577,32 @@ history = tools.History()
 toolbox.decorate("mate", history.decorator)
 toolbox.decorate("mutate", history.decorator)
 
+toolx = base.Toolbox()
+toolx.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=4)   #### OLD ####
+
+toolx.register("individual", tools.initIterate, creator.Individual, toolx.expr)  #### OLD ####
+
+toolx.register("population", tools.initRepeat, list, toolx.individual)  #### OLD ####
+
+toolx.register("compile", gp.compile, pset=pset)
+
+toolx.register("evaluate", evaluate)  ### OLD ###
+
+toolx.register("select", tools.selNSGA2)
+
+toolx.register("mate", gp.cxOnePoint)
+toolx.register("mutate", gp.mutUniform, expr=toolx.expr, pset=pset)
+
+toolx.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
+toolx.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
+
+toolx.decorate("mate", gp.staticLimit(key=len, max_value=limit_size))
+toolx.decorate("mutate", gp.staticLimit(key=len, max_value=limit_size))
+
+history = tools.History()
+toolx.decorate("mate", history.decorator)
+toolx.decorate("mutate", history.decorator)
+
 ########################################################################################################################
 
 
@@ -560,3 +610,289 @@ if __name__ == "__main__":
     obj = Rocket()
     pop, log, hof = main()
 
+Cd_old = obj.Cd
+
+
+print("\n ADD SOME ALTERATIONS TO PHYSICAL COMPONENTS OF THE PLANT AT %.2f [s]" % change_time)
+print("WRITE THE NUMBER FOR THE PARAMETER THAT YOU WANT CHANGE: Cd ( 1 )")
+flag = int(input())
+if flag == 1:
+    obj.Cd = float(input("CHANGE VALUE OF THE DRAG COEFFICIENT: "))
+
+
+x_ini = [obj.Re, 0.0, obj.M0]  # initial conditions
+
+def sys2GP(t, x):
+    global Cd_old
+    fT = toolbox.compile(hof[0])
+    R = x[0]
+    V = x[1]
+    m = x[2]
+
+    r = Rfun(t)
+    v = Vfun(t)
+    mf = mfun(t)
+
+    er = r - R
+    ev = v - V
+    em = mf - m
+    dxdt = np.zeros(Nstates)
+
+    rho = obj.air_density(R - obj.Re)
+    drag = 0.5 * rho * V ** 2 * Cd_old * obj.area
+
+    g = obj.GMe / R ** 2
+    g0 = obj.g0
+    Isp = obj.Isp
+
+    T = fT(er, ev, em)
+
+    dxdt[0] = V
+    dxdt[1] = (T-drag)/m-g
+    dxdt[2] = - T / g0 / Isp
+
+    return dxdt
+passint = tfin*5
+tevals = np.linspace(0.0, tfin, int(passint))
+
+solgp = solve_ivp(sys2GP, [0.0, tfin], x_ini, t_eval=tevals)
+rout = solgp.y[0, :]
+vout = solgp.y[1, :]
+mout = solgp.y[2, :]
+ttgp = solgp.t
+rR = np.zeros(len(ttgp), dtype='float')
+vR = np.zeros(len(ttgp), dtype='float')
+mR = np.zeros(len(ttgp), dtype='float')
+
+ii = 0
+for i in ttgp:
+    rR[ii] = Rfun(i)
+    vR[ii] = Vfun(i)
+    mR[ii] = mfun(i)
+    ii = ii + 1
+errgp = rR - rout
+
+tes = np.zeros(len(ttgp), dtype='float')                        #TOP END STOP
+
+ii = 0
+for i in ttgp:
+    tes[ii] = top_endstop(i, top_end_stop)
+    ii = ii + 1
+
+bes = np.zeros(len(ttgp), dtype='float')                        #BOTTOM END STOP
+
+ii = 0
+for i in ttgp:
+    bes[ii] = bot_endstop(i, bottom_end_stop)
+    ii = ii + 1
+
+plt.ion()
+plt.figure(1)
+plt.plot(ttgp, (rR - obj.Re) / 1e3, 'r--', label="SET POINT")
+animated_plot = plt.plot(ttgp, (rout - obj.Re) / 1e3, 'ro', label="ON DESIGN")[0]
+plt.figure(2)
+plt.plot(ttgp, vR, 'r--', label="SET POINT")
+animated_plot2 = plt.plot(ttgp, vout, 'ro', label="ON DESIGN")[0]
+
+'''fig6, ax6 = plt.subplots()
+ax6.set_xlabel("time [s]")
+ax6.set_ylabel("mass [kg]")
+plt.plot(tgp, mout, label="GENETIC PROGRAMMING")
+plt.plot(tgp, mR, 'r--', label="SET POINT")
+plt.legend(loc="lower right")
+plt.savefig('mass plot.png')
+plt.show()'''
+
+#######             GRAFICO PER TEMPO DI IN FASE DI DESIGN      #####
+i = 0
+for items in ttgp:
+    plt.figure(1)
+    #plt.ylim(bottom_end_stop - 1, top_end_stop + 1)
+    #plt.xlim(0, total_time_simulation)
+
+
+    if items > change_time:
+        index, = np.where(ttgp == items)
+        break
+    animated_plot.set_xdata(ttgp[0:i])
+    animated_plot.set_ydata((rout[0:i]-obj.Re)/1e3)
+    plt.draw()
+    #plt.pause(0.1)
+    plt.pause(0.00000001)
+    plt.figure(2)
+
+    animated_plot2.set_xdata(ttgp[0:i])
+    animated_plot2.set_ydata(vout[0:i])
+    plt.draw()
+    # plt.pause(0.1)
+    plt.pause(0.00000001)
+    i = i + 1
+
+u_design = hof[0]
+print(u_design)
+#####################################################################################################################
+
+start = time()
+flag_gpnew = True  # POSSO METTERE I PARAMETRI CHE MI PIACCIONO SELEZIONANDOLI CON UN FLAG
+if __name__ == "__main__":
+    xnew_ini = [float(rout[index]), float(vout[index]), float(mout[index])]
+    flag_seed_populations = True
+    flag_offdesign = True
+    size_pop, size_gen, cxpb, mutpb = 70, 10, 0.6, 0.2
+    Mu = int(size_pop)
+    Lambda = int(size_pop * 1.4)
+    pop, log, hof = main()
+end = time()
+t_offdesign = end - start  # CALCOLO TEMPO IMPIEGATO DAL GENETIC PROGRAMMING
+
+
+
+#########################################################################################################################
+def sys2GP_c(t, x):
+    global u_design
+    fT = toolbox.compile(u_design)
+    R = x[0]
+    V = x[1]
+    m = x[2]
+
+    r = Rfun(t)
+    v = Vfun(t)
+    mf = mfun(t)
+
+    er = r - R
+    ev = v - V
+    em = mf - m
+    dxdt = np.zeros(Nstates)
+
+    rho = obj.air_density(R - obj.Re)
+    drag = 0.5 * rho * V ** 2 * obj.Cd * obj.area
+    g = obj.GMe / R ** 2
+    g0 = obj.g0
+    Isp = obj.Isp
+    T = fT(er, ev, em)
+
+    dxdt[0] = V
+    dxdt[1] = (T-drag)/m-g
+    dxdt[2] = - T / g0 / Isp
+
+    return dxdt
+
+
+passint_c = (change_time + t_offdesign - (change_time)) * 5
+tevals_c = np.linspace(change_time, change_time + t_offdesign, int(passint_c))
+xnew_ini = [float(rout[index]), float(vout[index]), float(mout[index])]                              ################Mi servono questi PENSARE
+
+solgp_c = solve_ivp(sys2GP_c, [change_time, change_time + t_offdesign], xnew_ini, t_eval=tevals_c)
+
+rout_c = solgp_c.y[0, :]
+vout_c = solgp_c.y[1, :]
+mout_c = solgp_c.y[2, :]
+ttgp_c = solgp_c.t
+
+rrr_c = np.zeros(len(ttgp_c), dtype='float')
+ii = 0
+
+errgp_c = rrr_c - rout_c
+
+for tempi in ttgp_c:
+    if tempi > t_offdesign:
+        index_c, = np.where(ttgp_c == tempi)
+
+plt.ion()
+plt.figure(1)
+animated_plot_c = plt.plot(ttgp_c, (rout_c - obj.Re) / 1e3, 'bo', label="OFF DESIGN")[0]
+plt.figure(2)
+animated_plot_c2 = plt.plot(ttgp_c, vout_c, 'bo', label="OFF DESIGN")[0]
+
+i = 0
+for items in ttgp_c:
+    plt.figure(1)
+    animated_plot_c.set_xdata(ttgp_c[0:i])
+    animated_plot_c.set_ydata((rout_c[0:i]-obj.Re)/1e3)
+    #plt.draw()
+    #plt.pause(0.1)
+    plt.pause(0.00000001)
+    plt.figure(2)
+    animated_plot_c2.set_xdata(ttgp_c[0:i])
+    animated_plot_c2.set_ydata(vout_c[0:i])
+    plt.draw()
+    # plt.pause(0.1)
+    plt.pause(0.00000001)
+    i = i + 1
+
+##################################################################################################################
+
+
+# Simulazione per TEMPO CON NUOVA LEGGE creata dal GENETIC PROGRAMMING
+
+passint_gp = (total_time_simulation - (change_time + t_offdesign)) * 10
+tevals_gp = np.linspace(change_time + t_offdesign, total_time_simulation, int(passint_gp))
+xnew_ini_gp = [float(rout_c[index_c]), float(vout_c[index_c]), float(mout_c[index_c])]
+
+def sys2GP_gp(t, x):
+
+    fT = toolx.compile(hof[0])
+    R = x[0]
+    V = x[1]
+    m = x[2]
+
+    r = Rfun(t)
+    v = Vfun(t)
+    mf = mfun(t)
+
+    er = r - R
+    ev = v - V
+    em = mf - m
+    dxdt = np.zeros(3)
+
+    rho = obj.air_density(R - obj.Re)
+    drag = 0.5 * rho * V ** 2 * obj.Cd * obj.area
+    g = obj.GMe / R ** 2
+    g0 = obj.g0
+    Isp = obj.Isp
+    T = fT(er, ev, em)
+
+    dxdt[0] = V
+    dxdt[1] = (T-drag)/m-g
+    dxdt[2] = - T / g0 / Isp
+
+    return dxdt
+
+
+solgp_gp = solve_ivp(sys2GP_gp, [change_time + t_offdesign, total_time_simulation], xnew_ini_gp, t_eval=tevals_gp)
+
+rout_gp = solgp_gp.y[0, :]
+vout_gp = solgp_gp.y[1, :]
+mout_gp = solgp_gp.y[2, :]
+ttgp_gp = solgp_gp.t
+
+plt.ion()
+plt.figure(1)
+animated_plot_gp = plt.plot(ttgp_gp, (rout_gp - obj.Re) / 1e3, 'go', label="ONLINE CONTROL")[0]
+plt.figure(2)
+animated_plot_gp2 = plt.plot(ttgp_gp, vout_gp, 'go', label="ONLINE CONTROL")[0]
+
+i = 0
+for items in ttgp_gp:
+    plt.figure(1)
+    animated_plot_gp.set_xdata(ttgp_gp[0:i])
+    animated_plot_gp.set_ydata((rout_gp[0:i]-obj.Re)/1e3)
+    #if items==change_time+t_offdesign:
+     #   plt.legend(loc='best')
+    #plt.draw()
+    plt.pause(0.00000001)
+
+    plt.figure(2)
+    animated_plot_gp2.set_xdata(ttgp_gp[0:i])
+    animated_plot_gp2.set_ydata(vout_gp[0:i])
+    #if items==change_time+t_offdesign:
+     #   plt.legend(loc='best')
+    plt.draw()
+    plt.pause(0.00000001)
+
+    i = i + 1
+
+print("\n")
+print(u_design)
+print(hof[0])
+plt.show(block=True)
