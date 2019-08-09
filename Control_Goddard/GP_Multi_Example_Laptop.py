@@ -15,72 +15,85 @@ import multiprocessing
 from scipy.interpolate import PchipInterpolator
 from functools import partial
 import datetime
-import math
 
-'''References:
-    [1] - Automatic creation of human competitive Programs and Controllers by Means of Genetic Programming. Koza, Keane, Yu, Bennet, Mydlowec. 2000'''
+
+def TriAdd(x, y, z):
+    return x + y + z
+
 
 def Abs(x):
     return abs(x)
 
+
 def Div(left, right):
+    global flag
     try:
         x = left / right
         return x
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError, FloatingPointError, OverflowError):
+        flag = True
         return 0.0
 
 
 def Mul(left, right):
+    global flag
     try:
         #np.seterr(invalid='raise')
         return left * right
-    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError, FloatingPointError, OverflowError):
+    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError,
+            FloatingPointError, OverflowError):
+        flag = True
         return left
 
 
 def Sqrt(x):
+    global flag
     try:
         if x > 0:
             return np.sqrt(x)
         else:
             return abs(x)
-    except (
-    RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+    except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+        flag = True
         return 0
 
 
 def Log(x):
+    global flag
     try:
         if x > 0:
             return np.log(x)
         else:
             return abs(x)
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
-        return np.e
+        flag = True
+        return 0
 
 
 def Exp(x):
     try:
         return np.exp(x)
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
-        return 1
+        return 0
 
 
 def Sin(x):
+    global flag
     try:
         return np.sin(x)
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+        flag = True
         return 0
 
+
 def Cos(x):
+    global flag
     try:
         return np.cos(x)
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
-        return 1
+        flag = True
+        return 0
 
-def TriAdd(x, y, z):
-    return x + y + z
 
 def xmate(ind1, ind2):
     i1 = random.randrange(len(ind1))
@@ -100,21 +113,9 @@ def xmut(ind, expr, strp):
         return ind,
     else:
         '''this part execute the mutation on a random constant'''
-        indx = gp.mutEphemeral(ind[i1], "all")
+        indx = gp.mutEphemeral(ind[i1], "one")
         ind[i1] = indx[0]
         return ind,
-        '''try:
-            val = float(ind[i1][i2].value)
-            new_val = round(random.uniform(-10, 10), 4)
-            #new_val_gauss = np.random.normal(ind[i1][i2].value, 1.0)  # new value of the constant determined by gaussian distribution suggested by Koza in [1]
-            ind[i1][i2].value = new_val
-            ind[i1][i2].name = "{}".format(new_val)
-            return ind,
-        except (ValueError, AttributeError):
-            indx = gp.mutEphemeral(ind[i1], "all")
-            ind[i1] = indx[0]
-            return ind,'''
-
 
 
 # Direct copy from tools - modified for individuals with GP trees in an array
@@ -129,8 +130,8 @@ def xselDoubleTournament(individuals, k, fitness_size, parsimony_size, fitness_f
             prob = parsimony_size / 2.
             ind1, ind2 = select(individuals, k=2)
 
-            lind1 = sum([len(gpt) for gpt in ind1]) #extra
-            lind2 = sum([len(gpt) for gpt in ind2]) #extra
+            lind1 = sum([len(gpt) for gpt in ind1])
+            lind2 = sum([len(gpt) for gpt in ind2])
             if lind1 > lind2:
                 ind1, ind2 = ind2, ind1
             elif lind1 == lind2:
@@ -157,12 +158,6 @@ def xselDoubleTournament(individuals, k, fitness_size, parsimony_size, fitness_f
         tsize = partial(_sizeTournament, select=tools.selRandom)
         return _fitTournament(individuals, k, tsize)
 
-
-def hash_fun(self):
-    if self.height == np.nan:
-        return hash(tuple(self))
-
-
 start = timeit.default_timer()
 
 ###############################  S Y S T E M - P A R A M E T E R S  ####################################################
@@ -186,22 +181,28 @@ class Rocket:
 
     @staticmethod
     def air_density(h):
+        global flag
         beta = 1/8500.0  # scale factor [1/m]
         rho0 = 1.225  # kg/m3
-        return rho0*np.exp(-beta*h)
+        try:
+            return rho0*np.exp(-beta*h)
+        except RuntimeWarning:
+            flag = True
+            return rho0*np.exp(-beta*obj.Rtarget)
+
 
 Nstates = 5
 Ncontrols = 2
 
 old = 0
 
-size_pop = 50# Pop size
-size_gen = 50                                                                         # Gen size
+size_pop = 150  # Population size
+size_gen = 50  # Number of generations
 Mu = int(size_pop)
 Lambda = int(size_pop*1.4)
 
-limit_height = 20                                                                   # Max height (complexity) of the controller law
-limit_size = 400                                                                    # Max size (complexity) of the controller law
+limit_height = 20  # Max height (complexity) of the controller law
+limit_size = 400   # Max size (complexity) of the controller law
 
 nbCPU = multiprocessing.cpu_count()
 
@@ -214,14 +215,6 @@ def main():
     global stat_evoo
     global Rfun, Thetafun, Vrfun, Vtfun, mfun
     global tfin
-    global probcx, probmut, counter, fit_min_old, fit_min, fit_current
-    counter = 0
-    probcx = 0.5
-    probmut = 0.45
-    fit_min_old = sum([600, 300, 60, 700, 800])
-    fit_current = []
-    fit_min = fit_min_old
-
 
     Rref = np.load("R.npy")
     Thetaref = np.load("Theta.npy")
@@ -254,7 +247,7 @@ def main():
     pop = toolbox.population(n=size_pop)
     history.update(pop)
     # hof = tools.HallOfFame(size_gen) ### OLD ###
-    hof = tools.HallOfFame(1) ### NEW ###
+    hof = tools.HallOfFame(size_gen) ### NEW ###
     stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
     #stats_size = tools.Statistics(len)
     #stats_height = tools.Statistics(operator.attrgetter("height"))
@@ -268,7 +261,7 @@ def main():
 
     # pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.2, size_gen, stats=mstats, halloffame=hof,
                                          # verbose=True)  ### OLD ###
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu=Mu, lambda_=Lambda, cxpb=probcx, mutpb=probmut, ngen=size_gen,
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu=Mu, lambda_=Lambda, cxpb=0.55, mutpb=0.25, ngen=size_gen,
                               stats=mstats, halloffame=hof, verbose=True)  ### NEW ###
 
     ####################################################################################################################
@@ -276,6 +269,11 @@ def main():
     stop = timeit.default_timer()
     total_time = stop - start
     tformat = str(datetime.timedelta(seconds=int(total_time)))
+
+    res = open("HallOfFame_2Cont", "w")
+    for i in range(len(hof)):
+        res.write("{}: 1".format(i) + str(hof[i][0]) + "\n" + "{}: 2".format(i) + str(hof[i][1]) + "\n")
+    res.close()
 
     gen = log.select("gen")
     fit_avg = log.chapters["fitness"].select('min')
@@ -296,11 +294,11 @@ def main():
 
     #size_avgs = log.chapters["size"].select("avg")
     fig, ax1 = plt.subplots()
-    ax1.plot(gen[1:], perform[1:], "b-", label="Minimum Position Fitness Performance")
-    ax1.plot(gen[1:], perform2[1:], "r-", label="Minimum Theta Fitness Performance")
+    ax1.plot(gen[1:], perform[1:], "b-", label="Minimum Theta Fitness Performance")
+    ax1.plot(gen[1:], perform2[1:], "r-", label="Minimum Position Fitness Performance")
     #ax1.plot(gen[1:], perform3[1:], "g-", label="Minimum Vr Fitness Performance")
     #ax1.plot(gen[1:], perform4[1:], "k-", label="Minumum Vt Fitness Performance")
-    ax1.plot(gen[1:], perform5[1:], "m-", label="Minimum m Fitness Performance")
+    ax1.plot(gen[1:], perform5[1:], "m-", label="Minimum Mass Fitness Performance")
     ax1.set_xlabel("Generation")
     ax1.set_ylabel("Fitness", color="b")
     ax1.legend(loc="best")
@@ -403,10 +401,8 @@ def main():
         dxdt = np.zeros(Nstates)
 
         rho = obj.air_density(R - obj.Re)
-        Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) \
-             * obj.Cd * obj.A  # [N]
-        Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) \
-             * obj.Cd * obj.A  # [N]
+        Dr = 0.5 * rho * Vr * np.sqrt(Vr ** 2 + Vt ** 2) * obj.Cd * obj.A  # [N]
+        Dt = 0.5 * rho * Vt * np.sqrt(Vr ** 2 + Vt ** 2) * obj.Cd * obj.A  # [N]
         g = obj.g0 * (obj.Re / R) ** 2  # [m/s2]
         g0 = obj.g0
         Isp = obj.Isp
@@ -493,28 +489,20 @@ def main():
 
 
 ##################################  F I T N E S S    F U N C T I O N    ################################################
-flag = False
-pas = False
-flagDeath = False
-#stat_evoo = [0, 0, 0, 0]
 
-fitnnesoldvalue = 0
 fitness_old1 = 1e5
-fitness_old3 = 1e5
+#fitness_old3 = 1e5
 fitness_old2 = 1e5
-fitness_old4 = 1e5
+#fitness_old4 = 1e5
 fitness_old5 = 1e5
 
 def evaluate(individual):
-    global flag, pas, flagDeath
-    global fitness_old1, fitness_old2, fitness_old3, fitness_old4, fitness_old5
+    global flag
+    global fitness_old1, fitness_old2, fitness_old5
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Trfun, tfin
     global fit_min_old, fit_min, fit_current, probmut, probcx
-    global counter
 
     flag = False
-    pas = False
-    flagDeath = False
 
     # Transform the tree expression in a callable function
 
@@ -523,18 +511,17 @@ def evaluate(individual):
     x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
 
     def sys(t, x):
-        global fitnesshistory, fitness_mean, fitness_mean_history, probmut, probcx
-        global counter
+
         R = x[0]
         theta = x[1]
         Vr = x[2]
         Vt = x[3]
         m = x[4]
 
-        if R<0 or np.isnan(R):
+        if R<obj.Re or np.isnan(R):
             R = obj.Re
             flag = True
-        if np.isinf(R) or R > obj.Rtarget:
+        if np.isinf(R) or R > obj.Rtarget+1e3:
             R = obj.Rtarget
             flag = True
         if m<(obj.M0 - obj.Mp) or np.isnan(m):
@@ -582,21 +569,22 @@ def evaluate(individual):
         Tr = fTr(er, et, evr, evt, em)
         Tt = fTt(er, et, evr, evt, em)
 
-        if abs(fTr(er, et, evr, evt, em)) > obj.Tmax or np.isinf(fTr(er, et, evr, evt, em)):
-            Tr = obj.Tmax
-            flag = True
-
-        elif fTr(er, et, evr, evt, em) < 0.0 or np.isnan(fTr(er, et, evr, evt, em)):
+        if fTr(er, et, evr, evt, em) < 0.0 or np.isnan(fTr(er, et, evr, evt, em)):
             Tr = 0.0
             flag = True
 
-        if abs(fTt(er, et, evr, evt, em)) > obj.Tmax or np.isinf(fTt(er, et, evr, evt, em)):
+        elif fTr(er, et, evr, evt, em) > obj.Tmax or np.isinf(fTr(er, et, evr, evt, em)):
+            Tr = obj.Tmax
+            flag = True
+
+        if fTt(er, et, evr, evt, em) < 0.0 or np.isnan(fTt(er, et, evr, evt, em)):
+            Tt = 0.0
+            flag = True
+
+        elif fTt(er, et, evr, evt, em) > obj.Tmax or np.isinf(fTt(er, et, evr, evt, em)):
             Tt = obj.Tmax
             flag = True
 
-        elif fTt(er, et, evr, evt, em) < 0.0 or np.isnan(fTt(er, et, evr, evt, em)):
-            Tt = 0.0
-            flag = True
 
         dxdt[0] = Vr
         dxdt[1] = Vt / R
@@ -606,28 +594,21 @@ def evaluate(individual):
 
         return dxdt
 
-    sol = solve_ivp(sys, [0.0, tfin], x_ini, first_step=0.0001)
+    sol = solve_ivp(sys, [0.0, tfin], x_ini)
     y1 = sol.y[0, :]
     y2 = sol.y[1, :]
-    y3 = sol.y[2, :]
-    y4 = sol.y[3, :]
+    #y3 = sol.y[2, :]
+    #y4 = sol.y[3, :]
     y5 = sol.y[4, :]
     tt = sol.t
     if sol.t[-1] != tfin:
-        flagDeath = True
-    pp = 0
-    r = np.zeros(len(tt), dtype='float')
-    theta = np.zeros(len(tt), dtype='float')
-    vr = np.zeros(len(tt), dtype='float')
-    vt = np.zeros(len(tt), dtype='float')
-    m = np.zeros(len(tt), dtype='float')
-    for i in tt:
-        r[pp] = Rfun(i)
-        theta[pp] = Thetafun(i)
-        vr[pp] = Vrfun(i)
-        vt[pp] = Vtfun(i)
-        m[pp] = mfun(i)
-        pp += 1
+        flag = True
+
+    r = Rfun(tt)
+    theta = Thetafun(tt)
+    vr = Vrfun(tt)
+    vt = Vtfun(tt)
+    m = mfun(tt)
 
     err1 = (r - y1) / obj.Htarget
     err2 = np.rad2deg(theta - y2)/60
@@ -639,7 +620,7 @@ def evaluate(individual):
     i = 0
     pp = 1
     step = np.zeros(len(y1), dtype='float')
-    step[0] = 0.0001
+    step[0] = tt[1] - tt[0]
     while i < len(tt) - 1:
         step[pp] = tt[i + 1] - tt[i]
         i = i + 1
@@ -649,7 +630,7 @@ def evaluate(individual):
     IAE = np.zeros((3, len(err1)))
     j = 0
     alpha = 0.1
-    for a, b, e, n in zip(err1, err2, err5, step):
+    for a, b, e, n in zip(err2, err1, err5, step):
         IAE[0][j] = n * abs(a)
         IAE[1][j] = n * abs(b)
         #IAE[2][j] = n * abs(c)  # + alpha * abs(m))
@@ -661,78 +642,22 @@ def evaluate(individual):
     #For the stats if the multiprocessing is used, there could be problems to print the correct values (parallel process(?))
 
     if flag is True:
-        x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
-         np.random.uniform(fitness_old2 * 1.5, fitness_old2 * 1.6),
-         #np.random.uniform(fitness_old3 * 1.5, fitness_old3 * 1.6),
-         #np.random.uniform(fitness_old4 * 1.5, fitness_old4 * 1.6),
-         np.random.uniform(fitness_old5 * 1.5, fitness_old5 * 1.6)]
+        x = [1e5, 1e5, 1e5]
+        return x
 
-
-    if flag is False:
+    else:
         fitness1 = sum(IAE[0])
         fitness2 = sum(IAE[1])
         #fitness3 = sum(IAE[2])
         #fitness4 = sum(IAE[3])
         fitness5 = sum(IAE[2])
-        if fitness1 < fitness_old1:
-            fitness_old1 = fitness1
-        if fitness2 < fitness_old2:
-            fitness_old2 = fitness2
-        #if fitness3 < fitness_old3:
-         #   fitness_old3 = fitness3
-        #if fitness4 < fitness_old4:
-         #   fitness_old4 = fitness4
-        if fitness5 < fitness_old5:
-            fitness_old5 = fitness5
         fitness = [fitness1,
                    fitness2,
                    #fitness3,
                    #fitness4,
                    fitness5]
+        return fitness
 
-    if flagDeath is True:
-        y = [1e5, 1e5, 1e5]
-        return y
-
-    if counter > 5000:
-        if pas:
-            fit_current = sum(x)
-            if fit_current < fit_min * 1.1 and fit_current > fit_min* 0.9:
-                if probmut == 0.6:
-                    counter += 1
-                else:
-                    probmut = 0.6
-                    probcx = 0.4
-                    counter += 1
-                    print(probmut)
-            else:
-                probmut = 0.35
-                probcx = 0.6
-                counter += 1
-            fit_min = min(fit_current, fit_min_old)
-            fit_min_old = fit_min
-            return x
-        else:
-            fit_current = sum(fitness)
-            if fit_current < fit_min * 1.1 and fit_current > fit_min* 0.9:
-                if probmut == 0.6:
-                    counter += 1
-                else:
-                    probmut = 0.6
-                    probcx = 0.4
-                    counter += 1
-                    print(probmut)
-            else:
-                probmut = 0.35
-                probcx = 0.6
-                counter += 1
-            fit_min = min(fit_current, fit_min_old)
-            fit_min_old = fit_min
-            return fitness
-    else:
-        fit_min_old = sum(x if pas is True else fitness)
-        counter += 1
-        return x if pas is True else fitness
 
 ####################################    P R I M I T I V E  -  S E T     ################################################
 
@@ -768,7 +693,7 @@ pset.renameArguments(ARG4='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-0.5, -1.0, -0.5))    # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -0.8))    # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", list, fitness=creator.Fitness, height=1)
 
@@ -796,11 +721,11 @@ toolbox.register("evaluate", evaluate) ### OLD ###
 #toolbox.register('evaluate', evaluate, toolbox=toolbox, sourceData=data, minTrades=minTrades, log=False) ###NEW ###
 
 # toolbox.register("select", tools.selDoubleTournament, fitness_size=3, parsimony_size=1, fitness_first=True) ### OLD ###
-toolbox.register("select", xselDoubleTournament, fitness_size=10, parsimony_size=1.2, fitness_first=True) ### NEW ###
+toolbox.register("select", xselDoubleTournament, fitness_size=6, parsimony_size=1.4, fitness_first=True) ### NEW ###
 
 toolbox.register("mate", xmate) ### NEW ###
 toolbox.register("expr_mut", gp.genHalfAndHalf, min_=2, max_=5) ### NEW ###
-toolbox.register("mutate", xmut, expr=toolbox.expr_mut, strp=0.5) ### NEW ###
+toolbox.register("mutate", xmut, expr=toolbox.expr_mut, strp=0.7) ### NEW ###
 
 # toolbox.register("mate", gp.cxOnePointLeafBiased,termpb=0.1) ### OLD ###
 # toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset) ### OLD ###

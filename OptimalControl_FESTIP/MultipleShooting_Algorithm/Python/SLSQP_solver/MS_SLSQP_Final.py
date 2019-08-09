@@ -305,7 +305,7 @@ def inequalityAll(states, controls, varnum):
        #             (np.deg2rad(40) - alfa)/unit_alfa, 1.0 - delta, (np.deg2rad(30) - deltaf)/unit_deltaf, 1.0 - tau, (np.deg2rad(90) - mu)/unit_mu,
         #            (obj.MaxAx - ax)/obj.MaxAx, (obj.MaxAz - az)/obj.MaxAz, (obj.MaxQ - q)/obj.MaxQ, (obj.k-MomTotA)/(obj.k*1e2), (mf-obj.m10)/obj.M0))
     iC = np.hstack(((obj.MaxAx - ax) / obj.MaxAx, (obj.MaxAz - az) / obj.MaxAz, (obj.MaxQ - q) / obj.MaxQ,
-                    (obj.k - MomTot) / (obj.k), (MomTot + obj.k) / (obj.k), (mf - obj.m10) / obj.m10, (53147.2 - mf)/obj.m10))
+                    (obj.k - MomTot) / (obj.k*1e3), (MomTot + obj.k) / (obj.k*1e3), (mf - obj.m10) / obj.m10, (54048 - mf)/obj.m10))
                     #(chi - np.deg2rad(90))/np.deg2rad(270), (np.deg2rad(270)-chi)/np.deg2rad(270)))
     #for j in range(len(iC)):
      #   if iC[j] > 1:
@@ -946,8 +946,8 @@ def plot(var, Nint):
 
     if flag_save:
         res.close()
-    plt.show()
-    plt.close(0)
+    plt.show(block=True)
+    '''plt.close(0)
     plt.close(1)
     plt.close(2)
     plt.close(3)
@@ -964,7 +964,7 @@ def plot(var, Nint):
     plt.close(15)
     plt.close(16)
     plt.close(17)
-    plt.close(18)
+    plt.close(18)'''
 
 
 def equality(var, conj, cont_conj):
@@ -983,15 +983,19 @@ def equality(var, conj, cont_conj):
         chifin = 0.0
     else:
         chifin = 0.5 * np.pi + np.arcsin(np.cos(obj.incl) / np.cos(lam))
-    div = np.tile([100,1,1,1,1,100,1000], Nleg - 1)
-    #contr_check = np.zeros((0))
-    #for i in range(Nbar-1):
-    #    if i > 0:
-    #        contr_check = np.hstack((contr_check, var[varStates+NContPoints*Ncontrols*i-Ncontrols:varStates+NContPoints*Ncontrols*i]))
+    div = np.tile([100, 1, 1, 1, 1, 100, 1000], Nleg - 1)
+    div2 = np.tile([np.deg2rad(40),1,np.deg2rad(30),1,np.deg2rad(90)], Nleg - 1)
+    contr_left = np.zeros((0))
+    contr_right = np.zeros((0))
+    for i in range(Nbar-1):
+        contr_left = np.hstack((contr_left, var[varStates+Ncontrols*NContPoints*i:varStates+Ncontrols*(NContPoints*i+1)-1]))
+        contr_right = np.hstack((contr_right, var[varStates+Ncontrols*(NContPoints*i+1):varStates+Ncontrols*(NContPoints*i+2)-1]))
+
     eq_cond = np.zeros((0))
     eq_cond = np.concatenate((eq_cond, (var[0] - states_init[0],), var[2:7]-states_init[2:]))
     eq_cond = np.concatenate((eq_cond, (var[Nstates:varStates] - conj[:Nstates * (Nleg - 1)])/div))  # knotting conditions
-    #eq_cond = np.concatenate((eq_cond, contr_check - cont_conj[:Ncontrols * (Nleg - 1)]))  # knotting conditions
+    eq_cond = np.concatenate((eq_cond, (contr_left - contr_right)/div2))
+    #eq_cond = np.concatenate((eq_cond, abs((contr_check - cont_conj[:Ncontrols * (Nleg - 1)])/div2)))  # knotting conditions
     eq_cond = np.concatenate((eq_cond, var[varStates:varStates + Ncontrols] - cont_init))  # init cond on alpha
     eq_cond = np.concatenate((eq_cond, ((vvv - vtAbs)/vvv,)))
     eq_cond = np.concatenate((eq_cond, ((chifin - chiass)/chifin,)))
@@ -1308,18 +1312,18 @@ if __name__ == '__main__':
 
     UbS = [1.5, np.deg2rad(115), np.deg2rad(89.99), np.deg2rad(-51), np.deg2rad(5.8), 1.5, obj.M0,
            1500, np.deg2rad(150), np.deg2rad(70), np.deg2rad(-45), np.deg2rad(8.0), 3e4, 3.5e5,
-           3000, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(15.0), 8e4, 3e5,
-           5000, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(25.0), 8e4, 2e5,
-           6500, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(25.0), 8e4, 1e5]
+           3500, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(15.0), 8e4, 3e5,
+           5500, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(25.0), 1e5, 2e5,
+           6500, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(25.0), 1.2e5, 1e5]
 
     LbC = [np.deg2rad(-1.0), 0.9, np.deg2rad(-20.0), -0.1, np.deg2rad(-1),
            np.deg2rad(-1.0), 0.9, np.deg2rad(-20.0), -0.2, np.deg2rad(-1),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.3, np.deg2rad(-5),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.2, np.deg2rad(-5),
            np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.5, np.deg2rad(-10),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.9, np.deg2rad(-15),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-20),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-25), # leg1
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-30),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.5, np.deg2rad(-15),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.6, np.deg2rad(-20),
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.6, np.deg2rad(-25), # leg1
+           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.8, np.deg2rad(-30),
            np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-35),
            np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-60),
            np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-70),
@@ -1350,12 +1354,12 @@ if __name__ == '__main__':
 
     UbC = [np.deg2rad(1.0), 1.0, np.deg2rad(30), 0.1, np.deg2rad(1),
            np.deg2rad(1.0), 1.0, np.deg2rad(30.0), 0.2, np.deg2rad(1),
-           np.deg2rad(3.0), 1.0, np.deg2rad(30.0), 0.3, np.deg2rad(5),
+           np.deg2rad(3.0), 1.0, np.deg2rad(30.0), 0.2, np.deg2rad(5),
            np.deg2rad(5.0), 1.0, np.deg2rad(30.0), 0.5, np.deg2rad(10),
-           np.deg2rad(10.0), 1.0, np.deg2rad(30.0), 0.9, np.deg2rad(15),
-           np.deg2rad(15.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(20),
-           np.deg2rad(20.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(25), # leg1
-           np.deg2rad(25.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(30),
+           np.deg2rad(10.0), 1.0, np.deg2rad(30.0), 0.5, np.deg2rad(15),
+           np.deg2rad(15.0), 1.0, np.deg2rad(30.0), 0.6, np.deg2rad(20),
+           np.deg2rad(20.0), 1.0, np.deg2rad(30.0), 0.6, np.deg2rad(25), # leg1
+           np.deg2rad(25.0), 1.0, np.deg2rad(30.0), 0.8, np.deg2rad(30),
            np.deg2rad(30.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(35),
            np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(60),
            np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(70),

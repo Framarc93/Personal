@@ -86,30 +86,6 @@ def isa(alt, pstart, g0, r):
     return p, d, c
 
 
-def thrustSimpl(presamb, mass, presv, spimpv, delta, slpres, wlo, we, lref, xcgf, xcg0):
-    nimp = 17
-    nmot = 1
-    # thrmax = nmot * (5.8E+6 + 14.89 * slpres - 11.16 * presamb)
-    thrx = nmot * (5.8e6 + 14.89 * slpres - 11.16 * presamb) * delta
-    if presamb >= slpres:
-        spimp = spimpv[-1]
-    elif presamb < slpres:
-        for i in range(nimp):
-            if presv[i] >= presamb:
-                spimp = np.interp(presamb, [presv[i - 1], presv[i]], [spimpv[i - 1], spimpv[i]])
-                break
-    xcg = ((xcgf - xcg0) / (we - wlo) * (mass - wlo) + xcg0) * lref
-
-    dthr = 0.4224 * (36.656 - xcg) * thrx - 19.8 * (32 - xcg) * (1.7 * slpres - presamb)
-
-    thrust = thrx
-    deps = 0.0
-    mommot = 0.0
-
-
-    return thrust, deps, spimp, mommot
-
-
 def aeroForces(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass, m10, xcg0, xcgf, pref):
 
     mach = [0.0, 0.3, 0.6, 0.9, 1.2, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 20.0]
@@ -507,34 +483,15 @@ def aeroForcesMulti(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass
         coeffFinal = coeffd1 + (m - mach[im]) * ((coeffd2 - coeffd1) / (mach[sm] - mach[im]))
         return coeffFinal
 
-
     alfag = np.rad2deg(alfa)
     deltafg = np.rad2deg(deltaf)
-    L = []
-    D = []
-    Mom = []
-    for i in range(npoint):
-        cL, cD, cM1 = map(coefCalc, (cl, cd, cm), (M[i], M[i], M[i]), (alfag[i], alfag[i], alfag[i]), (deltafg[i], deltafg[i], deltafg[i]))
-        #cL = coefCalc(cl, M[i], alfag[i], deltafg[i])
-        #cD = coefCalc(cd, M[i], alfag[i], deltafg[i])
-        # cM1 = coefCalc(cm, M[i], alfag[i], deltafg[i])
-        l = 0.5 * (v[i] ** 2) * sup * rho[i] * cL
-        d = 0.5 * (v[i] ** 2) * sup * rho[i] * cD
-        xcg = leng * (((xcgf - xcg0) / (m10 - mstart)) * (mass[i] - mstart) + xcg0)
-        Dx = xcg - pref
-        cM = cM1 + cL * (Dx / leng) * np.cos(alfa[i]) + cD * (Dx / leng) * np.sin(alfa[i])
-        mom = 0.5 * (v[i] ** 2) * sup * leng * rho[i] * cM
-        L.append(l)
-        D.append(d)
-        Mom.append(mom)
-        if np.isnan(l) == True:
-            print("L multi is nan")
-        if np.isnan(d) == True:
-            print("D multi is nan")
-        if np.isinf(l) == True:
-            print("L multi is inf")
-        if np.isinf(d) == True:
-            print("D multi is inf")
+    cL, cD, cM1 = map(coefCalc, (cl, cd, cm), (M, M, M), (alfag, alfag, alfag), (deltafg, deltafg, deltafg))
+    L = 0.5 * (v ** 2) * sup * rho * cL
+    D = 0.5 * (v ** 2) * sup * rho * cD
+    xcg = leng * (((xcgf - xcg0) / (m10 - mstart)) * (mass - mstart) + xcg0)
+    Dx = xcg - pref
+    cM = cM1 + cL * (Dx / leng) * np.cos(alfa) + cD * (Dx / leng) * np.sin(alfa)
+    Mom = 0.5 * (v ** 2) * sup * leng * rho * cM
     return L, D, Mom
 
 

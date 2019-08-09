@@ -14,48 +14,58 @@ from deap import tools
 import multiprocessing
 from scipy.interpolate import PchipInterpolator
 import datetime
-import math
+import _pickle as cPickle
+import pickle
 
 def TriAdd(x, y, z):
     return x + y + z
 
 def Abs(x):
+
     return abs(x)
 
 def Div(left, right):
+    global flag
     try:
         x = left / right
         return x
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError, FloatingPointError, OverflowError):
+        flag = True
         return 0.0
 
 
 def Mul(left, right):
+    global flag
     try:
         #np.seterr(invalid='raise')
         return left * right
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError,
             FloatingPointError, OverflowError):
+        flag = True
         return left
 
 
 def Sqrt(x):
+    global flag
     try:
         if x > 0:
             return np.sqrt(x)
         else:
             return abs(x)
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+        flag = True
         return 0
 
 
 def Log(x):
+    global flag
     try:
         if x > 0:
             return np.log(x)
         else:
             return abs(x)
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+        flag = True
         return 0
 
 
@@ -67,15 +77,19 @@ def Exp(x):
 
 
 def Sin(x):
+    global flag
     try:
         return np.sin(x)
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+        flag = True
         return 0
 
 def Cos(x):
+    global flag
     try:
         return np.cos(x)
     except (RuntimeError, RuntimeWarning, TypeError, ArithmeticError, BufferError, BaseException, NameError, ValueError):
+        flag = True
         return 0
 
 
@@ -121,9 +135,14 @@ class Rocket:
 
     @staticmethod
     def air_density(h):
+        global flag
         beta = 1 / 8500.0  # scale factor [1/m]
         rho0 = 1.225  # kg/m3
-        return rho0 * np.exp(-beta * h)
+        try:
+            return rho0 * np.exp(-beta * h)
+        except RuntimeWarning:
+            flag = True
+            return rho0 * np.exp(-beta * obj.Rtarget)
 
 
 Nstates = 5
@@ -131,8 +150,8 @@ Ncontrols = 2
 
 old = 0
 
-size_pop = 150 # Pop size
-size_gen = 100  # Gen size
+size_pop = 100 # Pop size
+size_gen = 10  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -148,10 +167,10 @@ nbCPU = multiprocessing.cpu_count()
 def main():
     global size_gen, size_pop, Mu, Lambda
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Ttfun
-    global tfin, flag, pas, fitness_old1, fitness_old4, fitness_old5, fitness_old2
+    global tfin, flag, pas, fitness_old1, fitness_old4, fitness_old5, fitness_old2, flagDeath
 
     flag = False
-    pas = False
+    flagDeath = False
 
     fitness_old1 = 1e5
     fitness_old2 = 1e5
@@ -212,6 +231,11 @@ def main():
     total_time = stop - start
     tformat = str(datetime.timedelta(seconds=int(total_time)))
 
+    res = open("HallOfFame_1ContTtFixed", "w")
+    for i in range(len(hof)):
+        res.write("{}: ".format(i) + str(hof[i]) + "\n")
+    res.close()
+
     gen = log.select("gen")
     fit_avg = log.chapters["fitness"].select('min')
 
@@ -227,8 +251,8 @@ def main():
 
     # size_avgs = log.chapters["size"].select("avg")
     fig, ax1 = plt.subplots()
-    ax1.plot(gen[1:], perform1[1:], "b-", label="Min Position Fitness Performance")
-    ax1.plot(gen[1:], perform2[1:], "r-", label="Min Angle Fitness Performance")
+    ax1.plot(gen[1:], perform1[1:], "b-", label="Min Angle Fitness Performance")
+    ax1.plot(gen[1:], perform2[1:], "r-", label="Min Position Fitness Performance")
     ax1.plot(gen[1:], perform3[1:], "g-", label="Min Mass Fitness Performance")
     ax1.set_xlabel("Generation")
     ax1.set_ylabel("Fitness", color="b")
@@ -240,7 +264,7 @@ def main():
     ax1.text(0.65, 0.9, textstr, transform=ax1.transAxes, fontsize=10,
              horizontalalignment='right')
 
-    plt.savefig('Stats')
+    plt.savefig('Stats_1Contr_TtFixed')
     plt.show()
 
     '''print("\n")
@@ -273,8 +297,8 @@ def main():
     for i in nodes1:
         n = g1.get_node(i)
         n.attr["label"] = labels1[i]
-    g1.draw("tree1.png")
-    image1 = plt.imread('tree1.png')
+    g1.draw("tree1_1Contr_TtFixed.png")
+    image1 = plt.imread('tree1_1Contr_TtFixed.png')
     fig1, ax1 = plt.subplots()
     im1 = ax1.imshow(image1)
     ax1.axis('off')
@@ -358,7 +382,7 @@ def main():
     plt.plot(tgp, (rout - obj.Re) / 1e3, label="GENETIC PROGRAMMING")
     plt.plot(tgp, (rR - obj.Re) / 1e3, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Height plot.png')
+    plt.savefig('Height plot_1Contr_TtFixed.png')
 
     fig3, ax3 = plt.subplots()
     ax3.set_xlabel("time [s]")
@@ -366,7 +390,7 @@ def main():
     plt.plot(tgp, thetaout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, tR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Angle plot.png')
+    plt.savefig('Angle plot_1Contr_TtFixed.png')
 
     fig4, ax4 = plt.subplots()
     ax4.set_xlabel("time [s]")
@@ -374,7 +398,7 @@ def main():
     plt.plot(tgp, vrout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, vrR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Vr plot.png')
+    plt.savefig('Vr plot_1Contr_TtFixed.png')
 
     fig5, ax5 = plt.subplots()
     ax5.set_xlabel("time [s]")
@@ -382,7 +406,7 @@ def main():
     plt.plot(tgp, vtout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, vtR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Speed plot.png')
+    plt.savefig('Speed plot_1Contr_TtFixed.png')
 
     fig6, ax6 = plt.subplots()
     ax6.set_xlabel("time [s]")
@@ -390,14 +414,14 @@ def main():
     plt.plot(tgp, mout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, mR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('mass plot.png')
+    plt.savefig('mass plot_1Contr_TtFixed.png')
 
     fig7, ax7 = plt.subplots()
     ax7.set_xlabel("time [s]")
     ax7.set_ylabel("Thrust (Tr) [N]")
     plt.plot(tgp, TtR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('thrust plot.png')
+    plt.savefig('thrust plot_1Contr_TtFixed.png')
     plt.show()
 
     pool.close()
@@ -408,14 +432,13 @@ def main():
 
 
 def evaluate(individual):
-    global flag
-    global pas
+    global flag, flagDeath
     global fitnnesoldvalue, fitness_old1, fitness_old2, fitness_old3, fitness_old4, fitness_old5
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Ttfun
     global tfin
 
     flag = False
-    pas = False
+    flagDeath = False
 
     # Transform the tree expression in a callable function
 
@@ -424,9 +447,6 @@ def evaluate(individual):
     x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
 
     def sys(t, x):
-        #print("------------------------iter-------------------------")
-        global flag, pas
-
         # State Variables
         R = x[0]
         theta = x[1]
@@ -435,15 +455,15 @@ def evaluate(individual):
         m = x[4]
 
         if np.isnan(theta) or np.isinf(theta):
-            theta = np.nan_to_num(theta)
+            np.nan_to_num(theta)
 
-        if R < 0 or np.isnan(R):
+        if R < obj.Re or np.isnan(R):
             R = obj.Re
             flag = True
-        if np.isinf(R):
+        if R > obj.Rtarget + 1e3 or np.isinf(R):
             R = obj.Rtarget
             flag = True
-        if m < 0 or np.isnan(m):
+        if m < obj.M0 - obj.Mp or np.isnan(m):
             m = obj.M0 - obj.Mp
             flag = True
         elif m > obj.M0 or np.isinf(m):
@@ -504,15 +524,15 @@ def evaluate(individual):
         dxdt[4] = -np.sqrt(Tt ** 2 + Tr ** 2) / g0 / Isp
         return dxdt
 
-    t_eval = np.linspace(0, tfin, 1000)
-    sol = solve_ivp(sys, [0.0, tfin], x_ini, t_eval=t_eval)
+
+    sol = solve_ivp(sys, [0.0, tfin], x_ini)
     y1 = sol.y[0, :]
     y2 = sol.y[1, :]
     #y4 = sol.y[3, :]
     y5 = sol.y[4, :]
     tt = sol.t
     if sol.t[-1] != tfin:
-        flag = True
+        flagDeath = True
     pp = 0
     r = np.zeros(len(tt), dtype='float')
     theta = np.zeros(len(tt), dtype='float')
@@ -555,13 +575,18 @@ def evaluate(individual):
     # PENALIZING INDIVIDUALs
     # For the stats if the multiprocessing is used, there could be problems to print the correct values (parallel process(?))
 
-    if flag is True:
-        pas = True
+    if flagDeath is True:
+        y = [1e5, 1e5, 1e5]
+        print("death")
+        return y
+
+    elif flag is True:
         x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
              np.random.uniform(fitness_old2 * 1.5, fitness_old2 * 1.6),
              np.random.uniform(fitness_old5 * 1.5, fitness_old5 * 1.6)]
+        return x
 
-    if flag is False:
+    else:
         fitness1 = sum(IAE[0])
         fitness2 = sum(IAE[1])
         fitness5 = sum(IAE[2])
@@ -574,8 +599,7 @@ def evaluate(individual):
         fitness = [fitness1,
                    fitness2,
                    fitness5]
-
-    return x if pas is True else fitness
+        return fitness
 
 
 ####################################    P R I M I T I V E  -  S E T     ################################################
@@ -642,5 +666,15 @@ toolbox.decorate("mutate", history.decorator)
 
 if __name__ == "__main__":
     obj = Rocket()
+    objects = []
+    with (open("hof_10.pkl", "rb")) as openfile:
+        while True:
+            try:
+                objects.append(pickle.load(openfile))
+            except EOFError:
+                break
     pop, log, hof = main()
-
+    output = open("hof_10.pkl", "wb")
+    cPickle.dump(hof, output, -1)
+    output.close()
+    plt.show(block=True)

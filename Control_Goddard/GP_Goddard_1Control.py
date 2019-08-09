@@ -154,7 +154,7 @@ Ncontrols = 2
 old = 0
 
 size_pop = 150 # Pop size
-size_gen = 50  # Gen size
+size_gen = 20  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -171,18 +171,15 @@ def main():
     global size_gen, size_pop, Mu, Lambda
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Trfun
     global tfin, g1, g2, g3, flag, pas, flagDeath
-    global fitness_old1, fitness_old4, fitness_old5
+    global fitness_old1, fitness_old2, fitness_old5
 
     flag = False
     pas = False
     flagDeath = False
 
     fitness_old1 = 1e5
-    fitness_old4 = 1e5
+    fitness_old2 = 1e5
     fitness_old5 = 1e5
-    g1 = round(random.uniform(-20, 10), 4)
-    g2 = round(random.uniform(-10, 10), 4)
-    g3 = round(random.uniform(-5, 5), 4)
 
     Rref = np.load("R.npy")
     Thetaref = np.load("Theta.npy")
@@ -230,7 +227,7 @@ def main():
 
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.75, 0.2, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.65, 0.3, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
 
     ####################################################################################################################
 
@@ -240,6 +237,11 @@ def main():
 
     gen = log.select("gen")
     fit_avg = log.chapters["fitness"].select('avg')
+
+    res = open("HallOfFame_1ContTrFixed", "w")
+    for i in range(len(hof)):
+        res.write("{}: ".format(i) + str(hof[i]) + "\n")
+    res.close()
 
     perform1 = []
     perform2 = []
@@ -253,9 +255,9 @@ def main():
 
     # size_avgs = log.chapters["size"].select("avg")
     fig, ax1 = plt.subplots()
-    ax1.plot(gen[1:], perform1[1:], "b-", label="Average Position Fitness Performance")
-    ax1.plot(gen[1:], perform2[1:], "r-", label="Average Speed Fitness Performance")
-    ax1.plot(gen[1:], perform3[1:], "g-", label="Average Mass Fitness Performance")
+    ax1.plot(gen[1:], perform1[1:], "b-", label="Min Angle Fitness Performance")
+    ax1.plot(gen[1:], perform2[1:], "r-", label="Min Position Fitness Performance")
+    ax1.plot(gen[1:], perform3[1:], "g-", label="Min Mass Fitness Performance")
     ax1.set_xlabel("Generation")
     ax1.set_ylabel("Fitness", color="b")
     ax1.legend(loc="best")
@@ -266,7 +268,7 @@ def main():
     ax1.text(0.65, 0.9, textstr, transform=ax1.transAxes, fontsize=10,
              horizontalalignment='right')
 
-    plt.savefig('Stats_1Contr')
+    plt.savefig('Stats_1Contr_TrFixed')
     plt.show()
 
     '''print("\n")
@@ -299,8 +301,8 @@ def main():
     for i in nodes1:
         n = g1.get_node(i)
         n.attr["label"] = labels1[i]
-    g1.draw("tree1_1Contr.png")
-    image1 = plt.imread('tree1_1Contr.png')
+    g1.draw("tree1_1Contr_TrFixed.png")
+    image1 = plt.imread('tree1_1Contr_TrFixed.png')
     fig1, ax1 = plt.subplots()
     im1 = ax1.imshow(image1)
     ax1.axis('off')
@@ -384,7 +386,7 @@ def main():
     plt.plot(tgp, (rout - obj.Re) / 1e3, label="GENETIC PROGRAMMING")
     plt.plot(tgp, (rR - obj.Re) / 1e3, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Height plot_1Contr.png')
+    plt.savefig('Height plot__1Contr_TrFixed.png')
 
     fig3, ax3 = plt.subplots()
     ax3.set_xlabel("time [s]")
@@ -392,7 +394,7 @@ def main():
     plt.plot(tgp, thetaout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, tR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Angle plot_1Contr.png')
+    plt.savefig('Angle plot_1Contr_TrFixed.png')
 
     fig4, ax4 = plt.subplots()
     ax4.set_xlabel("time [s]")
@@ -400,7 +402,7 @@ def main():
     plt.plot(tgp, vrout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, vrR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Vr plot_1Contr.png')
+    plt.savefig('Vr plot_1Contr_TrFixed.png')
 
     fig5, ax5 = plt.subplots()
     ax5.set_xlabel("time [s]")
@@ -408,7 +410,7 @@ def main():
     plt.plot(tgp, vtout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, vtR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('Speed plot_1Contr.png')
+    plt.savefig('Speed plot_1Contr_TrFixed.png')
 
     fig6, ax6 = plt.subplots()
     ax6.set_xlabel("time [s]")
@@ -416,14 +418,14 @@ def main():
     plt.plot(tgp, mout, label="GENETIC PROGRAMMING")
     plt.plot(tgp, mR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('mass plot_1Contr.png')
+    plt.savefig('mass plot_1Contr_TrFixed.png')
 
     fig7, ax7 = plt.subplots()
     ax7.set_xlabel("time [s]")
     ax7.set_ylabel("Thrust (Tr) [N]")
     plt.plot(tgp, TrR, 'r--', label="SET POINT")
     plt.legend(loc="lower right")
-    plt.savefig('thrust plot_1Contr.png')
+    plt.savefig('thrust plot_1Contr_TrFixed.png')
     plt.show()
 
     pool.close()
@@ -434,7 +436,7 @@ def main():
 
 def evaluate(individual):
     global flag, flagDeath
-    global fitnnesoldvalue, fitness_old1, fitness_old2, fitness_old3, fitness_old4, fitness_old5
+    global fitnnesoldvalue, fitness_old1, fitness_old2, fitness_old5
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Trfun
     global tfin, g1, g2, g3
 
@@ -445,27 +447,10 @@ def evaluate(individual):
 
     fTt = toolbox.compile(expr=individual)
 
-    '''nodes1, edges1, labels1 = gp.graph(individual)
-    g1 = pgv.AGraph()
-    g1.add_nodes_from(nodes1)
-    g1.add_edges_from(edges1)
-    g1.layout(prog="dot")
-    for i in nodes1:
-        n = g1.get_node(i)
-        n.attr["label"] = labels1[i]
-    g1.draw("tree1.png")
-    image1 = plt.imread('tree1.png')
-    fig1, ax1 = plt.subplots()
-    im1 = ax1.imshow(image1)
-    ax1.axis('off')
-    plt.show()'''
 
     x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
 
     def sys(t, x):
-        #print("------------------------iter-------------------------")
-        global flag, pas
-
         # State Variables
         R = x[0]
         theta = x[1]
@@ -476,13 +461,13 @@ def evaluate(individual):
         if np.isnan(theta) or np.isinf(theta):
             np.nan_to_num(theta)
 
-        if R < 0 or np.isnan(R):
+        if R < obj.Re or np.isnan(R):
             R = obj.Re
             flag = True
-        if np.isinf(R):
+        if R > obj.Rtarget+1e3 or np.isinf(R):
             R = obj.Rtarget
             flag = True
-        if m < 0 or np.isnan(m):
+        if m < obj.M0-obj.Mp or np.isnan(m):
             m = obj.M0 - obj.Mp
             flag = True
         elif m > obj.M0 or np.isinf(m):
@@ -546,10 +531,12 @@ def evaluate(individual):
 
     sol = solve_ivp(sys, [0.0, tfin], x_ini)
     y1 = sol.y[0, :]
-    y4 = sol.y[3, :]
+    y2 = sol.y[1, :]
+    #y4 = sol.y[3, :]
     y5 = sol.y[4, :]
     tt = sol.t
     if sol.t[-1] != tfin:
+        print("death")
         flagDeath = True
     pp = 0
     r = np.zeros(len(tt), dtype='float')
@@ -566,9 +553,9 @@ def evaluate(individual):
         pp += 1
 
     err1 = (r - y1)/obj.Htarget
-    #err2 = theta - y2
+    err2 = np.rad2deg(theta - y2)/60
     #err3 = vr - y3
-    err4 = (vt - y4)/obj.Vtarget
+    #err4 = (vt - y4)/obj.Vtarget
     err5 = (m - y5)/obj.M0
 
     # STEP TIME SIZE
@@ -584,17 +571,11 @@ def evaluate(individual):
     # INTEGRAL OF ABSOLUTE ERROR (PERFORMANCE INDEX)
     IAE = np.zeros((3, len(err1)))
     j = 0
-    alpha = 0.1
-    for a, b, c, n in zip(err1, err4, err5, step):
+    for a, b, c, n in zip(err2, err1, err5, step):
        IAE[0][j] = n * abs(a)
        IAE[1][j] = n * abs(b)
        IAE[2][j] = n * abs(c) # + alpha * abs(m))
        j = j + 1
-    #IAE = np.array([[np.sqrt(sum(err1**2)/len(err1))],
-                    #[np.sqrt(sum(err2**2)/len(err2))],
-                    #[np.sqrt(sum(err3**2)/len(err3))],
-       #             [np.sqrt(sum(err4**2)/len(err4))],
-        #            [np.sqrt(sum(err5**2)/len(err5))]])
 
 
     # PENALIZING INDIVIDUALs
@@ -604,24 +585,24 @@ def evaluate(individual):
         y = [1e5, 1e5, 1e5]
         return y
 
-    if flag is True:
+    elif flag is True:
         x = [np.random.uniform(fitness_old1 * 1.5, fitness_old1 * 1.6),
-             np.random.uniform(fitness_old4 * 1.5, fitness_old4 * 1.6),
+             np.random.uniform(fitness_old2 * 1.5, fitness_old2 * 1.6),
              np.random.uniform(fitness_old5 * 1.5, fitness_old5 * 1.6)]
         return x
 
-    if flag is False:
+    else:
         fitness1 = sum(IAE[0])
-        fitness4 = sum(IAE[1])
+        fitness2 = sum(IAE[1])
         fitness5 = sum(IAE[2])
         if fitness1 < fitness_old1:
             fitness_old1 = fitness1
-        if fitness4 < fitness_old4:
-            fitness_old4 = fitness4
+        if fitness2 < fitness_old2:
+            fitness_old2 = fitness2
         if fitness5 < fitness_old5:
             fitness_old5 = fitness5
         fitness = [fitness1,
-                   fitness4,
+                   fitness2,
                    fitness5]
         return fitness
 
@@ -655,7 +636,7 @@ pset.renameArguments(ARG4='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-0.5, -1.0, -0.5))  # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-1.0, -0.5, -0.5))  # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
@@ -691,4 +672,4 @@ toolbox.decorate("mutate", history.decorator)
 if __name__ == "__main__":
     obj = Rocket()
     pop, log, hof = main()
-
+    plt.show(block=True)
