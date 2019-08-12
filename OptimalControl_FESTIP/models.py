@@ -1,4 +1,5 @@
 import numpy as np
+from functools import partial
 
 def isa(alt, pstart, g0, r):
 
@@ -434,6 +435,13 @@ def aeroForcesMulti(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass
         i = array.index(inf)
         return i, s
 
+    def c_eval(n, m, a, b, cc, mach, angAttack, bodyFlap, it):
+        coeff = cc[it]
+        c = np.zeros(n)
+        for i in range(n):
+            c[i] = coefCalc(coeff, m[i], a[i], b[i])
+        return c
+
     def coefCalc(coeff, m, alfa, deltaf):
         if m > mach[-1]:
             m = mach[-1]
@@ -485,7 +493,9 @@ def aeroForcesMulti(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass
 
     alfag = np.rad2deg(alfa)
     deltafg = np.rad2deg(deltaf)
-    cL, cD, cM1 = map(coefCalc, (cl, cd, cm), (M, M, M), (alfag, alfag, alfag), (deltafg, deltafg, deltafg))
+    coeffs = np.array((cl, cd, cm))
+    cL, cD, cM1 = map(partial(c_eval, npoint, M, alfag, deltafg, coeffs, mach, angAttack, bodyFlap),range(3))
+    #cL, cD, cM1 = map(coefCalc, (cl, cd, cm), (M, M, M), (alfag, alfag, alfag), (deltafg, deltafg, deltafg))
     L = 0.5 * (v ** 2) * sup * rho * cL
     D = 0.5 * (v ** 2) * sup * rho * cD
     xcg = leng * (((xcgf - xcg0) / (m10 - mstart)) * (mass - mstart) + xcg0)

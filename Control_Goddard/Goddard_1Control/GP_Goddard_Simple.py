@@ -17,6 +17,8 @@ import matplotlib.animation as animation
 from matplotlib import style
 import datetime
 from time import time
+import _pickle as cPickle
+import pickle
 
 def TriAdd(x, y, z):
     return x + y + z
@@ -96,10 +98,6 @@ def mut(ind, expr, strp):
         ind = indx[0]
         return ind,
 
-def top_endstop(t,top_end_stop):
-    return top_end_stop  # STOP RUNNING [m]
-def bot_endstop(t,bottom_end_stop):
-    return bottom_end_stop
 
 def integration(t, xini, dyn):
     dt = t[1] - t[0]
@@ -148,13 +146,12 @@ obj = Rocket()
 Nstates = 3
 Ncontrols = 1
 
-top_end_stop = 80  # [km]
-bottom_end_stop = 0.0  # [km]
+
 mutpb = 0.3
 cxpb = 0.6
 change_time = 100
-size_pop = 100 # Pop size
-size_gen = 20  # Gen size
+size_pop = 150 # Pop size
+size_gen = 50  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -198,10 +195,14 @@ def main():
     del Rref, Vref, mref, tref
 
     pool = multiprocessing.Pool(nbCPU)
+    if flag_offdesign is True:
+        Mu = int(size_pop)
+        Lambda = int(size_pop * 1.4)
+        popx = toolx.population(n=size_pop)
+        history.update(popx)
+        toolx.register("map", pool.map)
 
     toolbox.register("map", pool.map)
-    toolx.register("map", pool.map)
-
     print("INITIAL POP SIZE: %d" % size_pop)
 
     print("GEN SIZE: %d" % size_gen)
@@ -211,7 +212,6 @@ def main():
     random.seed()
 
     pop = toolbox.population(n=size_pop)
-    popx = toolx.population(n=size_pop)
     history.update(pop)
     hof = tools.HallOfFame(size_gen) ### OLD ###
 
@@ -243,11 +243,11 @@ def main():
 def evaluate(individual):
     global flag, flag_offdesign
     global Rfun, Vfun, mfun, flag_t
-    global tfin
+    global tfin, penalty
 
     flag = False
     flag_t = False
-
+    penalty = 0
     # Transform the tree expression in a callable function
     if flag_offdesign is True:
         fT = toolx.compile(expr=individual)
@@ -257,31 +257,37 @@ def evaluate(individual):
     x_ini = [obj.Re, 0.0, obj.M0]  # initial conditions
 
     def sys(t, x):
-        global flag, flag_t
+        global flag, flag_t, penalty
         # State Variables
         R = x[0]
         V = x[1]
         m = x[2]
 
         if R < obj.Re or np.isnan(R):
+            penalty += abs(R - obj.Re)*1.2
             R = obj.Re
             flag = True
         if np.isinf(R) or R > obj.Re+80e3:
+            penalty += abs(R - obj.Re) * 0.2
             R = obj.Re + 80e3
             flag = True
         if m < obj.M0*obj.Mc or np.isnan(m):
+            penalty += abs(m - obj.Mc*obj.M0) * 0.5
             m = obj.M0*obj.Mc
             flag = True
         elif m > obj.M0 or np.isinf(m):
+            penalty += abs(m - obj.M0) * 0.5
             m = obj.M0
             flag = True
         if abs(V) > 1e3 or np.isinf(V):
+            penalty += abs(V - 1e3) * 0.5
             if V > 0:
                 V = 1e3
                 flag = True
             else:
                 V = -1e3
                 flag = True
+
 
         r = Rfun(t)
         v = Vfun(t)
@@ -300,12 +306,14 @@ def evaluate(individual):
         T = fT(er, ev, em)
 
 
-        if abs(fT(er, ev, em)) > obj.Tmax or np.isinf(fT(er, ev, em)):
+        if abs(T) > obj.Tmax or np.isinf(T):
+            penalty += abs(T - obj.Tmax)
             T = obj.Tmax
             flag_t = True
             flag = True
 
-        elif fT(er, ev, em) < 0.0 or np.isnan(fT(er, ev, em)):
+        elif T < 0.0 or np.isnan(T):
+            penalty += abs(T)
             T = 0.0
             flag = True
             flag_t = True
@@ -320,17 +328,14 @@ def evaluate(individual):
         x_ini = xnew_ini
         tin = change_time
         teval = t_evals2
-    sol = integration(teval, x_ini, sys) # solve_ivp(sys, [tin, tfin], x_ini)
-    y1 = sol[:, 0]
-    y2 = sol[:, 1]
-    y3 = sol[:, 2]
-    tt = teval
-    #if  != tfin:
-    #    flag_t = True
-    #    flag = True
-    if y1.any() < obj.Re:
-        flag = True
-    if y3.any() < obj.M0*obj.Mc:
+    sol = solve_ivp(sys, [tin, tfin], x_ini, t_eval=teval)
+    y1 = sol.y[0, :]
+    y2 = sol.y[1, :]
+    y3 = sol.y[2, :]
+    tt = sol.t
+    if  tt[-1] != tfin:
+        penalty += abs(tt[-1] - tfin)*1.2
+        flag_t = True
         flag = True
 
     r = Rfun(tt)
@@ -368,9 +373,9 @@ def evaluate(individual):
     #fitness3 = sum(IAE[2])
     if flag is True:
         if flag_t is True:
-            x = [fitness1, fitness2]*10000
+            x = [fitness1*penalty, fitness2*penalty]
         else:
-            x = [fitness1, fitness2] * 100
+            x = [fitness1*penalty, fitness2*penalty]
     else:
         fitness = [fitness1,
                    fitness2]
@@ -406,7 +411,7 @@ pset.renameArguments(ARG2='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-0.5, -0.5))  # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0))  # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
@@ -436,31 +441,7 @@ history = tools.History()
 toolbox.decorate("mate", history.decorator)
 toolbox.decorate("mutate", history.decorator)
 
-toolx = base.Toolbox()
-toolx.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=4)   #### OLD ####
 
-toolx.register("individual", tools.initIterate, creator.Individual, toolx.expr)  #### OLD ####
-
-toolx.register("population", tools.initRepeat, list, toolx.individual)  #### OLD ####
-
-toolx.register("compile", gp.compile, pset=pset)
-
-toolx.register("evaluate", evaluate)  ### OLD ###
-
-toolx.register("select", tools.selNSGA2)
-
-toolx.register("mate", gp.cxOnePoint)
-toolx.register("mutate", gp.mutUniform, expr=toolx.expr, pset=pset)
-
-toolx.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
-toolx.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
-
-toolx.decorate("mate", gp.staticLimit(key=len, max_value=limit_size))
-toolx.decorate("mutate", gp.staticLimit(key=len, max_value=limit_size))
-
-history = tools.History()
-toolx.decorate("mate", history.decorator)
-toolx.decorate("mutate", history.decorator)
 
 ########################################################################################################################
 
@@ -528,12 +509,12 @@ def sys2GP(t, x):
 passint = tfin
 tevals = np.linspace(0.0, tfin, int(passint*2))
 
-solgp = integration(tevals, x_ini, sys2GP) #solve_ivp(sys2GP, [0.0, tfin], x_ini)
+solgp = solve_ivp(sys2GP, [0.0, tfin], x_ini, t_eval=tevals)
 
-rout = solgp[:, 0]
-vout = solgp[:, 1]
-mout = solgp[:, 2]
-ttgp = tevals # solgp.t
+rout = solgp.y[0, :]
+vout = solgp.y[1, :]
+mout = solgp.y[2, :]
+ttgp = solgp.t
 
 rR = Rfun(ttgp)
 vR = Vfun(ttgp)
@@ -580,29 +561,67 @@ for items in ttgp:
     animated_plot3.set_ydata(mout[0:i])
     plt.draw()
     plt.pause(0.00000001)
-
-#for i in range(len(tplot)):
+    i = i + 1
+for i in range(len(tplot)):
     plt.figure(4)
     animated_plot4.set_xdata(tplot[0:i])
     animated_plot4.set_ydata(Tplot[0:i])
     plt.pause(0.00000001)
     plt.draw()
-    i = i + 1
+
 
 u_design = hof[0]
 print(u_design)
+output = open("hof_GoddardSimple.pkl", "wb")
+cPickle.dump(hof, output, -1)
+output.close()
+
+objects = []
+with (open("hof_GoddardSimple.pkl", "rb")) as openfile:
+    while True:
+        try:
+            objects.append(pickle.load(openfile))
+        except EOFError:
+            break
 #####################################################################################################################
 
 start = time()
 if __name__ == "__main__":
     obj = Rocket()
+    def initPOP1():
+        global objects
+        return objects[0]
+
+    toolx = base.Toolbox()
+    toolx.register("expr", gp.genHalfAndHalf, pset=pset, min_=1, max_=4)  #### OLD ####
+
+    toolx.register("individual", tools.initIterate, creator.Individual, toolx.expr)  #### OLD ####
+
+    toolx.register("population", tools.initRepeat, list, toolx.individual)  #### OLD ####
+
+    toolx.register("compile", gp.compile, pset=pset)
+
+    toolx.register("evaluate", evaluate)  ### OLD ###
+
+    toolx.register("select", tools.selNSGA2)
+
+    toolx.register("mate", gp.cxOnePoint)
+    toolx.register("mutate", gp.mutUniform, expr=toolx.expr, pset=pset)
+
+    toolx.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
+    toolx.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
+
+    toolx.decorate("mate", gp.staticLimit(key=len, max_value=limit_size))
+    toolx.decorate("mutate", gp.staticLimit(key=len, max_value=limit_size))
+
+    history = tools.History()
+    toolx.decorate("mate", history.decorator)
+    toolx.decorate("mutate", history.decorator)
     xnew_ini = [float(rout[index]), float(vout[index]), float(mout[index])]
     t_evals2 = np.linspace(change_time, tfin, int(tfin*2))
     flag_seed_populations = True
     flag_offdesign = True
-    size_pop, size_gen, cxpb, mutpb = 70, 17, 0.6, 0.2
-    Mu = int(size_pop)
-    Lambda = int(size_pop * 1.4)
+    size_pop, size_gen, cxpb, mutpb = 100, 5, 0.6, 0.2
     pop, log, hof = main()
 end = time()
 t_offdesign = end - start  # CALCOLO TEMPO IMPIEGATO DAL GENETIC PROGRAMMING
@@ -655,15 +674,15 @@ passint_c = (change_time + t_offdesign - (change_time)) * 2
 tevals_c = np.linspace(change_time, change_time + t_offdesign, int(passint_c))
 xnew_ini = [float(rout[index]), float(vout[index]), float(mout[index])]                              ################Mi servono questi PENSARE
 
-solgp_c = integration(tevals_c, xnew_ini, sys2GP_c) # solve_ivp(sys2GP_c, [change_time, change_time + t_offdesign], xnew_ini)
+solgp_c = solve_ivp(sys2GP_c, [change_time, change_time + t_offdesign], xnew_ini, t_eval=tevals_c)
 
-rout_c = solgp_c[:, 0]
-vout_c = solgp_c[:, 1]
-mout_c = solgp_c[:, 2]
+rout_c = solgp_c.y[0, :]
+vout_c = solgp_c.y[1, :]
+mout_c = solgp_c.y[2, :]
 for i in range(len(mout_c)):
     if mout_c[i] < obj.M0*obj.Mc:
         mout_c[i] = obj.M0*obj.Mc
-ttgp_c = tevals_c # solgp_c.t
+ttgp_c = solgp_c.t
 
 for tempi in ttgp_c:
     if tempi > t_offdesign:
@@ -688,7 +707,7 @@ for i in range(len(ttgp_c)):
     plt.figure(2)
     animated_plot_c2.set_xdata(ttgp_c[0:i])
     animated_plot_c2.set_ydata(vout_c[0:i])
-    plt.draw()
+    #plt.draw()
     plt.pause(0.00000001)
 
     plt.figure(3)
@@ -696,7 +715,7 @@ for i in range(len(ttgp_c)):
     animated_plot_c3.set_ydata(mout_c[0:i])
     plt.pause(0.00000001)
     plt.draw()
-#for i in range(len(tplot)):
+for i in range(len(tplot)):
     plt.figure(4)
     animated_plot_c4.set_xdata(tplot[0:i])
     animated_plot_c4.set_ydata(Tplot[0:i])
@@ -762,15 +781,15 @@ def sys2GP_gp(t, x):
     return dxdt
 
 
-solgp_gp = integration(tevals_gp, xnew_ini_gp, sys2GP_gp) # solve_ivp(sys2GP_gp, [change_time + t_offdesign, total_time_simulation], xnew_ini_gp)
+solgp_gp = solve_ivp(sys2GP_gp, [change_time + t_offdesign, total_time_simulation], xnew_ini_gp, t_eval=tevals_gp)
 
-rout_gp = solgp_gp[:, 0]
-vout_gp = solgp_gp[:, 1]
-mout_gp = solgp_gp[:, 2]
+rout_gp = solgp_gp.y[0, :]
+vout_gp = solgp_gp.y[1, :]
+mout_gp = solgp_gp.y[2, :]
 for i in range(len(mout_gp)):
     if mout_gp[i] < obj.M0*obj.Mc:
         mout_gp[i] = obj.M0*obj.Mc
-ttgp_gp = tevals_gp # solgp_gp.t
+ttgp_gp = solgp_gp.t
 
 
 plt.ion()
@@ -800,7 +819,7 @@ for i in range(len(ttgp_gp)):
     plt.draw()
     plt.pause(0.00000001)
 
-#for i in range(len(tplot)):
+for i in range(len(tplot)):
     plt.figure(4)
     animated_plot_gp4.set_xdata(tplot[0:i])
     animated_plot_gp4.set_ydata(Tplot[0:i])

@@ -18,6 +18,8 @@ from matplotlib import style
 import datetime
 from time import time
 from functools import partial
+import _pickle as cPickle
+import pickle
 
 
 def Div(left, right):
@@ -194,7 +196,7 @@ mutpb = 0.25
 cxpb = 0.55
 change_time = 200
 size_pop = 150 # Pop size
-size_gen = 50  # Gen size
+size_gen = 5  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -238,8 +240,14 @@ def main():
 
     pool = multiprocessing.Pool(nbCPU)
 
-    toolbox.register("map", pool.map)
-    toolx.register("map", pool.map)
+    if flag_offdesign is False:
+        toolbox.register("map", pool.map)
+        pop = toolbox.population(n=size_pop)
+    else:
+        toolx.register("map", pool.map)
+        pop = toolx.population(n=size_pop)
+        Mu = int(size_pop)
+        Lambda = int(size_pop*1.4)
 
     print("INITIAL POP SIZE: %d" % size_pop)
 
@@ -248,10 +256,8 @@ def main():
     print("\n")
 
     random.seed()
-
-    pop = toolbox.population(n=size_pop)
-    popx = toolx.population(n=size_pop)
     history.update(pop)
+
     hof = tools.HallOfFame(size_gen) ### OLD ###
 
     stats_fit = tools.Statistics(lambda ind: ind.fitness.values)
@@ -266,12 +272,13 @@ def main():
     ####################################   EVOLUTIONARY ALGORITHM   -  EXECUTION   #####################################
 
     if flag_offdesign is True:
-        pop, log = algorithms.eaMuPlusLambda(popx, toolx, Mu, Lambda, mutpb, cxpb, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
+        pop, log = algorithms.eaMuPlusLambda(pop, toolx, Mu, Lambda, mutpb, cxpb, size_gen, stats=mstats, halloffame=hof, verbose=True)  ### OLD ###
     else:
         pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, mutpb, cxpb, size_gen, stats=mstats, halloffame=hof, verbose=True)
     ####################################################################################################################
 
     pool.close()
+    pool.join()
     return pop, log, hof
 
 
@@ -281,14 +288,16 @@ def main():
 def evaluate(individual):
     global flag, flag_offdesign
     global Rfun, Thetafun, Vrfun, Vtfun, mfun, Trfun
-    global tfin, t_eval2
+    global tfin, t_eval2, penalty
 
+    penalty = 0
     flag = False
 
     # Transform the tree expression in a callable function
     if flag_offdesign is True:
         fTr = toolx.compile(expr=individual[0])
         fTt = toolx.compile(expr=individual[1])
+
     else:
         fTr = toolbox.compile(expr=individual[0])
         fTt = toolbox.compile(expr=individual[1])
@@ -296,6 +305,7 @@ def evaluate(individual):
     x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
 
     def sys(t, x):
+        global penalty, flag
         # State Variables
         R = x[0]
         theta = x[1]
@@ -303,35 +313,39 @@ def evaluate(individual):
         Vt = x[3]
         m = x[4]
 
-        if np.isnan(theta) or np.isinf(theta):
-            theta = np.nan_to_num(theta)
+        #if np.isnan(theta) or np.isinf(theta):
+         #   theta = np.nan_to_num(theta)
 
         if R < obj.Re or np.isnan(R):
+            penalty += abs(R - obj.Re)*1.5
             R = obj.Re
             flag = True
         if R > obj.Rtarget + 1e3 or np.isinf(R):
+            penalty += abs(R - obj.Rtarget)*0.3
             R = obj.Rtarget
             flag = True
         if m < obj.M0 - obj.Mp or np.isnan(m):
+            penalty += abs(m - (obj.M0 - obj.Mp))
             m = obj.M0 - obj.Mp
             flag = True
         elif m > obj.M0 or np.isinf(m):
+            penalty += abs(m - obj.M0)
             m = obj.M0
             flag = True
         if abs(Vr) > 1e4 or np.isinf(Vr):
+            penalty += abs(Vr - 1e4)*0.5
             if Vr > 0:
                 Vr = 1e4
-                flag = True
             else:
                 Vr = -1e4
-                flag = True
+            flag = True
         if abs(Vt) > 1e4 or np.isinf(Vt):
+            penalty += abs(Vt - 1e4)*0.5
             if Vt > 0:
                 Vt = 1e4
-                flag = True
             else:
                 Vt = -1e4
-                flag = True
+            flag = True
 
         r = Rfun(t)
         th = Thetafun(t)
@@ -356,18 +370,22 @@ def evaluate(individual):
         Tt = fTt(er, et, evr, evt, em)
 
         if fTr(er, et, evr, evt, em) < 0.0 or np.isnan(fTr(er, et, evr, evt, em)):
+            penalty += abs(Tr)*0.5
             Tr = 0.0
             flag = True
 
         elif fTr(er, et, evr, evt, em) > obj.Tmax or np.isinf(fTr(er, et, evr, evt, em)):
+            penalty += abs(Tr - obj.Tmax)
             Tr = obj.Tmax
             flag = True
 
         if fTt(er, et, evr, evt, em) < 0.0 or np.isnan(fTt(er, et, evr, evt, em)):
+            penalty += abs(Tt)*0.5
             Tt = 0.0
             flag = True
 
         elif fTt(er, et, evr, evt, em) > obj.Tmax or np.isinf(fTt(er, et, evr, evt, em)):
+            penalty += abs(Tt - obj.Tmax)
             Tt = obj.Tmax
             flag = True
 
@@ -393,6 +411,7 @@ def evaluate(individual):
 
     if sol.t[-1] != tfin:
         flag = True
+        penalty += abs(tt[-1] - tfin)*1.2
 
     r = Rfun(tt)
     theta = Thetafun(tt)
@@ -425,14 +444,16 @@ def evaluate(individual):
         IAE[2][j] = n * abs(c)  # + alpha * abs(m))
         j = j + 1
 
+    fitness1 = sum(IAE[0])
+    fitness2 = sum(IAE[1])
+    fitness5 = sum(IAE[2])
 
     if flag is True:
-        x = [1e5, 1e5, 1e5]
+        x = [fitness1*penalty,
+             fitness2*penalty,
+             fitness5*penalty]
 
     else:
-        fitness1 = sum(IAE[0])
-        fitness2 = sum(IAE[1])
-        fitness5 = sum(IAE[2])
         fitness = [fitness1,
                    fitness2,
                    fitness5]
@@ -522,34 +543,6 @@ history = tools.History()
 toolbox.decorate("mate", history.decorator)
 toolbox.decorate("mutate", history.decorator)
 
-toolx = base.Toolbox()
-
-toolx.register("expr", gp.genHalfAndHalf, pset=pset, type_=pset.ret, min_=2, max_=5)  ### NEW ###
-
-toolx.register("leg", tools.initIterate, creator.SubIndividual, toolx.expr)  ### NEW ###
-toolx.register("legs", tools.initRepeat, list, toolbox.leg, n=Ncontrols)  ### NEW ###
-
-toolx.register("individual", tools.initIterate, creator.Individual, toolx.legs)  ### NEW ###
-
-toolx.register("population", tools.initRepeat, list, toolx.individual)  ### NEW ###
-
-toolx.register("compile", gp.compile, pset=pset)
-
-toolx.register("evaluate", evaluate) ### OLD ###
-#toolbox.register('evaluate', evaluate, toolbox=toolbox, sourceData=data, minTrades=minTrades, log=False) ###NEW ###
-
-toolx.register("select", xselDoubleTournament, fitness_size=6, parsimony_size=1.4, fitness_first=True) ### NEW ###
-
-toolx.register("mate", xmate) ### NEW ###
-toolx.register("expr_mut", gp.genHalfAndHalf, min_=2, max_=5) ### NEW ###
-toolx.register("mutate", xmut, expr=toolx.expr_mut, strp=0.4) ### NEW ###
-
-toolx.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
-#toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
-
-toolx.decorate("mate", gp.staticLimit(key=len , max_value=limit_size))
-#toolbox.decorate("mutate", gp.staticLimit(key=len, max_value=limit_size))
-
 ########################################################################################################################
 
 
@@ -627,17 +620,21 @@ mR = mfun(tevals)
 plt.ion()
 plt.figure(1)
 plt.plot(tevals, (rR - obj.Re) / 1e3, 'r--', label="SET POINT")
-animated_plot = plt.plot(ttgp, (rout - obj.Re) / 1e3, marker='.', color='k', label="ON DESIGN")[0]
+#animated_plot =\
+plt.plot(ttgp, (rout - obj.Re) / 1e3, marker='.', color='k', label="ON DESIGN")#[0]
 plt.figure(2)
 plt.plot(tevals, vtR, 'r--', label="SET POINT")
-animated_plot2 = plt.plot(ttgp, vtout, marker='.', color='k', label="ON DESIGN")[0]
+#animated_plot2 = \
+plt.plot(ttgp, vtout, marker='.', color='k', label="ON DESIGN")#[0]
 plt.figure(3)
 plt.plot(tevals, mR, 'r--', label="SET POINT")
 plt.axhline(obj.M0-obj.Mp, 0, ttgp[-1], color='r')
-animated_plot3 = plt.plot(ttgp, mout, marker='.', color='k', label="ON DESIGN")[0]
+#animated_plot3 =\
+plt.plot(ttgp, mout, marker='.', color='k', label="ON DESIGN")#[0]
 plt.figure(4)
 plt.plot(tevals, vrR, 'r--', label="SET POINT")
-animated_plot4 = plt.plot(ttgp, vrout, marker='.', color='k', label="ON DESIGN")[0]
+#animated_plot4 =\
+plt.plot(ttgp, vrout, marker='.', color='k', label="ON DESIGN")#[0]
 
 
 i = 0
@@ -645,7 +642,7 @@ for items in ttgp:
     if items > change_time:
         index, = np.where(ttgp == items)
         break
-    plt.figure(1)
+    '''plt.figure(1)
     animated_plot.set_xdata(ttgp[0:i])
     animated_plot.set_ydata((rout[0:i]-obj.Re)/1e3)
     plt.pause(0.00000001)
@@ -666,25 +663,84 @@ for items in ttgp:
     plt.draw()
     plt.pause(0.00000001)
 
-    i = i + 1
+    i = i + 1'''
 
 Tr_old = hof[0][0]
 Tt_old = hof[0][1]
 print(Tr_old)
 print(Tt_old)
+'''hof1 = [hof[0][0], hof[1][0], hof[2][0]]
+for i in range(len(hof)):
+    hof1[i] = hof[i][0]
+hof2 = []
+for i in range(len(hof)):
+    hof2 = hof2.append(hof[i][1])
+output = open("hof_2Controls_1st.pkl", "wb")
+for i in range(len(hof)):
+    cPickle.dump(hof[i][0], output, -1)
+output.close()
+output = open("hof_2Controls_2nd.pkl", "wb")
+for i in range(len(hof)):
+    cPickle.dump(hof[i][1], output, -1)
+output.close()
+
+contr_1 = []
+contr_2 = []
+with (open("hof_2Controls_1st.pkl", "rb")) as openfile:
+    while True:
+        try:
+            contr_1.append(pickle.load(openfile))
+        except EOFError:
+            break
+
+with (open("hof_2Controls_2nd.pkl", "rb")) as openfile:
+    while True:
+        try:
+            contr_2.append(pickle.load(openfile))
+        except EOFError:
+            break'''
 #####################################################################################################################
 
 start = time()
 if __name__ == "__main__":
+    def initPOP1():
+        global hof
+        return hof.items
+
+    toolx = base.Toolbox()
+    toolx.register("population", tools.initRepeat, list, initPOP1)
+
+    toolx.register("expr", gp.genHalfAndHalf, pset=pset, type_=pset.ret, min_=2, max_=5)  ### NEW ###
+
+    toolx.register("leg", tools.initIterate, creator.SubIndividual, toolx.expr)  ### NEW ###
+    toolx.register("legs", tools.initRepeat, list, toolbox.leg, n=Ncontrols)  ### NEW ###
+
+    toolx.register("individual", tools.initIterate, creator.Individual, toolx.legs)  ### NEW ###
+
+    toolx.register("compile", gp.compile, pset=pset)
+
+    toolx.register("evaluate", evaluate)  ### OLD ###
+    # toolbox.register('evaluate', evaluate, toolbox=toolbox, sourceData=data, minTrades=minTrades, log=False) ###NEW ###
+
+    toolx.register("select", xselDoubleTournament, fitness_size=6, parsimony_size=1.4, fitness_first=True)  ### NEW ###
+
+    toolx.register("mate", xmate)  ### NEW ###
+    toolx.register("expr_mut", gp.genHalfAndHalf, min_=2, max_=5)  ### NEW ###
+    toolx.register("mutate", xmut, expr=toolx.expr_mut, strp=0.4)  ### NEW ###
+
+    toolx.decorate("mate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
+    # toolbox.decorate("mutate", gp.staticLimit(key=operator.attrgetter("height"), max_value=limit_height))
+
+    toolx.decorate("mate", gp.staticLimit(key=len, max_value=limit_size))
+    # toolbox.decorate("mutate", gp.staticLimit(key=len, max_value=limit_size))
+
     obj = Rocket()
     xnew_ini = [float(rout[index]), float(thetaout[index]), float(vrout[index]), float(vtout[index]), float(mout[index])]
     t_eval2 = np.linspace(change_time, tfin, int(tfin*3))
     flag_seed_populations = True
     flag_offdesign = True
     flag_prop = False
-    size_pop, size_gen, cxpb, mutpb = 100, 30, 0.55, 0.25
-    Mu = int(size_pop)
-    Lambda = int(size_pop * 1.4)
+    size_pop, size_gen, cxpb, mutpb = size_gen, 5, 0.7, 0.25
     pop, log, hof = main()
 end = time()
 t_offdesign = end - start  # CALCOLO TEMPO IMPIEGATO DAL GENETIC PROGRAMMING
@@ -761,16 +817,20 @@ for tempi in ttgp_c:
 
 plt.ion()
 plt.figure(1)
-animated_plot_c = plt.plot(ttgp_c, (rout_c - obj.Re) / 1e3, marker='.', color='b', label="OFF DESIGN")[0]
+#animated_plot_c = \
+plt.plot(ttgp_c, (rout_c - obj.Re) / 1e3, marker='.', color='b', label="OFF DESIGN")#[0]
 plt.figure(2)
-animated_plot_c2 = plt.plot(ttgp_c, vtout_c, marker='.', color='b', label="OFF DESIGN")[0]
+#animated_plot_c2 =
+plt.plot(ttgp_c, vtout_c, marker='.', color='b', label="OFF DESIGN")#[0]
 plt.figure(3)
-animated_plot_c3 = plt.plot(ttgp_c, mout_c, marker='.', color='b', label="OFF DESIGN")[0]
+#animated_plot_c3 =\
+plt.plot(ttgp_c, mout_c, marker='.', color='b', label="OFF DESIGN")#[0]
 plt.figure(4)
-animated_plot_c4 = plt.plot(ttgp_c, vrout_c, marker='.', color='b', label="OFF DESIGN")[0]
+#animated_plot_c4 = \
+plt.plot(ttgp_c, vrout_c, marker='.', color='b', label="OFF DESIGN")#[0]
 
 
-for i in range(len(ttgp_c)):
+'''for i in range(len(ttgp_c)):
     plt.figure(1)
     animated_plot_c.set_xdata(ttgp_c[0:i])
     animated_plot_c.set_ydata((rout_c[0:i]-obj.Re)/1e3)
@@ -790,7 +850,7 @@ for i in range(len(ttgp_c)):
     animated_plot_c4.set_xdata(ttgp_c[0:i])
     animated_plot_c4.set_ydata(vrout_c[0:i])
     plt.draw()
-    plt.pause(0.00000001)
+    plt.pause(0.00000001)'''
 
 ##################################################################################################################
 
@@ -860,15 +920,20 @@ if ttgp_gp[-1] != (change_time + t_offdesign):
     print("third integration stopped prematurly")
 plt.ion()
 plt.figure(1)
-animated_plot_gp = plt.plot(ttgp_gp, (rout_gp - obj.Re) / 1e3, marker='.', color='g', label="ONLINE CONTROL")[0]
+#animated_plot_gp = \
+plt.plot(ttgp_gp, (rout_gp - obj.Re) / 1e3, marker='.', color='g', label="ONLINE CONTROL")#[0]
 plt.figure(2)
-animated_plot_gp2 = plt.plot(ttgp_gp, vtout_gp, marker='.', color='g', label="ONLINE CONTROL")[0]
+#animated_plot_gp2 = \
+plt.plot(ttgp_gp, vtout_gp, marker='.', color='g', label="ONLINE CONTROL")#[0]
 plt.figure(3)
-animated_plot_gp3 = plt.plot(ttgp_gp, mout_gp, marker='.', color='g', label="ONLINE CONTROL")[0]
+#animated_plot_gp3 = \
+plt.plot(ttgp_gp, mout_gp, marker='.', color='g', label="ONLINE CONTROL")#[0]
 plt.figure(4)
-animated_plot_gp4 = plt.plot(ttgp_gp, vrout_gp, marker='.', color='g', label="ONLINE CONTROL")[0]
+#animated_plot_gp4 = \
+plt.plot(ttgp_gp, vrout_gp, marker='.', color='g', label="ONLINE CONTROL")#[0]
+plt.show(block=True)
 i = 0
-for items in ttgp_gp:
+'''for items in ttgp_gp:
     plt.figure(1)
     animated_plot_gp.set_xdata(ttgp_gp[0:i])
     animated_plot_gp.set_ydata((rout_gp[0:i]-obj.Re)/1e3)
@@ -890,7 +955,7 @@ for items in ttgp_gp:
     plt.draw()
     plt.pause(0.00000001)
 
-    i = i + 1
+    i = i + 1'''
 
 print("\n")
 print("Tr old: ", Tr_old)

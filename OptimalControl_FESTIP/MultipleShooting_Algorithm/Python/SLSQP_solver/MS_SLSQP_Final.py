@@ -58,7 +58,7 @@ class Spaceplane:
         self.Htarget = 400000  # m target height after hohmann transfer
         self.wingSurf = 500.0  # m2
         self.lRef = 34.0  # m
-        self.k = 5e3  # [Nm] livello di precisione per trimmaggio
+        self.k = 5e4  # [Nm] livello di precisione per trimmaggio
         self.m10 = self.M0 * 0.1
         self.xcgf = 0.37  # cg position with empty vehicle
         self.xcg0 = 0.65  # cg position at take-off
@@ -1143,7 +1143,7 @@ cons = ({'type': 'eq',
 if __name__ == '__main__':
     timestr = time.strftime("%Y%m%d-%H%M%S")
     savefig_file = "MultiShooting_{}_{}_".format(os.path.basename(__file__), timestr)
-    flag_save = False
+    flag_save = True
     obj = Spaceplane()
     start = time.time()
 
@@ -1215,7 +1215,11 @@ if __name__ == '__main__':
     eps = 1e-09  # increment of the derivative
     # u = 2.220446049250313e-16
     maxIterator = 20  # max number of optimization iterations
-
+    if flag_save:
+        os.makedirs("/home/francesco/Desktop/PhD/FESTIP_Work/MultipleShooting_Algorithm/SLSQP/Results/Res{}_leg{}_it{}x{}_{}".format(
+            os.path.basename(__file__), Nleg, maxiter, maxIterator, timestr))
+        savefig_file = "/home/francesco/Desktop/PhD/FESTIP_Work/MultipleShooting_Algorithm/SLSQP/Results/Res{}_leg{}_it{}x{}_{}/Res_".format(
+            os.path.basename(__file__), Nleg, maxiter, maxIterator, timestr)
     '''definiton of initial conditions'''
 
     # set vector of initial conditions of states and controls
