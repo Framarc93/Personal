@@ -196,10 +196,10 @@ Ncontrols = 2
 
 old = 0
 
-size_pop = 150  # Population size
-size_gen = 50  # Number of generations
+size_pop = 176  # Population size
+size_gen = 56  # Number of generations
 Mu = int(size_pop)
-Lambda = int(size_pop*1.4)
+Lambda = int(size_pop*1.5111450)
 
 limit_height = 20  # Max height (complexity) of the controller law
 limit_size = 400   # Max size (complexity) of the controller law
@@ -261,7 +261,7 @@ def main():
 
     # pop, log = algorithms.eaMuPlusLambda(pop, toolbox, Mu, Lambda, 0.6, 0.2, size_gen, stats=mstats, halloffame=hof,
                                          # verbose=True)  ### OLD ###
-    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu=Mu, lambda_=Lambda, cxpb=0.55, mutpb=0.25, ngen=size_gen,
+    pop, log = algorithms.eaMuPlusLambda(pop, toolbox, mu=Mu, lambda_=Lambda, cxpb=0.5511545, mutpb=0.3988455, ngen=size_gen,
                               stats=mstats, halloffame=hof, verbose=True)  ### NEW ###
 
     ####################################################################################################################
@@ -511,7 +511,7 @@ def evaluate(individual):
     x_ini = [obj.Re, 0.0, 0.0, 0.0, obj.M0]  # initial conditions
 
     def sys(t, x):
-
+        global flag
         R = x[0]
         theta = x[1]
         Vr = x[2]
@@ -640,17 +640,17 @@ def evaluate(individual):
 
     # PENALIZING INDIVIDUALs
     #For the stats if the multiprocessing is used, there could be problems to print the correct values (parallel process(?))
-
+    fitness1 = sum(IAE[0])
+    fitness2 = sum(IAE[1])
+    # fitness3 = sum(IAE[2])
+    # fitness4 = sum(IAE[3])
+    fitness5 = sum(IAE[2])
     if flag is True:
-        x = [1e5, 1e5, 1e5]
+        x = [fitness1, fitness2, fitness5]*1000
         return x
 
     else:
-        fitness1 = sum(IAE[0])
-        fitness2 = sum(IAE[1])
-        #fitness3 = sum(IAE[2])
-        #fitness4 = sum(IAE[3])
-        fitness5 = sum(IAE[2])
+
         fitness = [fitness1,
                    fitness2,
                    #fitness3,
@@ -662,8 +662,8 @@ def evaluate(individual):
 ####################################    P R I M I T I V E  -  S E T     ################################################
 
 pset = gp.PrimitiveSet("MAIN", 5)
-pset.addPrimitive(operator.add, 2, name="Add")
-pset.addPrimitive(operator.sub, 2, name="Sub")
+#pset.addPrimitive(operator.add, 2, name="Add")
+#pset.addPrimitive(operator.sub, 2, name="Sub")
 pset.addPrimitive(operator.mul, 2, name="Mul")
 pset.addPrimitive(TriAdd, 3)
 #pset.addPrimitive(operator.truediv, 2, name="Div")
@@ -671,13 +671,13 @@ pset.addPrimitive(TriAdd, 3)
 #pset.addPrimitive(Mul, 2)
 pset.addPrimitive(Abs, 1)
 #pset.addPrimitive(Div, 2)                      #rallentamento per gli ndarray utilizzati
-pset.addPrimitive(Sqrt, 1)
+#pset.addPrimitive(Sqrt, 1)
 pset.addPrimitive(Log, 1)
 #pset.addPrimitive(Exp, 1)
-pset.addPrimitive(Sin, 1)
-pset.addPrimitive(Cos, 1)
+#pset.addPrimitive(Sin, 1)
+#pset.addPrimitive(Cos, 1)
 pset.addTerminal(np.pi, "pi")
-pset.addTerminal(np.e, name="nap")                   #e Napier constant number
+#pset.addTerminal(np.e, name="nap")                   #e Napier constant number
 #pset.addTerminal(2)
 pset.addEphemeralConstant("rand101", lambda: round(random.uniform(-100, 100), 4))
 pset.addEphemeralConstant("rand102", lambda: round(random.uniform(-100, 100), 4))
@@ -721,11 +721,11 @@ toolbox.register("evaluate", evaluate) ### OLD ###
 #toolbox.register('evaluate', evaluate, toolbox=toolbox, sourceData=data, minTrades=minTrades, log=False) ###NEW ###
 
 # toolbox.register("select", tools.selDoubleTournament, fitness_size=3, parsimony_size=1, fitness_first=True) ### OLD ###
-toolbox.register("select", xselDoubleTournament, fitness_size=6, parsimony_size=1.4, fitness_first=True) ### NEW ###
+toolbox.register("select", xselDoubleTournament, fitness_size=11, parsimony_size=1.3752832, fitness_first=True) ### NEW ###
 
 toolbox.register("mate", xmate) ### NEW ###
 toolbox.register("expr_mut", gp.genHalfAndHalf, min_=2, max_=5) ### NEW ###
-toolbox.register("mutate", xmut, expr=toolbox.expr_mut, strp=0.7) ### NEW ###
+toolbox.register("mutate", xmut, expr=toolbox.expr_mut, strp=0.6184303) ### NEW ###
 
 # toolbox.register("mate", gp.cxOnePointLeafBiased,termpb=0.1) ### OLD ###
 # toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=pset) ### OLD ###

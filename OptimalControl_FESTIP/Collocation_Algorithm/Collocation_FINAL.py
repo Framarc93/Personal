@@ -46,7 +46,7 @@ class Spaceplane():
         self.longstart = np.deg2rad(-52.775)  # deg longitude
         self.chistart = np.deg2rad(125)  # deg flight direction
         self.incl = np.deg2rad(51.6)  # deg orbit inclination
-        self.gammastart = np.deg2rad(0.1)  # deg
+        self.gammastart = np.deg2rad(89.9)  # deg
         self.M0 = 450400  # kg  starting mass
         self.g0 = 9.80665  # m/s2
         self.gIsp = self.g0 * 455  # g0 * Isp max
@@ -57,7 +57,7 @@ class Spaceplane():
         self.Htarget = 400000  # m target height after hohmann transfer
         self.wingSurf = 500.0  # m2
         self.lRef = 34.0  # m
-        self.k = 5e3  # [Nm] livello di precisione per trimmaggio
+        self.k = 5e4  # [Nm] livello di precisione per trimmaggio
         self.m10 = self.M0 * 0.1
         self.xcgf = 0.37  # cg position with empty vehicle
         self.xcg0 = 0.65  # cg position at take-off
@@ -848,23 +848,23 @@ if __name__ == '__main__':
     spimp_interp = splrep(presv, spimpv, s=2)
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    flag_savefig = False
+    flag_savefig = True
 
     pool = Pool(processes=3)
     plt.ion()
     start = time.time()
-    n = [30]
+    n = [40]
     time_init = [0.0, 350]
     num_states = [7]
     num_controls = [5]
-    max_iteration = 10
+    max_iteration = 40
     Ncontrols = num_controls[0]
     Nstates = num_states[0]
     Npoints = n[0]
     varStates = Nstates * Npoints
     varTot = (Nstates + Ncontrols) * Npoints
     Nint = 10000
-    maxiter = 1
+    maxiter = 30
     ftol = 1e-8
     if flag_savefig:
         os.makedirs("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}".format(
@@ -1218,8 +1218,6 @@ if __name__ == '__main__':
     plt.title("Altitude profile")
     plt.plot(time, h / 1000, marker=".", label="Altitude")
     plt.plot(tres, hres / 1000, label="Integration")
-    for line in prob.time_knots():
-        plt.axvline(line, color="k", alpha=0.5)
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel("Altitude [km]")
@@ -1231,8 +1229,6 @@ if __name__ == '__main__':
     plt.title("Velocity")
     plt.plot(time, v, marker=".", label="V")
     plt.plot(tres, vres, label="Integration")
-    for line in prob.time_knots():
-        plt.axvline(line, color="k", alpha=0.5)
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel("Velocity [m/s]")
@@ -1244,8 +1240,6 @@ if __name__ == '__main__':
     plt.title("Mass")
     plt.plot(time, m, marker=".", label="Mass")
     plt.plot(tres, mres, label="Integration")
-    for line in prob.time_knots():
-        plt.axvline(line, color="k", alpha=0.5)
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel("Mass [kg]")
@@ -1293,8 +1287,6 @@ if __name__ == '__main__':
     plt.title("Acceleration")
     plt.plot(time, ax, marker=".", label="Acc x")
     plt.plot(time, az, marker=".", label="Acc z")
-    for line in prob.time_knots():
-        plt.axvline(line, color="k", alpha=0.5)
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel("Acceleration [m/s2]")
@@ -1401,8 +1393,6 @@ if __name__ == '__main__':
     plt.plot(time, np.rad2deg(gamma), marker=".", label="Gamma")
     plt.plot(time, np.rad2deg(teta), marker=".", label="Theta")
     plt.plot(time, np.rad2deg(lam), marker=".", label="Lambda")
-    for line in prob.time_knots():
-        plt.axvline(line, color="k", alpha=0.5)
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" deg ")
@@ -1414,8 +1404,6 @@ if __name__ == '__main__':
     plt.title("Chi")
     plt.plot(time, np.rad2deg(chi), marker=".", label="Chi")
     plt.plot(tres, np.rad2deg(chires), label="Integration")
-    for line in prob.time_knots():
-        plt.axvline(line, color="k", alpha=0.5)
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" deg ")
@@ -1427,8 +1415,6 @@ if __name__ == '__main__':
     plt.title("Gamma")
     plt.plot(time, np.rad2deg(gamma), marker=".", label="Gamma")
     plt.plot(tres, np.rad2deg(gammares), label="Integration")
-    for line in prob.time_knots():
-        plt.axvline(line, color="k", alpha=0.5)
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" deg ")
@@ -1440,8 +1426,6 @@ if __name__ == '__main__':
     plt.title("Teta")
     plt.plot(time, np.rad2deg(teta), marker=".", label="Theta")
     plt.plot(tres, np.rad2deg(tetares), label="Integration")
-    for line in prob.time_knots():
-        plt.axvline(line, color="k", alpha=0.5)
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" deg ")
@@ -1453,8 +1437,6 @@ if __name__ == '__main__':
     plt.title("Lambda")
     plt.plot(time, np.rad2deg(lam), marker=".", label="Lambda")
     plt.plot(tres, np.rad2deg(lamres), label="Integration")
-    for line in prob.time_knots():
-        plt.axvline(line, color="k", alpha=0.5)
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" deg ")
@@ -1465,8 +1447,6 @@ if __name__ == '__main__':
     plt.figure(16)
     plt.title("Dynamic pressure profile")
     plt.plot(time, q / 1000, marker=".", label="Q")
-    for line in prob.time_knots():
-        plt.axvline(line, color="k", alpha=0.5)
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" kPa ")
@@ -1520,10 +1500,10 @@ if __name__ == '__main__':
     if flag_savefig:
         plt.savefig(savefig_file + "traj" + ".png")
 
-    plt.show()
+    plt.show(block=True)
     pool.close()
     pool.join()
-    plt.close(0)
+    '''plt.close(0)
     plt.close(1)
     plt.close(2)
     # plt.close(3)
@@ -1544,4 +1524,4 @@ if __name__ == '__main__':
     # plt.close(18)
     plt.close(19)
     plt.close(20)
-    plt.close(21)
+    plt.close(21)'''

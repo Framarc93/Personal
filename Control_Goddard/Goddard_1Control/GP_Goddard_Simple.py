@@ -101,6 +101,26 @@ def top_endstop(t,top_end_stop):
 def bot_endstop(t,bottom_end_stop):
     return bottom_end_stop
 
+def integration(t, xini, dyn):
+    dt = t[1] - t[0]
+    Nint = len(t)
+    x = np.zeros((Nint, len(xini)))
+    x[0, :] = xini
+    for i in range(Nint - 1):
+        # print(i, x[i,:])
+        # print(u[i,:])
+        k1 = dt * dyn(t[i], x[i, :])
+        # print("k1: ", k1)
+        k2 = dt * dyn(t[i] + dt / 2, x[i, :] + k1 / 2)
+        # print("k2: ", k2)
+        k3 = dt * dyn(t[i] + dt / 2, x[i, :] + k2 / 2)
+        # print("k3: ", k3)
+        k4 = dt * dyn(t[i + 1], x[i, :] + k3)
+        # print("k4: ", k4)
+        x[i + 1, :] = x[i, :] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+
+    return x
+
 start = timeit.default_timer()
 
 ###############################  S Y S T E M - P A R A M E T E R S  ####################################################
@@ -133,8 +153,8 @@ bottom_end_stop = 0.0  # [km]
 mutpb = 0.3
 cxpb = 0.6
 change_time = 100
-size_pop = 70 # Pop size
-size_gen = 15  # Gen size
+size_pop = 100 # Pop size
+size_gen = 20  # Gen size
 Mu = int(size_pop)
 Lambda = int(size_pop * 1.4)
 
@@ -213,6 +233,7 @@ def main():
     ####################################################################################################################
 
     pool.close()
+    pool.join()
     return pop, log, hof
 
 
@@ -221,10 +242,11 @@ def main():
 
 def evaluate(individual):
     global flag, flag_offdesign
-    global Rfun, Vfun, mfun
+    global Rfun, Vfun, mfun, flag_t
     global tfin
 
     flag = False
+    flag_t = False
 
     # Transform the tree expression in a callable function
     if flag_offdesign is True:
@@ -235,6 +257,7 @@ def evaluate(individual):
     x_ini = [obj.Re, 0.0, obj.M0]  # initial conditions
 
     def sys(t, x):
+        global flag, flag_t
         # State Variables
         R = x[0]
         V = x[1]
@@ -279,28 +302,35 @@ def evaluate(individual):
 
         if abs(fT(er, ev, em)) > obj.Tmax or np.isinf(fT(er, ev, em)):
             T = obj.Tmax
+            flag_t = True
             flag = True
 
         elif fT(er, ev, em) < 0.0 or np.isnan(fT(er, ev, em)):
             T = 0.0
             flag = True
+            flag_t = True
 
         dxdt = np.array((V, (T - drag) / m - g, - T / g0 / Isp))
         return dxdt
 
     tin = 0.0
-    teval = np.linspace(0, tfin, int(tfin*4))
+    teval = np.linspace(0, tfin, int(tfin*2))
+
     if flag_offdesign is True:
         x_ini = xnew_ini
         tin = change_time
         teval = t_evals2
-    sol = solve_ivp(sys, [tin, tfin], x_ini, dense_output=True, t_eval=teval)
-    y1 = sol.y[0, :]
-    y2 = sol.y[1, :]
-    y3 = sol.y[2, :]
-    tt = sol.t
-
-    if sol.t[-1] != tfin:
+    sol = integration(teval, x_ini, sys) # solve_ivp(sys, [tin, tfin], x_ini)
+    y1 = sol[:, 0]
+    y2 = sol[:, 1]
+    y3 = sol[:, 2]
+    tt = teval
+    #if  != tfin:
+    #    flag_t = True
+    #    flag = True
+    if y1.any() < obj.Re:
+        flag = True
+    if y3.any() < obj.M0*obj.Mc:
         flag = True
 
     r = Rfun(tt)
@@ -323,27 +353,28 @@ def evaluate(individual):
     stepdiff = np.diff(tt)
     #print(step-stepdiff)
     # INTEGRAL OF ABSOLUTE ERROR (PERFORMANCE INDEX)
-    IAE = np.zeros((3, len(err1)))
+    IAE = np.zeros((2, len(err1)))
     j = 0
     for a, b, c, n in zip(err1, err2, err3, step):
        IAE[0][j] = n * abs(a)
        IAE[1][j] = n * abs(b)
-       IAE[2][j] = n * abs(c)
+       #IAE[2][j] = n * abs(c)
        j = j + 1
 
     # PENALIZING INDIVIDUALs
     # For the stats if the multiprocessing is used, there could be problems to print the correct values (parallel process(?))
-
+    fitness1 = sum(IAE[0])
+    fitness2 = sum(IAE[1])
+    #fitness3 = sum(IAE[2])
     if flag is True:
-        x = [1e5, 1e5, 1e5]
-
+        if flag_t is True:
+            x = [fitness1, fitness2]*10000
+        else:
+            x = [fitness1, fitness2] * 100
     else:
-        fitness1 = sum(IAE[0])
-        fitness2 = sum(IAE[1])
-        fitness3 = sum(IAE[2])
         fitness = [fitness1,
-                   fitness2,
-                   fitness3]
+                   fitness2]
+                   #fitness3]
 
     return x if flag is True else fitness
 
@@ -375,7 +406,7 @@ pset.renameArguments(ARG2='errm')
 
 ################################################## TOOLBOX #############################################################
 
-creator.create("Fitness", base.Fitness, weights=(-0.5, -0.5, -1.0))  # MINIMIZATION OF THE FITNESS FUNCTION
+creator.create("Fitness", base.Fitness, weights=(-0.5, -0.5))  # MINIMIZATION OF THE FITNESS FUNCTION
 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.Fitness)
 
@@ -445,9 +476,10 @@ print("\n ADD SOME ALTERATIONS TO PHYSICAL COMPONENTS OF THE PLANT AT %.2f [s]" 
 obj.Cd = float(input("CHANGE VALUE OF THE DRAG COEFFICIENT (ORIGINAL 0.2): "))
 
 x_ini = [obj.Re, 0.0, obj.M0]  # initial conditions
-
+Tplot = np.zeros((0))
+tplot = np.zeros((0))
 def sys2GP(t, x):
-    global Cd_old
+    global Cd_old, Tplot, tplot
     fT = toolbox.compile(hof[0])
     R = x[0]
     V = x[1]
@@ -481,29 +513,37 @@ def sys2GP(t, x):
     g = obj.GMe / R ** 2
     g0 = obj.g0
     Isp = obj.Isp
-
     T = fT(er, ev, em)
+    if abs(T) > obj.Tmax or np.isinf(T):
+        T = obj.Tmax
+    elif T < 0.0 or np.isnan(T):
+        T = 0.0
 
+    Tplot = np.hstack((Tplot, T))
+    tplot = np.hstack((tplot, t))
     dxdt = np.array((V, (T-drag)/m-g, - T / g0 / Isp))
 
     return dxdt
 
-passint = tfin*4
-tevals = np.linspace(0.0, tfin, int(passint))
+passint = tfin
+tevals = np.linspace(0.0, tfin, int(passint*2))
 
-solgp = solve_ivp(sys2GP, [0.0, tfin], x_ini, dense_output=True, t_eval=tevals)
-rout = solgp.y[0, :]
-vout = solgp.y[1, :]
-mout = solgp.y[2, :]
-ttgp = solgp.t
+solgp = integration(tevals, x_ini, sys2GP) #solve_ivp(sys2GP, [0.0, tfin], x_ini)
+
+rout = solgp[:, 0]
+vout = solgp[:, 1]
+mout = solgp[:, 2]
+ttgp = tevals # solgp.t
 
 rR = Rfun(ttgp)
 vR = Vfun(ttgp)
 mR = mfun(ttgp)
 
+
 plt.ion()
 plt.figure(1)
 plt.plot(ttgp, (rR - obj.Re) / 1e3, 'r--', label="SET POINT")
+plt.axhline(0, 0, ttgp[-1], color='r')
 animated_plot = plt.plot(ttgp, (rout - obj.Re) / 1e3, marker='.', color = 'k', label="ON DESIGN")[0]
 plt.figure(2)
 plt.plot(ttgp, vR, 'r--', label="SET POINT")
@@ -512,6 +552,10 @@ plt.figure(3)
 plt.plot(ttgp, mR, 'r--', label="SET POINT")
 plt.axhline(obj.M0*obj.Mc, 0, ttgp[-1], color='r')
 animated_plot3 = plt.plot(ttgp, mout, marker='.', color = 'k', label="ON DESIGN")[0]
+plt.figure(4)
+plt.axhline(obj.Tmax, 0, tplot[-1], color='r')
+plt.axhline(0, 0, tplot[-1], color='r')
+animated_plot4 = plt.plot(tplot, Tplot, marker='.', color = 'k', label="ON DESIGN")[0]
 
 
 
@@ -536,6 +580,13 @@ for items in ttgp:
     animated_plot3.set_ydata(mout[0:i])
     plt.draw()
     plt.pause(0.00000001)
+
+#for i in range(len(tplot)):
+    plt.figure(4)
+    animated_plot4.set_xdata(tplot[0:i])
+    animated_plot4.set_ydata(Tplot[0:i])
+    plt.pause(0.00000001)
+    plt.draw()
     i = i + 1
 
 u_design = hof[0]
@@ -546,7 +597,7 @@ start = time()
 if __name__ == "__main__":
     obj = Rocket()
     xnew_ini = [float(rout[index]), float(vout[index]), float(mout[index])]
-    t_evals2 = np.linspace(change_time, tfin, int(tfin*6))
+    t_evals2 = np.linspace(change_time, tfin, int(tfin*2))
     flag_seed_populations = True
     flag_offdesign = True
     size_pop, size_gen, cxpb, mutpb = 70, 17, 0.6, 0.2
@@ -559,8 +610,10 @@ flag_prop = False
 
 
 #########################################################################################################################
+Tplot = np.zeros((0))
+tplot = np.zeros((0))
 def sys2GP_c(t, x):
-    global u_design, flag_prop, Rfun, Vfun, mfun
+    global u_design, flag_prop, Rfun, Vfun, mfun, Tplot, tplot
     fT = toolbox.compile(u_design)
     R = x[0]
     V = x[1]
@@ -584,30 +637,33 @@ def sys2GP_c(t, x):
 
     '''if flag_prop is True:
         T = 0.0'''
-
+    if abs(T) > obj.Tmax or np.isinf(T):
+        T = obj.Tmax
+    elif T < 0.0 or np.isnan(T):
+        T = 0.0
     if m <= obj.M0*obj.Mc:
         T = 0.0
         m = obj.M0*obj.Mc
-
+    Tplot = np.hstack((Tplot, T))
+    tplot = np.hstack((tplot, t))
     dxdt = np.array((V, (T - drag) / m - g, - T / g0 / Isp))
 
     return dxdt
 
 
-passint_c = (change_time + t_offdesign - (change_time)) * 4
+passint_c = (change_time + t_offdesign - (change_time)) * 2
 tevals_c = np.linspace(change_time, change_time + t_offdesign, int(passint_c))
 xnew_ini = [float(rout[index]), float(vout[index]), float(mout[index])]                              ################Mi servono questi PENSARE
 
-solgp_c = solve_ivp(sys2GP_c, [change_time, change_time + t_offdesign], xnew_ini, dense_output=True, t_eval=tevals_c)
+solgp_c = integration(tevals_c, xnew_ini, sys2GP_c) # solve_ivp(sys2GP_c, [change_time, change_time + t_offdesign], xnew_ini)
 
-rout_c = solgp_c.y[0, :]
-vout_c = solgp_c.y[1, :]
-mout_c = solgp_c.y[2, :]
+rout_c = solgp_c[:, 0]
+vout_c = solgp_c[:, 1]
+mout_c = solgp_c[:, 2]
 for i in range(len(mout_c)):
     if mout_c[i] < obj.M0*obj.Mc:
         mout_c[i] = obj.M0*obj.Mc
-ttgp_c = solgp_c.t
-
+ttgp_c = tevals_c # solgp_c.t
 
 for tempi in ttgp_c:
     if tempi > t_offdesign:
@@ -620,6 +676,8 @@ plt.figure(2)
 animated_plot_c2 = plt.plot(ttgp_c, vout_c, marker='.', color = 'b', label="OFF DESIGN")[0]
 plt.figure(3)
 animated_plot_c3 = plt.plot(ttgp_c, mout_c, marker='.', color = 'b',  label="OFF DESIGN")[0]
+plt.figure(4)
+animated_plot_c4 = plt.plot(tplot, Tplot, marker='.', color = 'b',  label="OFF DESIGN")[0]
 
 for i in range(len(ttgp_c)):
     plt.figure(1)
@@ -636,6 +694,12 @@ for i in range(len(ttgp_c)):
     plt.figure(3)
     animated_plot_c3.set_xdata(ttgp_c[0:i])
     animated_plot_c3.set_ydata(mout_c[0:i])
+    plt.pause(0.00000001)
+    plt.draw()
+#for i in range(len(tplot)):
+    plt.figure(4)
+    animated_plot_c4.set_xdata(tplot[0:i])
+    animated_plot_c4.set_ydata(Tplot[0:i])
     plt.draw()
     plt.pause(0.00000001)
 
@@ -644,12 +708,13 @@ for i in range(len(ttgp_c)):
 
 # Simulazione per TEMPO CON NUOVA LEGGE creata dal GENETIC PROGRAMMING
 
-passint_gp = (total_time_simulation - (change_time + t_offdesign)) * 4
+passint_gp = (total_time_simulation - (change_time + t_offdesign)) * 2
 tevals_gp = np.linspace(change_time + t_offdesign, total_time_simulation, int(passint_gp))
 xnew_ini_gp = [float(rout_c[index_c]), float(vout_c[index_c]), float(mout_c[index_c])]
-
+Tplot = np.zeros((0))
+tplot = np.zeros((0))
 def sys2GP_gp(t, x):
-    global flag_prop, Rfun, Vfun, mfun
+    global flag_prop, Rfun, Vfun, mfun, Tplot, tplot
     fT = toolx.compile(hof[0])
     R = x[0]
     V = x[1]
@@ -683,25 +748,30 @@ def sys2GP_gp(t, x):
     g = obj.GMe / R ** 2
     g0 = obj.g0
     Isp = obj.Isp
-
+    if abs(T) > obj.Tmax or np.isinf(T):
+        T = obj.Tmax
+    elif T < 0.0 or np.isnan(T):
+        T = 0.0
     if m <= obj.M0 * obj.Mc:
         T = 0.0
         m = obj.M0 * obj.Mc
-
+    Tplot = np.hstack((Tplot, T))
+    tplot = np.hstack((tplot, t))
     dxdt= np.array((V, (T - drag) / m - g, - T / g0 / Isp))
 
     return dxdt
 
 
-solgp_gp = solve_ivp(sys2GP_gp, [change_time + t_offdesign, total_time_simulation], xnew_ini_gp, t_eval=tevals_gp, dense_output=True)
+solgp_gp = integration(tevals_gp, xnew_ini_gp, sys2GP_gp) # solve_ivp(sys2GP_gp, [change_time + t_offdesign, total_time_simulation], xnew_ini_gp)
 
-rout_gp = solgp_gp.y[0, :]
-vout_gp = solgp_gp.y[1, :]
-mout_gp = solgp_gp.y[2, :]
+rout_gp = solgp_gp[:, 0]
+vout_gp = solgp_gp[:, 1]
+mout_gp = solgp_gp[:, 2]
 for i in range(len(mout_gp)):
     if mout_gp[i] < obj.M0*obj.Mc:
         mout_gp[i] = obj.M0*obj.Mc
-ttgp_gp = solgp_gp.t
+ttgp_gp = tevals_gp # solgp_gp.t
+
 
 plt.ion()
 plt.figure(1)
@@ -710,6 +780,8 @@ plt.figure(2)
 animated_plot_gp2 = plt.plot(ttgp_gp, vout_gp, marker='.', color='g',  label="ONLINE CONTROL")[0]
 plt.figure(3)
 animated_plot_gp3 = plt.plot(ttgp_gp, mout_gp, marker='.', color='g',  label="ONLINE CONTROL")[0]
+plt.figure(4)
+animated_plot_gp4 = plt.plot(tplot, Tplot, marker='.', color='g',  label="ONLINE CONTROL")[0]
 
 for i in range(len(ttgp_gp)):
     plt.figure(1)
@@ -727,6 +799,13 @@ for i in range(len(ttgp_gp)):
     animated_plot_gp3.set_ydata(mout_gp[0:i])
     plt.draw()
     plt.pause(0.00000001)
+
+#for i in range(len(tplot)):
+    plt.figure(4)
+    animated_plot_gp4.set_xdata(tplot[0:i])
+    animated_plot_gp4.set_ydata(Tplot[0:i])
+    plt.pause(0.00000001)
+    plt.draw()
 
 print("\n")
 print(u_design)

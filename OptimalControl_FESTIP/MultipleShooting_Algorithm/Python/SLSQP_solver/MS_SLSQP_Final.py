@@ -938,7 +938,7 @@ def plot(var, Nint):
         timestart = timeend
 
 
-
+    plt.show(block=True)
     print("m before Ho : {0:.5f}".format(mres[-1]))
     print("mf          : {0:.5f}".format(mf[-1]))
     print("altitude Hohmann starts: {0:.5f}".format(hres[-1]))
@@ -946,7 +946,7 @@ def plot(var, Nint):
 
     if flag_save:
         res.close()
-    plt.show(block=True)
+
     '''plt.close(0)
     plt.close(1)
     plt.close(2)
@@ -1434,6 +1434,7 @@ if __name__ == '__main__':
     tformat = str(datetime.timedelta(seconds=int(time_elapsed)))
     print("Time elapsed for total optimization ", tformat)
     plot(X0a, Nintplot)
+    plt.show(block=True)
     #np.save("opt", X0a)
 '''
     def mask_MS_2(var):
