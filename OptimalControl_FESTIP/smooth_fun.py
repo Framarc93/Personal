@@ -1,4 +1,4 @@
-from scipy.interpolate import splev, splrep, PchipInterpolator
+from scipy.interpolate import PchipInterpolator
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io as sio
@@ -22,45 +22,70 @@ def smooth_init(leg, contp):
     alfa = alfa[-1]
     delta = np.load("delta.npy")
     delta = delta[-1]
-    deltaf = np.load("deltaf.npy")
-    deltaf = deltaf[-1]
-    tau = np.load("tau.npy")
-    tau = tau[-1]
-    mu = np.load("mu.npy")
-    mu = mu[-1]
+    #deltaf = np.load("deltaf.npy")
+    #deltaf = deltaf[-1]
+    #tau = np.load("tau.npy")
+    #tau = tau[-1]
+    #mu = np.load("mu.npy")
+    #mu = mu[-1]
     time = np.load("time.npy")
     time = time[-1]
 
+    v = list(v)
+    chi = list(chi)
+    gamma = list(gamma)
+    teta = list(teta)
+    lam = list(lam)
+    h = list(h)
+    m = list(m)
+    alfa = list(alfa)
+    delta = list(delta)
+    time = list(time)
+
+    to_remove = list(np.where(np.diff(time) == 0)[0])
+    while len(to_remove) != 0:
+        for i in to_remove:
+            v.pop(i)
+            chi.pop(i)
+            gamma.pop(i)
+            teta.pop(i)
+            lam.pop(i)
+            h.pop(i)
+            m.pop(i)
+            alfa.pop(i)
+            delta.pop(i)
+            time.pop(i)
+        to_remove = list(np.where(np.diff(time) == 0)[0])
 
     tf = time[-1]
 
     time_cont = np.linspace(0, tf, leg*contp)
     time_stat = np.linspace(0, tf, leg+1)
 
-    v_int = splrep(time, v, s=10)
-    v_new = splev(time_stat, v_int, der=0)
-    chi_int = splrep(time, chi, s=10)
-    chi_new = splev(time_stat, chi_int, der=0)
-    gamma_int = splrep(time, gamma, s=30)
-    gamma_new = splev(time_stat, gamma_int, der=0)
-    teta_int = splrep(time, teta, s=10)
-    teta_new = splev(time_stat, teta_int, der=0)
-    lam_int = splrep(time, lam, s=10)
-    lam_new = splev(time_stat, lam_int, der=0)
-    h_int = splrep(time, h, s=10)
-    h_new = splev(time_stat, h_int, der=0)
-    m_int = splrep(time, m, s=10)
-    m_new = splev(time_stat, m_int, der=0)
-    alfa_int = splrep(time, alfa, s=1)
-    alfa_new = splev(time_cont, alfa_int, der=0)
-    delta_int = splrep(time, delta, s=1)
-    delta_new = splev(time_cont, delta_int, der=0)
-    deltaf_int = splrep(time, deltaf, s=1)
-    deltaf_new = splev(time_cont, deltaf_int, der=0)
-    tau_int = splrep(time, tau, s=1)
-    tau_new = splev(time_cont, tau_int, der=0)
-    mu_int = splrep(time, mu, s=1)
-    mu_new = splev(time_cont, mu_int, der=0)
+    v_int = PchipInterpolator(time, v)
+    v_new = v_int(time_stat)
+    chi_int = PchipInterpolator(time, chi)
+    chi_new = chi_int(time_stat)
+    gamma_int = PchipInterpolator(time, gamma)
+    gamma_new = gamma_int(time_stat)
+    teta_int = PchipInterpolator(time, teta)
+    teta_new = teta_int(time_stat)
+    lam_int = PchipInterpolator(time, lam)
+    lam_new = lam_int(time_stat)
+    h_int = PchipInterpolator(time, h)
+    h_new = h_int(time_stat)
+    m_int = PchipInterpolator(time, m)
+    m_new = m_int(time_stat)
+    alfa_int = PchipInterpolator(time, alfa)
+    alfa_new = alfa_int(time_cont)
+    delta_int = PchipInterpolator(time, delta)
+    delta_new = delta_int(time_cont)
+    #deltaf_int = splrep(time, deltaf, s=1)
+    #deltaf_new = splev(time_cont, deltaf_int, der=0)
+    #tau_int = splrep(time, tau, s=1)
+    #tau_new = splev(time_cont, tau_int, der=0)
+    #mu_int = splrep(time, mu, s=1)
+    #mu_new = splev(time_cont, mu_int, der=0)
 
     '''plt.figure()
     plt.plot(time_stat, v_new)
@@ -88,9 +113,7 @@ def smooth_init(leg, contp):
     plt.plot(time_cont, mu_new)
     plt.show()'''
 
-
-
-    return v_new, chi_new, gamma_new, teta_new, lam_new, h_new, m_new, alfa_new, delta_new, deltaf_new, tau_new, mu_new
+    return v_new, chi_new, gamma_new, teta_new, lam_new, h_new, m_new, alfa_new, delta_new #, deltaf_new, tau_new, mu_new
 
 def bound_def(X, U, uplimx, inflimx, uplimu, inflimu):
     lbs = np.zeros((len(X)))

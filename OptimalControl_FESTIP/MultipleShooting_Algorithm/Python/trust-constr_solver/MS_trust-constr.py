@@ -73,14 +73,14 @@ obj = Spaceplane()
 
 '''reading of aerodynamic coefficients and specific impulse from file'''
 
-cl = fileReadOr("/home/francesco/git_workspace/FESTIP_Work/coeff_files/clfile.txt")
-cd = fileReadOr("/home/francesco/git_workspace/FESTIP_Work/coeff_files/cdfile.txt")
-cm = fileReadOr("/home/francesco/git_workspace/FESTIP_Work/coeff_files/cmfile.txt")
+cl = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt")
+cd = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt")
+cm = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt")
 cl = np.asarray(cl)
 cd = np.asarray(cd)
 cm = np.asarray(cm)
 
-with open("/home/francesco/git_workspace/FESTIP_Work/coeff_files/impulse.dat") as f:
+with open("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
     impulse = []
     for line in f:
         line = line.split()
@@ -107,9 +107,9 @@ Nbar = 5 # number of conjunction points
 Nleg = Nbar - 1  # number of multiple shooting sub intervals
 NContPoints = 9  # number of control points for interpolation inside each interval
 Nint = 150 # number of points for each single shooting integration
-maxiter = 1000  # max number of iterations for nlp solver
+maxiter = 10  # max number of iterations for nlp solver
 Nstates = 7  # number of states
-Ncontrols = 4  # number of controls
+Ncontrols = 2  # number of controls
 #maxIterator = 1  # max number of optimization iterations
 varStates = Nstates * Nleg  # total number of optimization variables for states
 varControls = Ncontrols * (Nleg * NContPoints - Nbar + 2)   # total number of optimization variables for controls
@@ -131,11 +131,11 @@ unit_h = obj.Hini*10
 unit_m = obj.M0
 unit_alfa = np.deg2rad(40)
 unit_delta = 1
-unit_deltaf = np.deg2rad(30)
-unit_tau = 1
+#unit_deltaf = np.deg2rad(30)
+#unit_tau = 1
 unit_t = 1000
 states_unit = np.array((unit_v, unit_chi, unit_gamma, unit_teta, unit_lam, unit_h, unit_m))
-controls_unit = np.array((unit_alfa, unit_delta, unit_deltaf, unit_tau))
+controls_unit = np.array((unit_alfa, unit_delta))#, unit_deltaf, unit_tau))
 
 '''definiton of initial conditions'''
 
@@ -152,15 +152,14 @@ h_init = Guess.cubic(tnew, 1, 0.0, obj.Hini, 0.0)
 m_init = Guess.cubic(tnew, obj.M0, 0.0, obj.m10, 0.0)
 alfa_init = Guess.zeros(tcontr)
 delta_init = Guess.cubic(tcontr, 1.0, 0.0, 0.001, 0.0)
-deltaf_init = Guess.zeros(tcontr)
-tau_init = Guess.constant(tcontr, 0.5)
+#deltaf_init = Guess.zeros(tcontr)
+#tau_init = Guess.constant(tcontr, 0.5)
 
 XGuess = np.array(
     (v_init / unit_v, chi_init / unit_chi, gamma_init / unit_gamma, teta_init / unit_teta, lam_init / unit_lam,
      h_init / unit_h, m_init / unit_m))  # states initial guesses
 
-UGuess = np.array((alfa_init / unit_alfa, delta_init / unit_delta, deltaf_init / unit_deltaf,
-                   tau_init / unit_tau))  # states initial guesses
+UGuess = np.array((alfa_init / unit_alfa, delta_init / unit_delta))#, deltaf_init / unit_deltaf, tau_init / unit_tau))  # states initial guesses
 
 for i in range(Nleg):
     '''creation of vector of states initial guesses'''
@@ -205,8 +204,8 @@ obj.varOld = np.zeros((len(X0)))
 Xlb = ([1e-5/unit_v, np.deg2rad(90)/unit_chi, 0.0, 0.0, 0.0, 1e-5/unit_h, obj.m10/unit_m]) # states lower bounds
 Xub = ([10000/unit_v, np.deg2rad(270)/unit_chi, np.deg2rad(89.9)/unit_gamma, np.deg2rad(90)/unit_teta, obj.incl/unit_lam, 200000/unit_h, obj.M0/unit_m]) # states upper bounds
 
-Ulb = ([np.deg2rad(-2)/unit_alfa, 0.001/unit_delta, np.deg2rad(-20)/unit_deltaf, 0.0/unit_tau]) # controls lower bounds
-Uub = ([np.deg2rad(40)/unit_alfa, 1.0/unit_delta, np.deg2rad(30)/unit_deltaf, 1.0/unit_tau]) # controls upper bounds
+Ulb = ([np.deg2rad(-2)/unit_alfa, 0.001/unit_delta])#, np.deg2rad(-20)/unit_deltaf, 0.0/unit_tau]) # controls lower bounds
+Uub = ([np.deg2rad(40)/unit_alfa, 1.0/unit_delta])#, np.deg2rad(30)/unit_deltaf, 1.0/unit_tau]) # controls upper bounds
 
 Tlb = ([1/unit_t,]) # time lower bounds
 Tub = ([time_tot/unit_t,]) # time upper bounds
@@ -224,7 +223,7 @@ bnds = Bounds(lb, ub)
 
 '''function definitions'''
 
-def dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int):
+def dynamicsInt(t, states, alfa_Int, delta_Int):#, deltaf_Int, tau_Int):
     '''this functions receives the states and controls unscaled and calculates the dynamics'''
     v = states[0]
     chi = states[1]
@@ -235,8 +234,8 @@ def dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int):
     m = states[6]
     alfa = alfa_Int(t)
     delta = delta_Int(t)
-    deltaf = deltaf_Int(t)
-    tau = tau_Int(t) * 2 - 1
+    deltaf = 0.0#deltaf_Int(t)
+    tau = 0.0#tau_Int(t) * 2 - 1
 
     Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
     # Press = np.asarray(Press, dtype=np.float64)
@@ -295,8 +294,8 @@ def dynamicsVel(states, contr):
     m = states[6]
     alfa = contr[0]
     delta = contr[1]
-    deltaf = contr[2]
-    tau = contr[3] * 2 - 1
+    deltaf = 0.0 #contr[2]
+    tau = 0.0 #contr[3] * 2 - 1
 
     Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
     # Press = np.asarray(Press, dtype=np.float64)
@@ -354,8 +353,8 @@ def inequalityAll(states, controls, varnum):
     m = states[:, 6]
     alfa = controls[:, 0]
     delta = controls[:, 1]
-    deltaf = controls[:, 2]
-    tau = controls[:, 3] * 2 - 1
+    deltaf = np.zeros(len(v)) #controls[:, 2]
+    tau = np.zeros(len(v)) #controls[:, 3] * 2 - 1
 
     Press, rho, c = isaMulti(h, obj.psl, obj.g0, obj.Re)
     Press = np.asarray(Press, dtype=np.float64)
@@ -395,8 +394,7 @@ def inequalityAll(states, controls, varnum):
     Dv2 = np.sqrt(obj.GMe / obj.r2) * (1 - np.sqrt((2 * r1) / (r1 + obj.r2)))
     mf = m[-1] / np.exp((Dv1 + Dv2) / obj.gIsp)
 
-    iC = np.hstack((((obj.MaxAx - ax)/(obj.MaxAx), (obj.MaxAz - az)/(obj.MaxAz), (obj.MaxQ - q)/(obj.MaxQ),
-                      (obj.k - MomTotA)/(obj.k), (mf - obj.m10)/unit_m,)))  # when with bounds
+    iC = np.hstack((((obj.MaxAx - ax)/(obj.MaxAx), (obj.MaxAz - az)/(obj.MaxAz), (obj.MaxQ - q)/(obj.MaxQ), (mf - obj.m10)/unit_m,)))  # when with bounds
 
     return iC
 
@@ -422,8 +420,8 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
 
     alfa_Int = interpolate.PchipInterpolator(Time, controls[0, :] * unit_alfa)
     delta_Int = interpolate.PchipInterpolator(Time, controls[1, :] * unit_delta)
-    deltaf_Int = interpolate.PchipInterpolator(Time, controls[2, :] * unit_deltaf)
-    tau_Int = interpolate.PchipInterpolator(Time, controls[3, :] * unit_tau)
+    #deltaf_Int = interpolate.PchipInterpolator(Time, controls[2, :] * unit_deltaf)
+    #tau_Int = interpolate.PchipInterpolator(Time, controls[3, :] * unit_tau)
 
     x[0, 3] = x[0, 3] - np.deg2rad(90)  # teta into [-90, 0]
     x[0, 4] = x[0, 4] * 2 - obj.incl  # lambda into [-incl, incl]
@@ -443,13 +441,13 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
     for i in range(Nint-1):
         # print(i, x[i,:])
         # print(u[i,:])
-        k1 = dt*dyn(t[i], x[i, :], alfa_Int, delta_Int, deltaf_Int, tau_Int)
+        k1 = dt*dyn(t[i], x[i, :], alfa_Int, delta_Int)#, deltaf_Int, tau_Int)
         # print("k1: ", k1)
-        k2 = dt*dyn(t[i] + dt / 2, x[i, :] + k1 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int)
+        k2 = dt*dyn(t[i] + dt / 2, x[i, :] + k1 / 2, alfa_Int, delta_Int)#, deltaf_Int, tau_Int)
         # print("k2: ", k2)
-        k3 = dt*dyn(t[i] + dt / 2, x[i, :] + k2 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int)
+        k3 = dt*dyn(t[i] + dt / 2, x[i, :] + k2 / 2, alfa_Int, delta_Int)#, deltaf_Int, tau_Int)
         # print("k3: ", k3)
-        k4 = dt*dyn(t[i + 1], x[i, :] + k3, alfa_Int, delta_Int, deltaf_Int, tau_Int)
+        k4 = dt*dyn(t[i + 1], x[i, :] + k3, alfa_Int, delta_Int)#, deltaf_Int, tau_Int)
         # print("k4: ", k4)
         x[i + 1, :] = x[i, :] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
@@ -473,12 +471,12 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
 
     alfares = alfa_Int(time_new)
     deltares = delta_Int(time_new)
-    deltafres = deltaf_Int(time_new)
-    taures = tau_Int(time_new)
+    deltafres = np.zeros(len(time_new)) #deltaf_Int(time_new)
+    taures = np.zeros(len(time_new)) #tau_Int(time_new)
     #obj.xold = sol.y
     #print(np.shape(vres))
     return vres, chires, gammares, tetares, lamres, hres, mres, time_new, alfares, deltares, deltafres, taures, \
-           alfa_Int, delta_Int, deltaf_Int, tau_Int
+           alfa_Int, delta_Int#, deltaf_Int, tau_Int
 
 
 def MultiShooting(var, dyn):
@@ -516,12 +514,11 @@ def MultiShooting(var, dyn):
         for k in range(NContPoints):
             alfa[k] = var[varStates + i * (Ncontrols * NContPoints - Ncontrols) + Ncontrols * k]
             delta[k] = var[varStates + i * (Ncontrols * NContPoints - Ncontrols) + 1 + Ncontrols * k]
-            deltaf[k] = var[varStates + i * (Ncontrols * NContPoints - Ncontrols) + 2 + Ncontrols * k]
-            tau[k] = var[varStates + i * (Ncontrols * NContPoints - Ncontrols) + 3 + Ncontrols * k]
-        controls = np.vstack((alfa, delta, deltaf, tau)) # scaled
+            #deltaf[k] = var[varStates + i * (Ncontrols * NContPoints - Ncontrols) + 2 + Ncontrols * k]
+            #tau[k] = var[varStates + i * (Ncontrols * NContPoints - Ncontrols) + 3 + Ncontrols * k]
+        controls = np.vstack((alfa, delta))#, deltaf, tau)) # scaled
 
-        vres, chires, gammares, tetares, lamres, hres, mres, tres, alfares, deltares, deltafres, taures, alfa_I, delta_I, deltaf_I, tau_I = SingleShooting(
-            states, controls, dyn, timestart, timeend, Nint)
+        vres, chires, gammares, tetares, lamres, hres, mres, tres, alfares, deltares, deltafres, taures, alfa_I, delta_I = SingleShooting(states, controls, dyn, timestart, timeend, Nint)
 
         '''res quantities are unscaled'''
 
@@ -558,15 +555,15 @@ def MultiShooting(var, dyn):
         mt = np.transpose(mineq)
         alfat = np.transpose(alfaineq)
         deltat = np.transpose(deltaineq)
-        deltaft = np.transpose(deltafineq)
-        taut = np.transpose(tauineq)
+        #deltaft = np.transpose(deltafineq)
+        #taut = np.transpose(tauineq)
 
         if i == 0:
             states_after = np.column_stack((vt, chit, gammat, tetat, lamt, ht, mt))
-            controls_after = np.column_stack((alfat, deltat, deltaft, taut))
+            controls_after = np.column_stack((alfat, deltat))#, deltaft, taut))
         else:
             states_after = np.vstack((states_after, np.column_stack((vt, chit, gammat, tetat, lamt, ht, mt))))
-            controls_after = np.vstack((controls_after, np.column_stack((alfat, deltat, deltaft, taut))))
+            controls_after = np.vstack((controls_after, np.column_stack((alfat, deltat))))#, deltaft, taut))))
 
         timestart = timeend
 
@@ -576,7 +573,7 @@ def MultiShooting(var, dyn):
     h = states_atNode[varStates - 2] * unit_h
     m = states_atNode[-1] * unit_m
     delta = controls_after[-1, 1] * unit_delta
-    tau = controls_after[-1, 3] * unit_tau * 2 - 1  # tau back in [-1,1] interval
+    tau = 0.0 #controls_after[-1, 3] * unit_tau * 2 - 1  # tau back in [-1,1] interval
 
     Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
 
@@ -605,8 +602,8 @@ def plot(var):
     timeTotal = np.zeros((0))
     alfaCP = np.zeros((Nleg, NContPoints))
     deltaCP = np.zeros((Nleg, NContPoints))
-    deltafCP = np.zeros((Nleg, NContPoints))
-    tauCP = np.zeros((Nleg, NContPoints))
+    #deltafCP = np.zeros((Nleg, NContPoints))
+    #tauCP = np.zeros((Nleg, NContPoints))
     res = open("res_{}_{}.txt".format(os.path.basename(__file__), timestr), "w")
     tCtot = np.zeros((0))
 
@@ -629,10 +626,10 @@ def plot(var):
             alfaCP[i, k] = alfa[k] * unit_alfa
             delta[k] = var[varStates + i * (Ncontrols * NContPoints-Ncontrols) + 1 + Ncontrols * k]
             deltaCP[i, k] = delta[k]
-            deltaf[k] = var[varStates + i * (Ncontrols * NContPoints-Ncontrols) + 2 + Ncontrols * k]
-            deltafCP[i, k] = deltaf[k] * unit_deltaf
-            tau[k] = var[varStates + i * (Ncontrols * NContPoints-Ncontrols) + 3 + Ncontrols * k]
-            tauCP[i, k] = tau[k] * unit_tau * 2 - 1
+            #deltaf[k] = var[varStates + i * (Ncontrols * NContPoints-Ncontrols) + 2 + Ncontrols * k]
+            #deltafCP[i, k] = deltaf[k] * unit_deltaf
+            #tau[k] = var[varStates + i * (Ncontrols * NContPoints-Ncontrols) + 3 + Ncontrols * k]
+            #tauCP[i, k] = tau[k] * unit_tau * 2 - 1
 
         timestart = timeend
 
@@ -646,8 +643,8 @@ def plot(var):
 
         alfares = obj.Controls[i*Nint:(i+1)*Nint, 0]
         deltares = obj.Controls[i*Nint:(i+1)*Nint, 1]
-        deltafres = obj.Controls[i*Nint:(i+1)*Nint, 2]
-        taures = obj.Controls[i*Nint:(i+1)*Nint, 3] * 2 - 1
+        deltafres = np.zeros(len(vres)) #obj.Controls[i*Nint:(i+1)*Nint, 2]
+        taures = np.zeros(len(vres)) #obj.Controls[i*Nint:(i+1)*Nint, 3] * 2 - 1
 
         rep = len(vres)
 
@@ -793,16 +790,16 @@ def plot(var):
         plt.figure(9)
         plt.title("Throttles")
         plt.plot(timeTotal, deltares * 100, color='r')
-        plt.plot(timeTotal, taures * 100, color='k')
+        #plt.plot(timeTotal, taures * 100, color='k')
         plt.plot(tC, deltaCP[i, :] * 100, 'ro')
-        plt.plot(tC, tauCP[i, :] * 100, 'ro')
+        #plt.plot(tC, tauCP[i, :] * 100, 'ro')
         plt.ylabel("%")
         plt.xlabel("time [s]")
         plt.legend(["Delta", "Tau", "Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
         plt.savefig(savefig_file + "throttles" + ".png")
 
-        plt.figure(10)
+        '''plt.figure(10)
         plt.title("Body Flap deflection \u03B4")
         plt.plot(tC, np.rad2deg(deltafCP[i, :]), "ro")
         plt.plot(timeTotal, np.rad2deg(deltafres))
@@ -810,7 +807,7 @@ def plot(var):
         plt.xlabel("time [s]")
         plt.legend(["Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "deltaf" + ".png")
+        plt.savefig(savefig_file + "deltaf" + ".png")'''
 
         plt.figure(11)
         plt.title("Dynamic Pressure")
@@ -913,8 +910,8 @@ def equality(var, conj):
     eq_cond = np.concatenate((eq_cond, abs(var[Nstates:varStates] - conj[:Nstates * (Nleg-1)])))  # knotting conditions
     eq_cond = np.concatenate((eq_cond, (abs(var[varStates]),)))  # init cond on alpha
     eq_cond = np.concatenate((eq_cond, (abs(var[varStates + 1] - 1.0/unit_delta),)))  # init cond on delta
-    eq_cond = np.concatenate((eq_cond, (abs(var[varStates + 2]),)))  # init cond on deltaf
-    eq_cond = np.concatenate((eq_cond, (abs(var[varStates + 3] - 0.5/unit_tau),)))  # init cond on tau
+    #eq_cond = np.concatenate((eq_cond, (abs(var[varStates + 2]),)))  # init cond on deltaf
+    #eq_cond = np.concatenate((eq_cond, (abs(var[varStates + 3] - 0.5/unit_tau),)))  # init cond on tau
     eq_cond = np.concatenate((eq_cond, (abs((vvv - vtAbs) / unit_v),)))
     eq_cond = np.concatenate((eq_cond, (abs((chifin - chiass) / unit_chi),)))
     eq_cond = np.concatenate((eq_cond, (abs(conj[varStates - 5]),)))  # final condition on gamma
@@ -945,14 +942,14 @@ def cost_fun(var):
 
         return cost
 
-sparseJac = load_npz("/home/francesco/git_workspace/FESTIP_Work/MultipleShooting_Algorithm/sparse_festip_4leg9cont.npz")#
-sp = sparseJac.todense()
-row = np.shape(sp)[0]
-column = np.shape(sp)[1]
-for i in range(row):
-    for j in range(column):
-        if sp[i,j]!=0:
-            sp[i,j]=1
+#sparseJac = load_npz("/home/francesco/git_workspace/FESTIP_Work/MultipleShooting_Algorithm/sparse_festip_4leg9cont.npz")#
+#sp = sparseJac.todense()
+#row = np.shape(sp)[0]
+#column = np.shape(sp)[1]
+#for i in range(row):
+ #   for j in range(column):
+  #      if sp[i,j]!=0:
+   #         sp[i,j]=1
 
 lbeq = ([0.0]) # lower bound for equality constraints
 ubeq = ([0.0]) # upper bound for equality constraints
@@ -960,10 +957,10 @@ ubeq = ([0.0]) # upper bound for equality constraints
 lbineq = ([0.0]) # lower bound for inequality constraints
 ubineq = ([np.inf]) # upper bound for inequality constraints
 
-lb = lbeq * (Nstates+7+Nstates*(Nleg-1)) + lbineq * (4 * NineqCond * Nleg + 1) # all lower bounds
-ub = ubeq * (Nstates+7+Nstates*(Nleg-1)) + ubineq * (4 * NineqCond * Nleg + 1)# all upper bounds
+lb = lbeq * (Nstates+5+Nstates*(Nleg-1)) + lbineq * (3 * NineqCond * Nleg + 1) # all lower bounds
+ub = ubeq * (Nstates+5+Nstates*(Nleg-1)) + ubineq * (3 * NineqCond * Nleg + 1)# all upper bounds
 
-cons = NonlinearConstraint(constraints,lb, ub, finite_diff_jac_sparsity=sp)
+cons = NonlinearConstraint(constraints,lb, ub)#, finite_diff_jac_sparsity=sp)
 
 #cons = ({'type': 'eq',
 #         'fun': constraints,

@@ -81,7 +81,7 @@ class Spaceplane:
         self.LBV = np.zeros((0))
 
 
-def dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int):
+def dynamicsInt(t, states, alfa_Int, delta_Int): #, deltaf_Int, tau_Int, mu_Int):
     '''this functions receives the states and controls unscaled and calculates the dynamics'''
     v = states[0]
     chi = states[1]
@@ -92,9 +92,9 @@ def dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int):
     m = states[6]
     alfa = float(alfa_Int(t))
     delta = float(delta_Int(t))
-    deltaf = float(deltaf_Int(t))
-    tau = float(tau_Int(t))
-    mu = float(mu_Int(t))
+    deltaf = 0.0 #float(deltaf_Int(t))
+    tau = 0.0 #float(tau_Int(t))
+    mu = 0.0 #float(mu_Int(t))
     if abs(v) > 1e10:
         if v > 0:
             v = 1e10
@@ -158,9 +158,9 @@ def dynamicsVel(states, contr):
     m = states[6]
     alfa = contr[0]
     delta = contr[1]
-    deltaf = contr[2]
-    tau = contr[3]
-    mu = contr[4]
+    deltaf = 0.0 #contr[2]
+    tau = 0.0 #contr[3]
+    mu = 0.0 #contr[4]
     if abs(v) > 1e10:
         if v > 0:
             v = 1e10
@@ -229,8 +229,8 @@ def inequalityAll(states, controls, varnum):
     m = np.transpose(states[:, 6])
     alfa = np.transpose(controls[:, 0])
     delta = np.transpose(controls[:, 1])
-    deltaf = np.transpose(controls[:, 2])
-    tau = np.transpose(controls[:, 3])  # tau back to [-1, 1] interval
+    deltaf = np.transpose(np.zeros(len(v))) #np.transpose(controls[:, 2])
+    tau = np.transpose(np.zeros(len(v))) #np.transpose(controls[:, 3])  # tau back to [-1, 1] interval
     #mu = np.transpose(controls[:, 4])
 
     for i in range(len(v)):
@@ -304,8 +304,7 @@ def inequalityAll(states, controls, varnum):
       #              (alfa - np.deg2rad(-2))/unit_alfa, delta - 0.0001, (deltaf - np.deg2rad(-20))/unit_deltaf, tau - (-1), (mu - np.deg2rad(-90))/unit_mu,
        #             (np.deg2rad(40) - alfa)/unit_alfa, 1.0 - delta, (np.deg2rad(30) - deltaf)/unit_deltaf, 1.0 - tau, (np.deg2rad(90) - mu)/unit_mu,
         #            (obj.MaxAx - ax)/obj.MaxAx, (obj.MaxAz - az)/obj.MaxAz, (obj.MaxQ - q)/obj.MaxQ, (obj.k-MomTotA)/(obj.k*1e2), (mf-obj.m10)/obj.M0))
-    iC = np.hstack(((obj.MaxAx - ax) / obj.MaxAx, (obj.MaxAz - az) / obj.MaxAz, (obj.MaxQ - q) / obj.MaxQ,
-                    (obj.k - MomTot) / (obj.k*1e3), (MomTot + obj.k) / (obj.k*1e3), (mf - obj.m10) / obj.m10, (54048 - mf)/obj.m10))
+    iC = np.hstack(((obj.MaxAx - ax) / obj.MaxAx, (obj.MaxAz - az) / obj.MaxAz, (obj.MaxQ - q) / obj.MaxQ, (mf - obj.m10) / obj.m10))
                     #(chi - np.deg2rad(90))/np.deg2rad(270), (np.deg2rad(270)-chi)/np.deg2rad(270)))
     #for j in range(len(iC)):
      #   if iC[j] > 1:
@@ -334,9 +333,9 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
 
     alfa_Int = interpolate.PchipInterpolator(timeCont, controls[0, :])
     delta_Int = interpolate.PchipInterpolator(timeCont, controls[1, :])
-    deltaf_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
-    tau_Int = interpolate.PchipInterpolator(timeCont, controls[3, :])
-    mu_Int = interpolate.PchipInterpolator(timeCont, controls[4, :])
+    #deltaf_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
+    #tau_Int = interpolate.PchipInterpolator(timeCont, controls[3, :])
+    #mu_Int = interpolate.PchipInterpolator(timeCont, controls[4, :])
 
 
     #status = 1
@@ -355,13 +354,13 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
     for c in range(Nint-1):
         # print(i, x[i,:])
         # print(u[i,:])
-        k1 = dt*dyn(t[c], x[c, :], alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k1 = dt*dyn(t[c], x[c, :], alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k1", k1, "k1/dt", k1/dt)
-        k2 = dt*dyn(t[c] + dt / 2, x[c, :] + k1 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k2 = dt*dyn(t[c] + dt / 2, x[c, :] + k1 / 2, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k2", k2, "k1/dt", k2 / dt)
-        k3 = dt*dyn(t[c] + dt / 2, x[c, :] + k2 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k3 = dt*dyn(t[c] + dt / 2, x[c, :] + k2 / 2, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k3", k3, "k1/dt", k3 / dt)
-        k4 = dt*dyn(t[c + 1], x[c, :] + k3, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k4 = dt*dyn(t[c + 1], x[c, :] + k3, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k4", k4, "k1/dt", k4 / dt)
         x[c + 1, :] = x[c, :] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
@@ -374,11 +373,11 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
     mres = x[:, 6]
     alfares = alfa_Int(time_old)
     deltares = delta_Int(time_old)
-    deltafres = deltaf_Int(time_old)
-    taures = tau_Int(time_old)
-    mures = mu_Int(time_old)
+    deltafres = np.zeros(len(time_old)) #deltaf_Int(time_old)
+    taures = np.zeros(len(time_old)) #tau_Int(time_old)
+    mures = np.zeros(len(time_old)) #mu_Int(time_old)
 
-    return vres, chires, gammares, tetares, lamres, hres, mres, time_old, alfares, deltares, deltafres, taures, mures, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int
+    return vres, chires, gammares, tetares, lamres, hres, mres, time_old, alfares, deltares, deltafres, taures, mures, alfa_Int, delta_Int#, deltaf_Int, tau_Int, mu_Int
 
 
 def SingleShootingMulti(var, dyn, Nint, i):
@@ -394,9 +393,9 @@ def SingleShootingMulti(var, dyn, Nint, i):
     '''tstart and tfin are the initial and final time of the considered leg'''
     alfa = np.zeros((NContPoints))
     delta = np.zeros((NContPoints))
-    deltaf = np.zeros((NContPoints))
-    tau = np.zeros((NContPoints))
-    mu = np.zeros((NContPoints))
+    #deltaf = np.zeros((NContPoints))
+    #tau = np.zeros((NContPoints))
+    #mu = np.zeros((NContPoints))
     states = var[i * Nstates:(i + 1) * Nstates]  # orig intervals
     if i ==0:
         tstart = 0
@@ -409,11 +408,11 @@ def SingleShootingMulti(var, dyn, Nint, i):
         '''here controls are scaled'''
         alfa[k] = var[varStates + i * (Ncontrols * NContPoints) + Ncontrols * k]
         delta[k] = var[varStates + i * (Ncontrols * NContPoints) + 1 + Ncontrols * k]
-        deltaf[k] = var[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
-        tau[k] = var[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
-        mu[k] = var[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
+        #deltaf[k] = var[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
+        #tau[k] = var[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
+        #mu[k] = var[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
 
-    controls = np.vstack((alfa, delta, deltaf, tau, mu))  # orig intervals
+    controls = np.vstack((alfa, delta))#, deltaf, tau, mu))  # orig intervals
 
     Nintlocal = Nint
     #print("single shooting")
@@ -425,9 +424,9 @@ def SingleShootingMulti(var, dyn, Nint, i):
 
     alfa_Int = interpolate.PchipInterpolator(timeCont, controls[0, :])
     delta_Int = interpolate.PchipInterpolator(timeCont, controls[1, :])
-    deltaf_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
-    tau_Int = interpolate.PchipInterpolator(timeCont, controls[3, :])
-    mu_Int = interpolate.PchipInterpolator(timeCont, controls[4, :])
+    #deltaf_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
+    #tau_Int = interpolate.PchipInterpolator(timeCont, controls[3, :])
+    #mu_Int = interpolate.PchipInterpolator(timeCont, controls[4, :])
 
     time_int = np.linspace(tstart, tfin, Nintlocal)
     dt = (time_int[1] - time_int[0])
@@ -437,13 +436,13 @@ def SingleShootingMulti(var, dyn, Nint, i):
     for c in range(Nint-1):
         # print(i, x[i,:])
         # print(u[i,:])
-        k1 = dt*dyn(t[c], x[c, :], alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k1 = dt*dyn(t[c], x[c, :], alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k1", k1, "k1/dt", k1/dt)
-        k2 = dt*dyn(t[c] + dt / 2, x[c, :] + k1 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k2 = dt*dyn(t[c] + dt / 2, x[c, :] + k1 / 2, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k2", k2, "k1/dt", k2 / dt)
-        k3 = dt*dyn(t[c] + dt / 2, x[c, :] + k2 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k3 = dt*dyn(t[c] + dt / 2, x[c, :] + k2 / 2, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k3", k3, "k1/dt", k3 / dt)
-        k4 = dt*dyn(t[c + 1], x[c, :] + k3, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k4 = dt*dyn(t[c + 1], x[c, :] + k3, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k4", k4, "k1/dt", k4 / dt)
         x[c + 1, :] = x[c, :] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
@@ -456,9 +455,9 @@ def SingleShootingMulti(var, dyn, Nint, i):
     mres = x[:, 6]
     alfares = alfa_Int(time_old)
     deltares = delta_Int(time_old)
-    deltafres = deltaf_Int(time_old)
-    taures = tau_Int(time_old)
-    mures = mu_Int(time_old)
+    deltafres = np.zeros(len(time_old)) #deltaf_Int(time_old)
+    taures = np.zeros(len(time_old)) #tau_Int(time_old)
+    mures = np.zeros(len(time_old)) #mu_Int(time_old)
 
     return vres, chires, gammares, tetares, lamres, hres, mres, time_old, alfares, deltares, deltafres, taures, mures
 
@@ -476,9 +475,9 @@ def MultiShooting(var, dyn):
     mres = np.zeros((0))
     alfares = np.zeros((0))
     deltares = np.zeros((0))
-    deltafres = np.zeros((0))
-    taures = np.zeros((0))
-    mures = np.zeros((0))
+    #deltafres = np.zeros((0))
+    #taures = np.zeros((0))
+    #mures = np.zeros((0))
     tres = np.zeros((0))
 
     states_atNode = np.zeros((0))
@@ -486,7 +485,7 @@ def MultiShooting(var, dyn):
 
     varD = var * (obj.UBV - obj.LBV) + obj.LBV
 
-    res = p.map(partial(SingleShootingMulti, varD, dynamicsInt, Nint), range(Nleg))
+    res = p.map(partial(SingleShootingMulti, varD, dyn, Nint), range(Nleg))
 
     for i in range(Nleg):
         leg = res[i]
@@ -500,11 +499,11 @@ def MultiShooting(var, dyn):
         tres = np.hstack((tres, leg[7]))
         alfares = np.hstack((alfares, leg[8]))
         deltares = np.hstack((deltares, leg[9]))
-        deltafres = np.hstack((deltafres, leg[10]))
-        taures = np.hstack((taures, leg[11]))
-        mures = np.hstack((mures, leg[12]))
+        #deltafres = np.hstack((deltafres, leg[10]))
+        #taures = np.hstack((taures, leg[11]))
+        #mures = np.hstack((mures, leg[12]))
         states_atNode = np.hstack((states_atNode, ((vres[-1], chires[-1], gammares[-1], tetares[-1], lamres[-1], hres[-1], mres[-1]))))  # new intervals
-        controls_atNode = np.hstack((controls_atNode, ((alfares[-1], deltares[-1], deltafres[-1], taures[-1], mures[-1]))))
+        controls_atNode = np.hstack((controls_atNode, ((alfares[-1], deltares[-1]))))#, deltafres[-1], taures[-1], mures[-1]))))
 
     vrescol = np.reshape(vres, (Nint*Nleg, 1))
     chirescol = np.reshape(chires, (Nint*Nleg, 1))
@@ -515,13 +514,13 @@ def MultiShooting(var, dyn):
     mrescol = np.reshape(mres, (Nint*Nleg, 1))
     alfarescol = np.reshape(alfares, (Nint*Nleg, 1))
     deltarescol = np.reshape(deltares, (Nint*Nleg, 1))
-    deltafrescol = np.reshape(deltafres, (Nint*Nleg, 1))
-    murescol = np.reshape(mures, (Nint*Nleg, 1))
-    taurescol = np.reshape(taures, (Nint*Nleg, 1))
+    #deltafrescol = np.reshape(deltafres, (Nint*Nleg, 1))
+    #murescol = np.reshape(mures, (Nint*Nleg, 1))
+    #taurescol = np.reshape(taures, (Nint*Nleg, 1))
 
 
     states_after = np.column_stack((vrescol, chirescol, gammarescol, tetarescol, lamrescol, hrescol, mrescol))
-    controls_after = np.column_stack((alfarescol, deltarescol, deltafrescol, taurescol, murescol))
+    controls_after = np.column_stack((alfarescol, deltarescol))#, deltafrescol, taurescol, murescol))
 
     '''for i in range(Nleg):
 
@@ -585,7 +584,7 @@ def MultiShooting(var, dyn):
     h = states_after[-1, 5]
     m = states_after[-1, 6]
     delta = controls_after[-1, 1]
-    tau = controls_after[-1, 3]
+    tau = 0.0 #controls_after[-1, 3]
 
     Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
 
@@ -618,9 +617,9 @@ def plot(var, Nint):
     timeTotal = np.zeros((0))
     alfaCP = np.zeros((Nleg, NContPoints))
     deltaCP = np.zeros((Nleg, NContPoints))
-    deltafCP = np.zeros((Nleg, NContPoints))
-    tauCP = np.zeros((Nleg, NContPoints))
-    muCP = np.zeros((Nleg, NContPoints))
+    #deltafCP = np.zeros((Nleg, NContPoints))
+    #tauCP = np.zeros((Nleg, NContPoints))
+    #muCP = np.zeros((Nleg, NContPoints))
     if flag_save:
         res = open("res_{}_{}.txt".format(os.path.basename(__file__), timestr), "w")
     tCtot = np.zeros((0))
@@ -629,9 +628,9 @@ def plot(var, Nint):
     for i in range(Nleg):
         alfa = np.zeros((NContPoints))
         delta = np.zeros((NContPoints))
-        deltaf = np.zeros((NContPoints))
-        tau = np.zeros((NContPoints))
-        mu = np.zeros((NContPoints))
+        #deltaf = np.zeros((NContPoints))
+        #tau = np.zeros((NContPoints))
+        #mu = np.zeros((NContPoints))
         states = varD[i * Nstates:(i + 1) * Nstates]  # orig intervals
 
         timeend = timestart + varD[i + varTot]
@@ -645,16 +644,16 @@ def plot(var, Nint):
             alfaCP[i, k] = alfa[k]
             delta[k] = varD[varStates + i * (Ncontrols * NContPoints) + 1 + Ncontrols * k]
             deltaCP[i, k] = delta[k]
-            deltaf[k] = varD[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
-            deltafCP[i, k] = deltaf[k]
-            tau[k] = varD[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
-            tauCP[i, k] = tau[k]
-            mu[k] = varD[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
-            muCP[i, k] = mu[k]
-        controls = np.vstack((alfa, delta, deltaf, tau, mu)) # orig intervals
+            #deltaf[k] = varD[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
+            #deltafCP[i, k] = deltaf[k]
+            #tau[k] = varD[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
+            #tauCP[i, k] = tau[k]
+            #mu[k] = varD[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
+            #muCP[i, k] = mu[k]
+        controls = np.vstack((alfa, delta))#, deltaf, tau, mu)) # orig intervals
 
 
-        vres, chires, gammares, tetares, lamres, hres, mres, tres, alfares, deltares, deltafres, taures, mures, alfa_I, delta_I, deltaf_I, tau_I, mu_I \
+        vres, chires, gammares, tetares, lamres, hres, mres, tres, alfares, deltares, deltafres, taures, mures, alfa_I, delta_I \
             = SingleShooting(states, controls, dynamicsInt, timestart, timeend, Nint)
 
         rep = len(vres)
@@ -828,9 +827,9 @@ def plot(var, Nint):
         plt.figure(9)
         plt.title("Throttles")
         plt.plot(timeTotal, deltares * 100, color='r')
-        plt.plot(timeTotal, taures * 100, color='k')
+        #plt.plot(timeTotal, taures * 100, color='k')
         plt.plot(tC, deltaCP[i, :] * 100, 'ro')
-        plt.plot(tC, tauCP[i, :] * 100, 'ro')
+        #plt.plot(tC, tauCP[i, :] * 100, 'ro')
         plt.grid()
         plt.ylabel("%")
         plt.xlabel("time [s]")
@@ -840,7 +839,7 @@ def plot(var, Nint):
             plt.savefig(savefig_file + "throttles" + ".png")
 
 
-        plt.figure(10)
+        '''plt.figure(10)
         plt.title("Body Flap deflection \u03B4")
         plt.plot(tC, np.rad2deg(deltafCP[i, :]), "ro")
         plt.plot(timeTotal, np.rad2deg(deltafres))
@@ -850,9 +849,9 @@ def plot(var, Nint):
         plt.legend(["Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
         if flag_save:
-            plt.savefig(savefig_file + "deltaf" + ".png")
+            plt.savefig(savefig_file + "deltaf" + ".png")'''
 
-        plt.figure(11)
+        '''plt.figure(11)
         plt.title("Bank angle profile \u03BC")
         plt.plot(tC, np.rad2deg(muCP[i, :]), "ro")
         plt.plot(timeTotal, np.rad2deg(mures))
@@ -862,7 +861,7 @@ def plot(var, Nint):
         plt.legend(["Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
         if flag_save:
-            plt.savefig(savefig_file + "mu" + ".png")
+            plt.savefig(savefig_file + "mu" + ".png")'''
 
 
         plt.figure(12)
@@ -984,7 +983,8 @@ def equality(var, conj, cont_conj):
     else:
         chifin = 0.5 * np.pi + np.arcsin(np.cos(obj.incl) / np.cos(lam))
     div = np.tile([100, 1, 1, 1, 1, 100, 1000], Nleg - 1)
-    div2 = np.tile([np.deg2rad(40),1,np.deg2rad(30),1,np.deg2rad(90)], Nleg - 1)
+    #div2 = np.tile([np.deg2rad(40),1,np.deg2rad(30),1,np.deg2rad(90)], Nleg - 1)
+    div2 = np.tile([np.deg2rad(40), 1], Nleg - 1)
     contr_left = np.zeros((0))
     contr_right = np.zeros((0))
     for i in range(Nbar-1):
@@ -994,7 +994,7 @@ def equality(var, conj, cont_conj):
     eq_cond = np.zeros((0))
     eq_cond = np.concatenate((eq_cond, (var[0] - states_init[0],), var[2:7]-states_init[2:]))
     eq_cond = np.concatenate((eq_cond, (var[Nstates:varStates] - conj[:Nstates * (Nleg - 1)])/div))  # knotting conditions
-    eq_cond = np.concatenate((eq_cond, (contr_left - contr_right)/div2))
+    #eq_cond = np.concatenate((eq_cond, (contr_left - contr_right)/div2)) # knotting condition on controls
     #eq_cond = np.concatenate((eq_cond, abs((contr_check - cont_conj[:Ncontrols * (Nleg - 1)])/div2)))  # knotting conditions
     eq_cond = np.concatenate((eq_cond, var[varStates:varStates + Ncontrols] - cont_init))  # init cond on alpha
     eq_cond = np.concatenate((eq_cond, ((vvv - vtAbs)/vvv,)))
@@ -1149,9 +1149,9 @@ if __name__ == '__main__':
 
     '''reading of aerodynamic coefficients and specific impulse from file'''
 
-    cl = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt"))
-    cd = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt"))
-    cm = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt"))
+    cl = np.array(fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt"))
+    cd = np.array(fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt"))
+    cm = np.array(fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt"))
 
     # cl_interp = RegularGridInterpolator((mach, angAttack, bodyFlap), cl)
     # cd_interp = RegularGridInterpolator((mach, angAttack, bodyFlap), cd)
@@ -1168,7 +1168,7 @@ if __name__ == '__main__':
     # sparseJacIneq = load_npz("/home/francesco/git_workspace/FESTIP_Work/MultipleShooting_Algorithm/jacIneq.npz")
     # spIneq = sparseJacIneq.todense()
 
-    with open("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
+    with open("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
         impulse = []
         for line in f:
             line = line.split()
@@ -1193,10 +1193,10 @@ if __name__ == '__main__':
     time_tot = 350  # initial time
     Nbar = 6  # number of conjunction points
     Nleg = Nbar - 1  # number of multiple shooting sub intervals
-    NContPoints = 7  # number of control points for interpolation inside each interval
-    Nint = 200  # number of points for each single shooting integration
+    NContPoints = 5  # number of control points for interpolation inside each interval
+    Nint = 400  # number of points for each single shooting integration
     Nstates = 7  # number of states
-    Ncontrols = 5  # number of controls
+    Ncontrols = 2  # number of controls
     varStates = Nstates * Nleg  # total number of optimization variables for states
     varControls = Ncontrols * Nleg * NContPoints  # total number of optimization variables for controls
     varTot = varStates + varControls  # total number of optimization variables for states and controls
@@ -1209,12 +1209,12 @@ if __name__ == '__main__':
     Nintplot = 1000
 
     '''NLP solver parameters'''
-    maxiter = 30  # max number of iterations for nlp solver
+    maxiter = 20  # max number of iterations for nlp solver
     ftol = 1e-8  # numeric tolerance of nlp solver
     # eps = 1e-10
     eps = 1e-09  # increment of the derivative
     # u = 2.220446049250313e-16
-    maxIterator = 20  # max number of optimization iterations
+    maxIterator = 4  # max number of optimization iterations
     if flag_save:
         os.makedirs("/home/francesco/Desktop/PhD/FESTIP_Work/MultipleShooting_Algorithm/SLSQP/Results/Res{}_leg{}_it{}x{}_{}".format(
             os.path.basename(__file__), Nleg, maxiter, maxIterator, timestr))
@@ -1262,16 +1262,16 @@ if __name__ == '__main__':
 
     alfa_init = Guess.zeros(tcontr)
     delta_init = Guess.linear(tcontr, 1.0, 0.05)
-    deltaf_init = Guess.zeros(tcontr)
-    tau_init = Guess.zeros(tcontr)
-    mu_init = Guess.zeros(tcontr)
+    #deltaf_init = Guess.zeros(tcontr)
+    #tau_init = Guess.zeros(tcontr)
+    #mu_init = Guess.zeros(tcontr)
 
     states_init = np.array((v_init[0], chi_init[0], gamma_init[0], teta_init[0], lam_init[0], h_init[0], m_init[0]))
-    cont_init = np.array((alfa_init[0], delta_init[0], deltaf_init[0], tau_init[0], mu_init[0]))
+    cont_init = np.array((alfa_init[0], delta_init[0]))#, deltaf_init[0], tau_init[0], mu_init[0]))
 
     XGuess = np.array((v_init, chi_init, gamma_init, teta_init, lam_init, h_init, m_init))  # states initial guesses
 
-    UGuess = np.array((alfa_init, delta_init, deltaf_init, tau_init, mu_init))  # states initial guesses
+    UGuess = np.array((alfa_init, delta_init))#, deltaf_init, tau_init, mu_init))  # states initial guesses
 
     for i in range(Nleg):
         '''creation of vector of states initial guesses'''
@@ -1290,8 +1290,10 @@ if __name__ == '__main__':
 
     uplimx = np.tile([1e4, np.deg2rad(150), np.deg2rad(89.9), 0.0, np.deg2rad(25), 2e5, obj.M0], Nleg)
     inflimx = np.tile([1.0, np.deg2rad(110), np.deg2rad(-50), np.deg2rad(-60), np.deg2rad(2), 1.0, obj.m10], Nleg)
-    uplimu = np.tile([np.deg2rad(40), 1.0, np.deg2rad(30), 1.0, np.deg2rad(90)], Nleg * NContPoints)
-    inflimu = np.tile([np.deg2rad(-2), 0.0001, np.deg2rad(-20), -1.0, np.deg2rad(-90)], Nleg * NContPoints)
+    #uplimu = np.tile([np.deg2rad(40), 1.0, np.deg2rad(30), 1.0, np.deg2rad(90)], Nleg * NContPoints)
+    #inflimu = np.tile([np.deg2rad(-2), 0.0001, np.deg2rad(-20), -1.0, np.deg2rad(-90)], Nleg * NContPoints)
+    uplimu = np.tile([np.deg2rad(40), 1.0], Nleg * NContPoints)
+    inflimu = np.tile([np.deg2rad(-2), 0.0001], Nleg * NContPoints)
 
     for i in range(len(X)):
         if X[i] < inflimx[i]:
@@ -1320,77 +1322,77 @@ if __name__ == '__main__':
            5500, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(25.0), 1e5, 2e5,
            6500, np.deg2rad(150), np.deg2rad(30), np.deg2rad(-45), np.deg2rad(25.0), 1.2e5, 1e5]
 
-    LbC = [np.deg2rad(-1.0), 0.9, np.deg2rad(-20.0), -0.1, np.deg2rad(-1),
-           np.deg2rad(-1.0), 0.9, np.deg2rad(-20.0), -0.2, np.deg2rad(-1),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.2, np.deg2rad(-5),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.5, np.deg2rad(-10),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.5, np.deg2rad(-15),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.6, np.deg2rad(-20),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.6, np.deg2rad(-25), # leg1
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -0.8, np.deg2rad(-30),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-35),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-60),
-           np.deg2rad(-2.0), 0.9, np.deg2rad(-20.0), -1, np.deg2rad(-70),
-           np.deg2rad(-2.0), 0.8, np.deg2rad(-20.0), -1, np.deg2rad(-70),
-           np.deg2rad(-2.0), 0.7, np.deg2rad(-20.0), -1, np.deg2rad(-90),
-           np.deg2rad(-2.0), 0.7, np.deg2rad(-20.0), -1, np.deg2rad(-90), # leg2
-           np.deg2rad(-2.0), 0.6, np.deg2rad(-20.0), -1, np.deg2rad(-90),
-           np.deg2rad(-2.0), 0.6, np.deg2rad(-20.0), -1, np.deg2rad(-90),
-           np.deg2rad(-2.0), 0.5, np.deg2rad(-20.0), -1, np.deg2rad(-90),
-           np.deg2rad(-2.0), 0.5, np.deg2rad(-20.0), -1, np.deg2rad(-90),
-           np.deg2rad(-2.0), 0.4, np.deg2rad(-20.0), -1, np.deg2rad(-90),
-           np.deg2rad(-2.0), 0.4, np.deg2rad(-20.0), -1, np.deg2rad(-90),
-           np.deg2rad(-2.0), 0.3, np.deg2rad(-20.0), -1, np.deg2rad(-90), # leg3
-           np.deg2rad(-2.0), 0.3, np.deg2rad(-20.0), -1, np.deg2rad(-90),
-           np.deg2rad(-2.0), 0.2, np.deg2rad(-20.0), -1, np.deg2rad(-90),
-           np.deg2rad(-2.0), 0.2, np.deg2rad(-20.0), -1, np.deg2rad(-90),
-           np.deg2rad(-2.0), 0.1, np.deg2rad(-20.0), -1, np.deg2rad(-80),
-           np.deg2rad(-2.0), 0.1, np.deg2rad(-20.0), -0.9, np.deg2rad(-50),
-           np.deg2rad(-2.0), 0.05, np.deg2rad(-20.0), -0.8, np.deg2rad(-20),
-           np.deg2rad(-2.0), 0.01, np.deg2rad(-20.0), -0.5, np.deg2rad(-10), # leg4
-           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
-           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
-           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
-           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
-           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
-           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
-           np.deg2rad(-2.0), 0.001, np.deg2rad(-20.0), -0.01, np.deg2rad(-1)] # leg5
+    LbC = [np.deg2rad(-1.0), 0.9,#np.deg2rad(-20.0), -0.1, np.deg2rad(-1),
+           np.deg2rad(-1.0), 0.9,#np.deg2rad(-20.0), -0.2, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.9,#np.deg2rad(-20.0), -0.2, np.deg2rad(-5),
+           np.deg2rad(-2.0), 0.9,#np.deg2rad(-20.0), -0.5, np.deg2rad(-10),
+           #np.deg2rad(-2.0), 0.9,#np.deg2rad(-20.0), -0.5, np.deg2rad(-15),
+           #np.deg2rad(-2.0), 0.9,#np.deg2rad(-20.0), -0.6, np.deg2rad(-20),
+           np.deg2rad(-2.0), 0.9,#np.deg2rad(-20.0), -0.6, np.deg2rad(-25), # leg1
+           np.deg2rad(-2.0), 0.9,#np.deg2rad(-20.0), -0.8, np.deg2rad(-30),
+           #np.deg2rad(-2.0), 0.9,#np.deg2rad(-20.0), -1, np.deg2rad(-35),
+           #np.deg2rad(-2.0), 0.9,#np.deg2rad(-20.0), -1, np.deg2rad(-60),
+           np.deg2rad(-2.0), 0.9,#np.deg2rad(-20.0), -1, np.deg2rad(-70),
+           np.deg2rad(-2.0), 0.8,#np.deg2rad(-20.0), -1, np.deg2rad(-70),
+           np.deg2rad(-2.0), 0.7,#np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.7,#np.deg2rad(-20.0), -1, np.deg2rad(-90), # leg2
+           np.deg2rad(-2.0), 0.6,#np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           #np.deg2rad(-2.0), 0.6,#np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           #np.deg2rad(-2.0), 0.5,#np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.5,#np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.4,#np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.4,#np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.3,#np.deg2rad(-20.0), -1, np.deg2rad(-90), # leg3
+           np.deg2rad(-2.0), 0.3,#np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           #np.deg2rad(-2.0), 0.2,#np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           np.deg2rad(-2.0), 0.2,#np.deg2rad(-20.0), -1, np.deg2rad(-90),
+           #np.deg2rad(-2.0), 0.1,#np.deg2rad(-20.0), -1, np.deg2rad(-80),
+           np.deg2rad(-2.0), 0.1,#np.deg2rad(-20.0), -0.9, np.deg2rad(-50),
+           np.deg2rad(-2.0), 0.05, #np.deg2rad(-20.0), -0.8, np.deg2rad(-20),
+           np.deg2rad(-2.0), 0.01, #np.deg2rad(-20.0), -0.5, np.deg2rad(-10), # leg4
+           np.deg2rad(-2.0), 0.001,#np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           #np.deg2rad(-2.0), 0.001,#np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           #np.deg2rad(-2.0), 0.001,#np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.001,#np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.001,#np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.001,#np.deg2rad(-20.0), -0.01, np.deg2rad(-1),
+           np.deg2rad(-2.0), 0.001]#np.deg2rad(-20.0), -0.01, np.deg2rad(-1)] # leg5
 
-    UbC = [np.deg2rad(1.0), 1.0, np.deg2rad(30), 0.1, np.deg2rad(1),
-           np.deg2rad(1.0), 1.0, np.deg2rad(30.0), 0.2, np.deg2rad(1),
-           np.deg2rad(3.0), 1.0, np.deg2rad(30.0), 0.2, np.deg2rad(5),
-           np.deg2rad(5.0), 1.0, np.deg2rad(30.0), 0.5, np.deg2rad(10),
-           np.deg2rad(10.0), 1.0, np.deg2rad(30.0), 0.5, np.deg2rad(15),
-           np.deg2rad(15.0), 1.0, np.deg2rad(30.0), 0.6, np.deg2rad(20),
-           np.deg2rad(20.0), 1.0, np.deg2rad(30.0), 0.6, np.deg2rad(25), # leg1
-           np.deg2rad(25.0), 1.0, np.deg2rad(30.0), 0.8, np.deg2rad(30),
-           np.deg2rad(30.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(35),
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(60),
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(70),
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(70),
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90),
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90), # leg2
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90),
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90),
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90.0),
-           np.deg2rad(40.0), 1.0, np.deg2rad(30.0), 1, np.deg2rad(90.0),
-           np.deg2rad(40.0), 0.7, np.deg2rad(30.0), 1, np.deg2rad(90.0),
-           np.deg2rad(40.0), 0.6, np.deg2rad(30.0), 1, np.deg2rad(90),
-           np.deg2rad(40.0), 0.6, np.deg2rad(30.0), 1, np.deg2rad(90.0), # leg3
-           np.deg2rad(40.0), 0.5, np.deg2rad(30.0), 1, np.deg2rad(90.0),
-           np.deg2rad(40.0), 0.5, np.deg2rad(30.0), 1, np.deg2rad(90.0),
-           np.deg2rad(40.0), 0.5, np.deg2rad(30.0), 1, np.deg2rad(90.0),
-           np.deg2rad(40.0), 0.4, np.deg2rad(30.0), 1, np.deg2rad(80.0),
-           np.deg2rad(40.0), 0.4, np.deg2rad(30.0), 0.9, np.deg2rad(50.0),
-           np.deg2rad(40.0), 0.3, np.deg2rad(30.0), 0.8, np.deg2rad(20.0),
-           np.deg2rad(40.0), 0.25, np.deg2rad(30.0), 0.5, np.deg2rad(10.0), # leg4
-           np.deg2rad(40.0), 0.25, np.deg2rad(30.0), 0.01, np.deg2rad(1),
-           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
-           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
-           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
-           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
-           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1),
-           np.deg2rad(40.0), 0.2, np.deg2rad(30.0), 0.01, np.deg2rad(1)] #leg5
+    UbC = [np.deg2rad(3.0), 1.0, #np.deg2rad(30), 0.1, np.deg2rad(1),
+           np.deg2rad(5.0), 1.0, #np.deg2rad(30.0), 0.2, np.deg2rad(1),
+           #np.deg2rad(10.0), 1.0, #np.deg2rad(30.0), 0.2, np.deg2rad(5),
+           np.deg2rad(15.0), 1.0, #np.deg2rad(30.0), 0.5, np.deg2rad(10),
+           #np.deg2rad(20.0), 1.0, #np.deg2rad(30.0), 0.5, np.deg2rad(15),
+           np.deg2rad(30.0), 1.0, #np.deg2rad(30.0), 0.6, np.deg2rad(20),
+           np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 0.6, np.deg2rad(25), # leg1
+           np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 0.8, np.deg2rad(30),
+           #np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 1, np.deg2rad(35),
+           #np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 1, np.deg2rad(60),
+           np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 1, np.deg2rad(70),
+           np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 1, np.deg2rad(70),
+           np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 1, np.deg2rad(90),
+           np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 1, np.deg2rad(90), # leg2
+           #np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 1, np.deg2rad(90),
+           #np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 1, np.deg2rad(90),
+           np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 1.0, #np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 0.7, #np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 0.6, #np.deg2rad(30.0), 1, np.deg2rad(90),
+           np.deg2rad(40.0), 0.6, #np.deg2rad(30.0), 1, np.deg2rad(90.0), # leg3
+           #np.deg2rad(40.0), 0.5, #np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 0.5, #np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           np.deg2rad(40.0), 0.5, #np.deg2rad(30.0), 1, np.deg2rad(90.0),
+           #np.deg2rad(40.0), 0.4, #np.deg2rad(30.0), 1, np.deg2rad(80.0),
+           np.deg2rad(40.0), 0.4, #np.deg2rad(30.0), 0.9, np.deg2rad(50.0),
+           np.deg2rad(40.0), 0.3, #np.deg2rad(30.0), 0.8, np.deg2rad(20.0),
+           np.deg2rad(40.0), 0.25, #np.deg2rad(30.0), 0.5, np.deg2rad(10.0), # leg4
+           np.deg2rad(40.0), 0.25, #np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           #np.deg2rad(40.0), 0.2,#np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           #np.deg2rad(40.0), 0.2,#np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           np.deg2rad(40.0), 0.2,#np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           np.deg2rad(40.0), 0.2,#np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           np.deg2rad(40.0), 0.2,#np.deg2rad(30.0), 0.01, np.deg2rad(1),
+           np.deg2rad(40.0), 0.2]#np.deg2rad(30.0), 0.01, np.deg2rad(1)] #leg5
 
     Tlb = [3.0]
     Tub = [200]
@@ -1404,12 +1406,12 @@ if __name__ == '__main__':
     '''set upper and lower bounds for states, controls and time, scaled'''
     '''major issues with bounds!!!'''
     bndX = ((0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0))
-    bndU = ((0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0))
+    bndU = ((0.0, 1.0), (0.0, 1.0)) #, (0.0, 1.0), (0.0, 1.0), (0.0, 1.0))
     bndT = ((0.0, 1.0),)
     bnds = bndX * Nleg + bndU * Nleg * NContPoints + bndT * Nleg
 
     iterator = 0
-    p = Pool(processes=5)
+    p = Pool(processes=Nleg)
 
     while iterator < maxIterator:
         print("---- iteration : {0} ----".format(iterator + 1))

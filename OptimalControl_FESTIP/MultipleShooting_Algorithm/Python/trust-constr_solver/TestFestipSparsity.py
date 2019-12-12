@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from OpenGoddard.optimize import Guess
 from scipy import interpolate, optimize
 from scipy.integrate import solve_ivp, odeint
-from scipy.optimize import Bounds, NonlinearConstraint, LinearConstraint
+from scipy.optimize import Bounds, NonlinearConstraint, LinearConstraint, basinhopping, shgo
 from models import *
 from mapping_functions import *
 import time
@@ -101,41 +101,31 @@ def conversionStatesToOrig(var, len):
     return new_var
 
 
-def dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int):
+def dynamicsInt(t, states, alfa_Int, delta_Int): #, deltaf_Int, tau_Int, mu_Int):
     '''this functions receives the states and controls unscaled and calculates the dynamics'''
     v = states[0]
     chi = states[1]
     gamma = states[2]
-    teta = states[3]
+    #teta = states[3]
     lam = states[4]
     h = states[5]
     m = states[6]
     alfa = alfa_Int(t)
     delta = delta_Int(t)
-    deltaf = deltaf_Int(t)
-    tau = tau_Int(t)
-    mu = mu_Int(t)
+    deltaf = 0.0 #deltaf_Int(t)
+    tau = 0.0 #tau_Int(t)
+    mu = 0.0 #mu_Int(t)
 
     Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
-    # Press = np.asarray(Press, dtype=np.float64)
-    # rho = np.asarray(rho, dtype=np.float64)
-    # c = np.asarray(c, dtype=np.float64)
 
     M = v / c
 
     L, D, MomA = aeroForces(M, alfa, deltaf, cd, cl, cm, v, obj.wingSurf, rho, obj.lRef, obj.M0, m, obj.m10,
                             obj.xcg0, obj.xcgf, obj.pref)
-    # L = np.asarray(L, dtype=np.float64)
-    # D = np.asarray(D, dtype=np.float64)
-    # MomA = np.asarray(MomA, dtype=np.float64)
 
     T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, obj.psl, obj.M0, obj.m10,
                                 obj.lRef, obj.xcgf, obj.xcg0)
 
-    # T = np.asarray(T, dtype=np.float64)
-    # isp = np.asarray(isp, dtype=np.float64)
-    # Deps = np.asarray(Deps, dtype=np.float64)
-    # MomT = np.asarray(MomT, dtype=np.float64)
 
     eps = Deps + alfa
     g0 = obj.g0
@@ -170,36 +160,25 @@ def dynamicsVel(states, contr):
     v = states[0]
     chi = states[1]
     gamma = states[2]
-    teta = states[3]
+    #teta = states[3]
     lam = states[4]
     h = states[5]
     m = states[6]
     alfa = contr[0]
     delta = contr[1]
-    deltaf = contr[2]
-    tau = contr[3]
-    mu = contr[4]
+    deltaf = 0.0 #contr[2]
+    tau = 0.0 #contr[3]
+    mu = 0.0 #contr[4]
 
     Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
-    # Press = np.asarray(Press, dtype=np.float64)
-    # rho = np.asarray(rho, dtype=np.float64)
-    # c = np.asarray(c, dtype=np.float64)
 
     M = v / c
 
     L, D, MomA = aeroForces(M, alfa, deltaf, cd, cl, cm, v, obj.wingSurf, rho, obj.lRef, obj.M0, m, obj.m10,
                             obj.xcg0, obj.xcgf, obj.pref)
-    # L = np.asarray(L, dtype=np.float64)
-    # D = np.asarray(D, dtype=np.float64)
-    # MomA = np.asarray(MomA, dtype=np.float64)
 
     T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, obj.psl, obj.M0, obj.m10,
                                 obj.lRef, obj.xcgf, obj.xcg0)
-
-    # T = np.asarray(T, dtype=np.float64)
-    # isp = np.asarray(isp, dtype=np.float64)
-    # Deps = np.asarray(Deps, dtype=np.float64)
-    # MomT = np.asarray(MomT, dtype=np.float64)
 
     eps = Deps + alfa
     g0 = obj.g0
@@ -208,7 +187,6 @@ def dynamicsVel(states, contr):
         g = g0
     else:
         g = g0 * (obj.Re / (obj.Re + h)) ** 2
-    # g = np.asarray(g, dtype=np.float64)
 
     dx = np.array((((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
                    (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi)),
@@ -232,15 +210,15 @@ def inequalityAll(states, controls, varnum):
     '''this function takes states and controls unscaled'''
     v = np.transpose(states[:, 0])
     # chi = np.transpose(states[:, 1])
-    gamma = np.transpose(states[:, 2])
+    #gamma = np.transpose(states[:, 2])
     # teta = np.transpose(states[:, 3])
     # lam = np.transpose(states[:, 4])
     h = np.transpose(states[:, 5])
     m = np.transpose(states[:, 6])
     alfa = np.transpose(controls[:, 0])
     delta = np.transpose(controls[:, 1])
-    deltaf = np.transpose(controls[:, 2])
-    tau = np.transpose(controls[:, 3])  # tau back to [-1, 1] interval
+    deltaf = np.zeros(len(v)) #np.transpose(controls[:, 2])
+    tau = np.zeros(len(v)) #np.transpose(controls[:, 3])  # tau back to [-1, 1] interval
     # mu = np.transpose(controls[:, 4])
 
     Press, rho, c = isaMulti(h, obj.psl, obj.g0, obj.Re)
@@ -286,8 +264,7 @@ def inequalityAll(states, controls, varnum):
     #momnew = to_new_int(obj.k/ 1e5, -1e3, 1e3, 0.0, 1.0) - to_new_int(MomTotA / 1e5, -1e3, 1e3, 0.0, 1.0)
     #mnew = m_toNew(mf, obj) - m_toNew(obj.m10, obj)
 
-    iC = np.hstack(((obj.MaxAx - ax)/obj.MaxAx, (obj.MaxAz - az)/obj.MaxAz, (obj.MaxQ-q)/obj.MaxQ, (obj.k-MomTot)/(obj.k*1e3), (MomTot+obj.k)/(obj.k*1e3), (mf-obj.m10)/obj.m10,
-                    (gamma + np.deg2rad(89))/np.deg2rad(89), (np.deg2rad(89) - gamma)/np.deg2rad(89)))
+    iC = np.hstack(((obj.MaxAx - ax)/obj.MaxAx, (obj.MaxAz - az)/obj.MaxAz, (obj.MaxQ-q)/obj.MaxQ, (mf-obj.m10)/obj.M0))
 
     return iC
 
@@ -320,11 +297,11 @@ def SingleShootingMulti(var, dyn, Nint, i):
         '''here controls are scaled'''
         alfa[k] = var[varStates + i * (Ncontrols * NContPoints) + Ncontrols * k]
         delta[k] = var[varStates + i * (Ncontrols * NContPoints) + 1 + Ncontrols * k]
-        deltaf[k] = var[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
-        tau[k] = var[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
-        mu[k] = var[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
+        #deltaf[k] = var[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
+        #tau[k] = var[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
+        #mu[k] = var[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
 
-    controls = np.vstack((alfa, delta, deltaf, tau, mu))  # orig intervals
+    controls = np.vstack((alfa, delta))#, deltaf, tau, mu))  # orig intervals
 
     Nintlocal = Nint
     #print("single shooting")
@@ -336,9 +313,9 @@ def SingleShootingMulti(var, dyn, Nint, i):
 
     alfa_Int = interpolate.PchipInterpolator(timeCont, controls[0, :])
     delta_Int = interpolate.PchipInterpolator(timeCont, controls[1, :])
-    deltaf_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
-    tau_Int = interpolate.PchipInterpolator(timeCont, controls[3, :])
-    mu_Int = interpolate.PchipInterpolator(timeCont, controls[4, :])
+    #deltaf_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
+    #tau_Int = interpolate.PchipInterpolator(timeCont, controls[3, :])
+    #mu_Int = interpolate.PchipInterpolator(timeCont, controls[4, :])
 
     time_int = np.linspace(tstart, tfin, Nintlocal)
     dt = (time_int[1] - time_int[0])
@@ -348,13 +325,13 @@ def SingleShootingMulti(var, dyn, Nint, i):
     for c in range(Nint-1):
         # print(i, x[i,:])
         # print(u[i,:])
-        k1 = dt*dyn(t[c], x[c, :], alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k1 = dt*dyn(t[c], x[c, :], alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k1", k1, "k1/dt", k1/dt)
-        k2 = dt*dyn(t[c] + dt / 2, x[c, :] + k1 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k2 = dt*dyn(t[c] + dt / 2, x[c, :] + k1 / 2, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k2", k2, "k1/dt", k2 / dt)
-        k3 = dt*dyn(t[c] + dt / 2, x[c, :] + k2 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k3 = dt*dyn(t[c] + dt / 2, x[c, :] + k2 / 2, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k3", k3, "k1/dt", k3 / dt)
-        k4 = dt*dyn(t[c + 1], x[c, :] + k3, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k4 = dt*dyn(t[c + 1], x[c, :] + k3, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k4", k4, "k1/dt", k4 / dt)
         x[c + 1, :] = x[c, :] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
@@ -367,9 +344,9 @@ def SingleShootingMulti(var, dyn, Nint, i):
     mres = x[:, 6]
     alfares = alfa_Int(time_old)
     deltares = delta_Int(time_old)
-    deltafres = deltaf_Int(time_old)
-    taures = tau_Int(time_old)
-    mures = mu_Int(time_old)
+    deltafres = np.zeros(len(time_old)) #deltaf_Int(time_old)
+    taures = np.zeros(len(time_old)) #tau_Int(time_old)
+    mures = np.zeros(len(time_old)) #mu_Int(time_old)
 
     return vres, chires, gammares, tetares, lamres, hres, mres, time_old, alfares, deltares, deltafres, taures, mures
 
@@ -396,131 +373,83 @@ def MultiShooting(var, dyn):
 
     varD = var * (obj.UBV - obj.LBV) + obj.LBV
 
-    res = p.map(partial(SingleShootingMulti, varD, dynamicsInt, Nint), range(Nleg))
+    try:
+        res = p.map(partial(SingleShootingMulti, varD, dyn, Nint), range(Nleg))
 
-    for i in range(Nleg):
-        leg = res[i]
-        vres = np.hstack((vres, leg[0]))
-        chires = np.hstack((chires, leg[1]))
-        gammares = np.hstack((gammares, leg[2]))
-        tetares = np.hstack((tetares, leg[3]))
-        lamres = np.hstack((lamres, leg[4]))
-        hres = np.hstack((hres, leg[5]))
-        mres = np.hstack((mres, leg[6]))
-        tres = np.hstack((tres, leg[7]))
-        alfares = np.hstack((alfares, leg[8]))
-        deltares = np.hstack((deltares, leg[9]))
-        deltafres = np.hstack((deltafres, leg[10]))
-        taures = np.hstack((taures, leg[11]))
-        mures = np.hstack((mures, leg[12]))
-        states_atNode = np.hstack((states_atNode, (
-            (vres[-1], chires[-1], gammares[-1], tetares[-1], lamres[-1], hres[-1], mres[-1]))))  # new intervals
+        for i in range(Nleg):
+            leg = res[i]
+            vres = np.hstack((vres, leg[0]))
+            chires = np.hstack((chires, leg[1]))
+            gammares = np.hstack((gammares, leg[2]))
+            tetares = np.hstack((tetares, leg[3]))
+            lamres = np.hstack((lamres, leg[4]))
+            hres = np.hstack((hres, leg[5]))
+            mres = np.hstack((mres, leg[6]))
+            tres = np.hstack((tres, leg[7]))
+            alfares = np.hstack((alfares, leg[8]))
+            deltares = np.hstack((deltares, leg[9]))
+            deltafres = np.hstack((deltafres, leg[10]))
+            taures = np.hstack((taures, leg[11]))
+            mures = np.hstack((mures, leg[12]))
+            states_atNode = np.hstack((states_atNode, (
+                (vres[-1], chires[-1], gammares[-1], tetares[-1], lamres[-1], hres[-1], mres[-1]))))  # new intervals
 
-    vrescol = np.reshape(vres, (Nint*Nleg, 1))
-    chirescol = np.reshape(chires, (Nint*Nleg, 1))
-    gammarescol = np.reshape(gammares, (Nint*Nleg, 1))
-    tetarescol = np.reshape(tetares, (Nint*Nleg, 1))
-    lamrescol = np.reshape(lamres, (Nint*Nleg, 1))
-    hrescol = np.reshape(hres, (Nint*Nleg, 1))
-    mrescol = np.reshape(mres, (Nint*Nleg, 1))
-    alfarescol = np.reshape(alfares, (Nint*Nleg, 1))
-    deltarescol = np.reshape(deltares, (Nint*Nleg, 1))
-    deltafrescol = np.reshape(deltafres, (Nint*Nleg, 1))
-    murescol = np.reshape(mures, (Nint*Nleg, 1))
-    taurescol = np.reshape(taures, (Nint*Nleg, 1))
+        vrescol = np.reshape(vres, (Nint*Nleg, 1))
+        chirescol = np.reshape(chires, (Nint*Nleg, 1))
+        gammarescol = np.reshape(gammares, (Nint*Nleg, 1))
+        tetarescol = np.reshape(tetares, (Nint*Nleg, 1))
+        lamrescol = np.reshape(lamres, (Nint*Nleg, 1))
+        hrescol = np.reshape(hres, (Nint*Nleg, 1))
+        mrescol = np.reshape(mres, (Nint*Nleg, 1))
+        alfarescol = np.reshape(alfares, (Nint*Nleg, 1))
+        deltarescol = np.reshape(deltares, (Nint*Nleg, 1))
+        #deltafrescol = np.reshape(deltafres, (Nint*Nleg, 1))
+        #murescol = np.reshape(mures, (Nint*Nleg, 1))
+        #taurescol = np.reshape(taures, (Nint*Nleg, 1))
 
+        states_after = np.column_stack((vrescol, chirescol, gammarescol, tetarescol, lamrescol, hrescol, mrescol))
+        controls_after = np.column_stack((alfarescol, deltarescol))#, deltafrescol, taurescol, murescol))
 
-    states_after = np.column_stack((vrescol, chirescol, gammarescol, tetarescol, lamrescol, hrescol, mrescol))
-    controls_after = np.column_stack((alfarescol, deltarescol, deltafrescol, taurescol, murescol))
+        obj.States = states_after
+        obj.Controls = controls_after
 
-    '''for i in range(Nleg):
+        eq_c = equality(varD, states_atNode)
+        obj.eqOld = eq_c
 
-        states = varD[i * Nstates:(i + 1) * Nstates]  # orig intervals
+        ineq_c = inequalityAll(states_after, controls_after, Nint*Nleg)
+        obj.ineqOld = ineq_c
 
-        timeend = timestart + varD[varTot + i]
-        time_vec = np.concatenate((time_vec, (timeend,)))  # vector with time points
-        obj.time = np.hstack((obj.time, timeend))
+        h = states_after[-1, 5]
+        m = states_after[-1, 6]
+        delta = controls_after[-1, 1]
+        tau = 0.0 #controls_after[-1, 3]
 
-        for k in range(NContPoints):
-            #this for loop takes the controls from the optimization variable and stores them into different variable
-            #here controls are scaled
-            alfa[k] = varD[varStates + i * (Ncontrols * NContPoints) + Ncontrols * k]
-            delta[k] = varD[varStates + i * (Ncontrols * NContPoints) + 1 + Ncontrols * k]
-            deltaf[k] = varD[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
-            tau[k] = varD[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
-            mu[k] = varD[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
+        Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
 
-        controls = np.vstack((alfa, delta, deltaf, tau, mu)) # orig intervals
+        T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, obj.psl, obj.M0, obj.m10, obj.lRef,
+                                    obj.xcgf, obj.xcg0)
 
+        r1 = h + obj.Re
+        Dv1 = np.sqrt(obj.GMe / r1) * (np.sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1)
+        Dv2 = np.sqrt(obj.GMe / obj.r2) * (1 - np.sqrt((2 * r1) / (r1 + obj.r2)))
+        mf = m / np.exp((Dv1 + Dv2) / (obj.g0 * isp))
 
-        vres, chires, gammares, tetares, lamres, hres, mres, tres, alfares, deltares, deltafres, taures, mures, \
-        alfa_I, delta_I, deltaf_I, tau_I, mu_I = SingleShooting(states, controls, dyn, timestart, timeend, Nint)
+        cost = -mf / obj.M0
+        obj.costOld = cost
 
-        states_atNode = np.concatenate((states_atNode, (
-            (vres[-1], chires[-1], gammares[-1], tetares[-1], lamres[-1], hres[-1], mres[-1]))))  # new intervals
-        #res quantities are unscaled
+        obj.varOld = var
 
-        vres = np.reshape(vres, (Nint, 1))
-        chires = np.reshape(chires, (Nint, 1))
-        gammares = np.reshape(gammares, (Nint, 1))
-        tetares = np.reshape(tetares, (Nint, 1))
-        lamres = np.reshape(lamres, (Nint, 1))
-        hres = np.reshape(hres, (Nint, 1))
-        mres = np.reshape(mres, (Nint, 1))
-        alfares = np.reshape(alfares, (Nint, 1))
-        deltares = np.reshape(deltares, (Nint, 1))
-        deltafres = np.reshape(deltafres, (Nint, 1))
-        mures = np.reshape(mures, (Nint, 1))
-        taures = np.reshape(taures, (Nint, 1))
-
-        #here controls and states matrices are defined
-        if i == 0:
-            states_after = np.column_stack((vres, chires, gammares, tetares, lamres, hres, mres))
-            controls_after = np.column_stack((alfares, deltares, deltafres, taures, mures))
-        else:
-            states_after = np.vstack(
-                (states_after, np.column_stack((vres, chires, gammares, tetares, lamres, hres, mres))))
-            controls_after = np.vstack((controls_after, np.column_stack((alfares, deltares, deltafres, taures, mures))))
-
-        timestart = timeend'''
-
-
-    obj.States = states_after
-    obj.Controls = controls_after
-
-    eq_c = equality(varD, states_atNode)
-    obj.eqOld = eq_c
-
-    ineq_c = inequalityAll(states_after, controls_after, Nint*Nleg)
-    obj.ineqOld = ineq_c
-
-    h = states_after[-1, 5]
-    m = states_after[-1, 6]
-    delta = controls_after[-1, 1]
-    tau = controls_after[-1, 3]
-
-    Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
-
-    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, obj.psl, obj.M0, obj.m10, obj.lRef,
-                                obj.xcgf, obj.xcg0)
-
-    r1 = h + obj.Re
-    Dv1 = np.sqrt(obj.GMe / r1) * (np.sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1)
-    Dv2 = np.sqrt(obj.GMe / obj.r2) * (1 - np.sqrt((2 * r1) / (r1 + obj.r2)))
-    mf = m / np.exp((Dv1 + Dv2) / (obj.g0 * isp))
-
-    cost = -mf / obj.M0
-    obj.costOld = cost
-
-    obj.varOld = var
-
-    #if obj.bad == 1:
-    #    eq_c = eq_c + 1000
-     #   ineq_c = ineq_c - 1000
-     #   cost = -obj.m10/obj.M0
-     #   obj.costOld = cost
-     #   obj.ineqOld = ineq_c
-      #  obj.eqOld = eq_c
+        #if obj.bad == 1:
+        #    eq_c = eq_c + 1000
+         #   ineq_c = ineq_c - 1000
+         #   cost = -obj.m10/obj.M0
+         #   obj.costOld = cost
+         #   obj.ineqOld = ineq_c
+          #  obj.eqOld = eq_c
+    except ValueError:
+        eq_c = obj.eqOld
+        ineq_c = obj.ineqOld
+        cost = -0.05
 
     return eq_c, ineq_c, cost
 
@@ -545,9 +474,9 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
 
     alfa_Int = interpolate.PchipInterpolator(timeCont, controls[0, :])
     delta_Int = interpolate.PchipInterpolator(timeCont, controls[1, :])
-    deltaf_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
-    tau_Int = interpolate.PchipInterpolator(timeCont, controls[3, :])
-    mu_Int = interpolate.PchipInterpolator(timeCont, controls[4, :])
+    #deltaf_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
+    #tau_Int = interpolate.PchipInterpolator(timeCont, controls[3, :])
+    #mu_Int = interpolate.PchipInterpolator(timeCont, controls[4, :])
 
 
     #status = 1
@@ -566,13 +495,13 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
     for c in range(Nint-1):
         # print(i, x[i,:])
         # print(u[i,:])
-        k1 = dt*dyn(t[c], x[c, :], alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k1 = dt*dyn(t[c], x[c, :], alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k1", k1, "k1/dt", k1/dt)
-        k2 = dt*dyn(t[c] + dt / 2, x[c, :] + k1 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k2 = dt*dyn(t[c] + dt / 2, x[c, :] + k1 / 2, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k2", k2, "k1/dt", k2 / dt)
-        k3 = dt*dyn(t[c] + dt / 2, x[c, :] + k2 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k3 = dt*dyn(t[c] + dt / 2, x[c, :] + k2 / 2, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k3", k3, "k1/dt", k3 / dt)
-        k4 = dt*dyn(t[c + 1], x[c, :] + k3, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+        k4 = dt*dyn(t[c + 1], x[c, :] + k3, alfa_Int, delta_Int)#, deltaf_Int, tau_Int, mu_Int)
         #print("k4", k4, "k1/dt", k4 / dt)
         x[c + 1, :] = x[c, :] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
@@ -585,11 +514,11 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
     mres = x[:, 6]
     alfares = alfa_Int(time_old)
     deltares = delta_Int(time_old)
-    deltafres = deltaf_Int(time_old)
-    taures = tau_Int(time_old)
-    mures = mu_Int(time_old)
+    deltafres = np.zeros(len(time_old)) #deltaf_Int(time_old)
+    taures = np.zeros(len(time_old)) #tau_Int(time_old)
+    mures = np.zeros(len(time_old)) #mu_Int(time_old)
 
-    return vres, chires, gammares, tetares, lamres, hres, mres, time_old, alfares, deltares, deltafres, taures, mures, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int
+    return vres, chires, gammares, tetares, lamres, hres, mres, time_old, alfares, deltares, deltafres, taures, mures#, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int
 
 def plot(var, Nint):
 
@@ -623,13 +552,13 @@ def plot(var, Nint):
             alfaCP[i, k] = alfa[k]
             delta[k] = varD[varStates + i * (Ncontrols * NContPoints) + 1 + Ncontrols * k]
             deltaCP[i, k] = delta[k]
-            deltaf[k] = varD[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
-            deltafCP[i, k] = deltaf[k]
-            tau[k] = varD[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
-            tauCP[i, k] = tau[k]
-            mu[k] = varD[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
-            muCP[i, k] = mu[k]
-        controls = np.vstack((alfa, delta, deltaf, tau, mu)) # orig intervals
+            #deltaf[k] = varD[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
+            #deltafCP[i, k] = deltaf[k]
+            #tau[k] = varD[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
+            #tauCP[i, k] = tau[k]
+            #mu[k] = varD[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
+            #muCP[i, k] = mu[k]
+        controls = np.vstack((alfa, delta))#, deltaf, tau, mu)) # orig intervals
 
 
         vres, chires, gammares, tetares, lamres, hres, mres, tres, alfares, deltares, deltafres, taures, mures \
@@ -798,9 +727,9 @@ def plot(var, Nint):
         plt.figure(9)
         plt.title("Throttles")
         plt.plot(timeTotal, deltares * 100, color='r')
-        plt.plot(timeTotal, taures * 100, color='k')
+        #plt.plot(timeTotal, taures * 100, color='k')
         plt.plot(tC, deltaCP[i, :] * 100, 'ro')
-        plt.plot(tC, tauCP[i, :] * 100, 'ro')
+        #plt.plot(tC, tauCP[i, :] * 100, 'ro')
         plt.grid()
         plt.ylabel("%")
         plt.xlabel("time [s]")
@@ -809,7 +738,7 @@ def plot(var, Nint):
         plt.savefig(savefig_file + "throttles" + ".png")
 
 
-        plt.figure(10)
+        '''plt.figure(10)
         plt.title("Body Flap deflection \u03B4")
         plt.plot(tC, np.rad2deg(deltafCP[i, :]), "ro")
         plt.plot(timeTotal, np.rad2deg(deltafres))
@@ -829,7 +758,7 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "mu" + ".png")
+        plt.savefig(savefig_file + "mu" + ".png")'''
 
 
         plt.figure(12)
@@ -948,8 +877,8 @@ def equality(var, conj):
     eq_cond = np.concatenate((eq_cond, (var[Nstates:varStates] - conj[:Nstates * (Nleg - 1)])/div))  # knotting conditions
     eq_cond = np.concatenate((eq_cond, var[varStates:varStates + Ncontrols] - cont_init))  # init cond on alpha
     eq_cond = np.concatenate((eq_cond, ((vvv - vtAbs)/1e4,)))
-    eq_cond = np.concatenate((eq_cond, (chifin - chiass,)))
-    eq_cond = np.concatenate((eq_cond, (conj[varStates - 5],)))  # final condition on gamma
+    eq_cond = np.concatenate((eq_cond, ((chifin - chiass)/np.deg2rad(150),)))
+    eq_cond = np.concatenate((eq_cond, (conj[varStates - 5]/np.deg2rad(90),)))  # final condition on gamma
     return eq_cond
 
 
@@ -963,6 +892,25 @@ def constraints(var):
         eq_c, ineq_c, cost = MultiShooting(var, dynamicsInt)
         return np.concatenate((eq_c, ineq_c))
 
+def constraints_slsqp(var, type):
+    if (var==obj.varOld).all():
+        if type == "eq":
+            return obj.eqOld
+        else:
+            return obj.ineqOld
+    else:
+        eq, ineq, cost = MultiShooting(var, dynamicsInt)
+        if type == "eq":
+            return eq
+        else:
+            return ineq
+
+cons_slsqp = ({'type': 'eq',
+         'fun': constraints_slsqp,
+         'args':("eq",)},
+        {'type': 'ineq',
+         'fun': constraints_slsqp,
+         'args': ("ineq",)})  # equality and inequality constraints
 
 def cost_fun(var):
     #print("fun", var - obj.varOld)
@@ -984,14 +932,14 @@ if __name__ == '__main__':
 
     '''reading of aerodynamic coefficients and specific impulse from file'''
 
-    cl = fileReadOr("/home/francesco/git_workspace/FESTIP_Work/coeff_files/clfile.txt")
-    cd = fileReadOr("/home/francesco/git_workspace/FESTIP_Work/coeff_files/cdfile.txt")
-    cm = fileReadOr("/home/francesco/git_workspace/FESTIP_Work/coeff_files/cmfile.txt")
+    cl = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt")
+    cd = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt")
+    cm = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt")
     cl = np.asarray(cl)
     cd = np.asarray(cd)
     cm = np.asarray(cm)
 
-    with open("/home/francesco/git_workspace/FESTIP_Work/coeff_files/impulse.dat") as f:
+    with open("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
         impulse = []
         for line in f:
             line = line.split()
@@ -1014,12 +962,12 @@ if __name__ == '__main__':
     '''set problem parameters'''
 
     time_tot = 350  # initial time
-    Nbar = 7 # number of conjunction points
+    Nbar = 6 # number of conjunction points
     Nleg = Nbar - 1  # number of multiple shooting sub intervals
     NContPoints = 5  # number of control points for interpolation inside each interval
-    Nint = 600 # number of points for each single shooting integration
+    Nint = 100# number of points for each single shooting integration
     Nstates = 7  # number of states
-    Ncontrols = 5  # number of controls
+    Ncontrols = 2  # number of controls
     varStates = Nstates * Nleg  # total number of optimization variables for states
     varControls = Ncontrols * Nleg * NContPoints   # total number of optimization variables for controls
     varTot = varStates + varControls  # total number of optimization variables for states and controls
@@ -1029,10 +977,10 @@ if __name__ == '__main__':
     unit_t = 1000
 
     '''NLP solver parameters'''
-    general_tol = 1e-12
-    tr_radius = 6.0
-    constr_penalty = 5.0
-    maxiter = 300  # max number of iterations for nlp solver
+    general_tol = 1e-8
+    tr_radius = 10
+    constr_penalty = 10
+    maxiter = 100  # max number of iterations for nlp solver
 
     '''definiton of initial conditions'''
 
@@ -1051,9 +999,9 @@ if __name__ == '__main__':
     m_init = vars[6]
     alfa_init = vars[7]
     delta_init = vars[8]
-    deltaf_init = vars[9]
-    tau_init = vars[10]
-    mu_init = vars[11]
+    #deltaf_init = vars[9]
+    #tau_init = vars[10]
+    #mu_init = vars[11]
     v_init[0] = 1.0
     chi_init[0] = obj.chistart
     gamma_init[0] = obj.gammastart
@@ -1063,16 +1011,16 @@ if __name__ == '__main__':
     m_init[0] = obj.M0
     alfa_init[0] = 0.0
     delta_init[0] = 1.0
-    deltaf_init[0] = 0.0
-    tau_init[0] = 0.0
-    mu_init[0] = 0.0
+    #deltaf_init[0] = 0.0
+    #tau_init[0] = 0.0
+    #mu_init[0] = 0.0
 
     states_init = np.array((v_init[0], chi_init[0], gamma_init[0], teta_init[0], lam_init[0], h_init[0], m_init[0]))
-    cont_init = np.array((alfa_init[0], delta_init[0], deltaf_init[0], tau_init[0], mu_init[0]))
+    cont_init = np.array((alfa_init[0], delta_init[0]))#, deltaf_init[0], tau_init[0], mu_init[0]))
 
     XGuess = np.array((v_init, chi_init, gamma_init, teta_init, lam_init, h_init, m_init))  # states initial guesses
 
-    UGuess = np.array((alfa_init, delta_init, deltaf_init, tau_init, mu_init))  # states initial guesses
+    UGuess = np.array((alfa_init, delta_init))#, deltaf_init, tau_init, mu_init))  # states initial guesses
 
     for i in range(Nleg):
         '''creation of vector of states initial guesses'''
@@ -1091,8 +1039,8 @@ if __name__ == '__main__':
 
     uplimx = np.tile([1e4, np.deg2rad(270), np.deg2rad(89.99), 0.0, np.deg2rad(25), 2e5, obj.M0], Nleg)
     inflimx = np.tile([1.0, np.deg2rad(90), np.deg2rad(-89.99), np.deg2rad(-70), np.deg2rad(2), 1.0, obj.m10], Nleg)
-    uplimu = np.tile([np.deg2rad(40), 1.0, np.deg2rad(30), 1.0, np.deg2rad(90)], Nleg * NContPoints)
-    inflimu = np.tile([np.deg2rad(-2), 0.0001, np.deg2rad(-20), -1.0, np.deg2rad(-90)], Nleg * NContPoints)
+    uplimu = np.tile([np.deg2rad(40), 1.0], Nleg * NContPoints)
+    inflimu = np.tile([np.deg2rad(-2), 0.0001], Nleg * NContPoints)
 
     for i in range(len(X)):
         if X[i] < inflimx[i]:
@@ -1126,8 +1074,12 @@ if __name__ == '__main__':
     Vub = Xub*Nleg*Nstates + Uub * Ncontrols * Nleg * NContPoints + Tub*Nleg
     bnds = Bounds(Vlb, Vub)
 
+    bndX_slsqp = ((0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0))
+    bndU_slsqp = ((0.0, 1.0), (0.0, 1.0))  # , (0.0, 1.0), (0.0, 1.0), (0.0, 1.0))
+    bndT_slsqp = ((0.0, 1.0),)
+    bnds_slsqp = bndX_slsqp * Nleg + bndU_slsqp * Nleg * NContPoints + bndT_slsqp * Nleg
 
-    sparseJac = load_npz("/home/francesco/git_workspace/FESTIP_Work/MultipleShooting_Algorithm/FestipSparsity.npz")
+    sparseJac = load_npz("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz")
     sp = sparseJac.todense()
     row = np.shape(sp)[0]
     column = np.shape(sp)[1]
@@ -1142,36 +1094,70 @@ if __name__ == '__main__':
     lbineq = ([0.0]) # lower bound for inequality constraints
     ubineq = ([np.inf]) # upper bound for inequality constraints
 
-    lb = lbeq * (Nstates*Nleg + 3 + Ncontrols) + lbineq * (7 * NineqCond * Nleg + 1) # all lower bounds
-    ub = ubeq * (Nstates*Nleg + 3 + Ncontrols) + ubineq * (7 * NineqCond * Nleg + 1) # all upper bounds
+    lb = lbeq * (Nstates*Nleg + 3 + Ncontrols) + lbineq * (3 * NineqCond * Nleg + 1) # all lower bounds
+    ub = ubeq * (Nstates*Nleg + 3 + Ncontrols) + ubineq * (3 * NineqCond * Nleg + 1) # all upper bounds
 
-    cons = NonlinearConstraint(constraints,lb, ub, finite_diff_jac_sparsity=sp)
+    cons = NonlinearConstraint(constraints, lb, ub, finite_diff_jac_sparsity=sp)
+    """ Custom step-function """
 
+
+    class RandomDisplacementBounds(object):
+        """random displacement with bounds:  see: https://stackoverflow.com/a/21967888/2320035
+            Modified! (dropped acceptance-rejection sampling for a more specialized approach)
+        """
+
+        def __init__(self, xmin, xmax, stepsize=0.5):
+            self.xmin = xmin
+            self.xmax = xmax
+            self.stepsize = stepsize
+
+        def __call__(self, x):
+            """take a random step but ensure the new position is within the bounds """
+            min_step = np.maximum(self.xmin - x, -self.stepsize)
+            max_step = np.minimum(self.xmax - x, self.stepsize)
+
+            random_step = np.random.uniform(low=min_step, high=max_step, size=x.shape)
+            xnew = x + random_step
+
+            return xnew
+
+
+    bounded_step = RandomDisplacementBounds(np.array([b[0] for b in bnds_slsqp]), np.array([b[1] for b in bnds_slsqp]))
     '''NLP SOLVER'''
 
     iterator = 0
-    p = Pool(processes=3)
+    tot_it = 4
+    p = Pool(processes=Nleg)
+    while iterator < tot_it:
 
-    opt = optimize.minimize(cost_fun,
-                            X0a,
-                            constraints=cons,
-                            bounds=bnds,
-                            method='trust-constr',
-                            options={"maxiter": maxiter,
-                                     "xtol":general_tol,
-                                     "gtol":general_tol,
-                                     "barrier_tol":general_tol,
-                                     "initial_tr_radius":tr_radius,
-                                     "initial_constr_penalty":constr_penalty,
-                                     "verbose":2})
+        print("Start global search")
+        minimizer_kwargs = {'method':'SLSQP', "constraints":cons_slsqp, "bounds":bnds_slsqp, "options": {"maxiter":200}}
+        optb = basinhopping(cost_fun, X0a, niter=5, disp=True, minimizer_kwargs=minimizer_kwargs, take_step=bounded_step)
+        #optb = shgo(cost_fun, bnds_slsqp, minimizer_kwargs=minimizer_kwargs, options={"disp": True, "maxtime":1})
+        print("Done global search")
+        X0a = optb.x
+        opt = optimize.minimize(cost_fun,
+                                X0a,
+                                constraints=cons,
+                                bounds=bnds,
+                                method='trust-constr',
+                                options={"maxiter": maxiter,
+                                         "xtol":general_tol,
+                                         "gtol":general_tol,
+                                         "barrier_tol":general_tol,
+                                         "initial_tr_radius":tr_radius,
+                                         "initial_constr_penalty":constr_penalty,
+                                         "verbose":2})
 
-    X0a = opt.x
+        print("Done local search")
+        X0a = opt.x
+        iterator += 1
+    end = time.time()
     p.close()
     p.join()
-    end = time.time()
     time_elapsed = end-start
     tformat = str(datetime.timedelta(seconds=int(time_elapsed)))
     print("Time elapsed for total optimization ", tformat)
-    sparse = csc_matrix(opt.jac[0])
-    save_npz("/home/francesco/git_workspace/FESTIP_Work/MultipleShooting_Algorithm/FestipSparsity.npz", sparse)
-    plot(X0a, Nint)
+    #sparse = csc_matrix(opt.jac[0])
+    #save_npz("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz", sparse)
+    plot(opt.x, Nint)
