@@ -24,12 +24,12 @@ class Rocket:
         self.H0 = 10.0  # m
         self.V0 = 0.0
         self.M0 = 100000.0  # kg
-        self.Mp = self.M0 * 0.99
+        self.Mp = self.M0 * 0.9
         self.Cd = 0.6
-        self.A = 4.0  # m2
-        self.Isp = 300.0  # s
+        self.A = 200.0  # m2
+        self.Isp = 350.0  # s
         self.g0 = 9.80665  # m/s2
-        self.Tmax = self.M0 * self.g0 * 1.5
+        self.Tmax = self.M0 * self.g0 * 2
         self.MaxQ = 14000.0  # Pa
         self.MaxG = 8.0  # G
         self.Htarget = 400.0 * 1000  # m
@@ -166,15 +166,15 @@ def cost_derivative(prob, obj):
 # plt.close("all")
 plt.ion()
 # Program Starting Point
-time_init = [0.0, 200]
-n = [30]
+time_init = [0.0, 800]
+n = [40]
 Nint = 10000
 Npoints = n[0]
 Nstates = 5
 Ncontrols = 2
 num_states = [5]
 num_controls = [2]
-max_iteration = 50
+max_iteration = 200
 
 flag_savefig = False
 savefig_file = "SSTO_"
@@ -477,4 +477,4 @@ plt.ylabel("Forces [kN]")
 plt.legend(loc="best")
 if(flag_savefig): plt.savefig(savefig_file + "force" + ".png")
 
-plt.show()
+plt.show(block=True)

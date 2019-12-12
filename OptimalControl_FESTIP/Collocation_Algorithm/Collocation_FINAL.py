@@ -14,11 +14,126 @@ from scipy import interpolate
 from scipy import optimize
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import splev, splrep
+from scipy.optimize import basinhopping
 
 sys.path.insert(0, 'home/francesco/git_workspace/FESTIP_Work')
 
-'''this script is a collocation algorithm on FESTIP model'''
 
+def solve(self, obj, display_func=_dummy_func, **options):
+    """ solve NLP
+
+    Args:
+        obj (object instance) : instance
+        display_func (function) : function to display intermediate values
+        ftol (float, optional) : Precision goal for the value of f in the
+            stopping criterion, (default: 1e-6)
+        maxiter (int, optional) : Maximum number of iterations., (default : 25)
+
+    Examples:
+        "prob" is Problem class's instance.
+
+        >>> prob.solve(obj, display_func, ftol=1e-12)
+
+    """
+    assert len(self.dynamics) != 0, "It must be set dynamics"
+    assert self.cost is not None, "It must be set cost function"
+    assert self.equality is not None, "It must be set equality function"
+    assert self.inequality is not None, "It must be set inequality function"
+
+    def equality_add(equality_func, obj):
+        """ add pseudospectral method conditions to equality function.
+        collocation point condition and knotting condition.
+        """
+        result = self.equality(self, obj)
+
+        # collation point condition
+        for i in range(self.number_of_section):
+            D = self.D
+            derivative = np.zeros(0)
+            for j in range(self.number_of_states[i]):
+                state_temp = self.states(j, i) / self.unit_states[i][j]
+                derivative = np.hstack((derivative, D[i].dot(state_temp)))
+            tix = self.time_start(i) / self.unit_time
+            tfx = self.time_final(i) / self.unit_time
+            dx = self.dynamics[i](self, obj, i)
+            result = np.hstack((result, derivative - (tfx - tix) / 2.0 * dx))
+
+        # knotting condition
+        for knot in range(self.number_of_section - 1):
+            if (self.number_of_states[knot] != self.number_of_states[knot + 1]):
+                continue  # if states are not continuous on knot, knotting condition skip
+            for state in range(self.number_of_states[knot]):
+                param_prev = self.states(state, knot) / self.unit_states[knot][state]
+                param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
+                if (self.knot_states_smooth[knot]):
+                    result = np.hstack((result, param_prev[-1] - param_post[0]))
+
+        return result
+
+    def cost_add(cost_func, obj):
+        """Combining nonintegrated function and integrated function.
+        """
+        not_integrated = self.cost(self, obj)
+        if self.running_cost is None:
+            return not_integrated
+        integrand = self.running_cost(self, obj)
+        weight = np.concatenate([i for i in self.w])
+        integrated = sum(integrand * weight)
+        return not_integrated + integrated
+
+    def wrap_for_solver(func, arg0, arg1):
+        def for_solver(p, arg0, arg1):
+            self.p = p
+            return func(arg0, arg1)
+
+        return for_solver
+
+    # def wrap_for_solver(func, *args):
+    #     def for_solver(p, *args):
+    #         self.p = p
+    #         return func(*args)
+    #     return for_solver
+
+    cons = ({'type': 'eq',
+             'fun': wrap_for_solver(equality_add, self.equality, obj),
+             'args': (self, obj,)},
+            {'type': 'ineq',
+             'fun': wrap_for_solver(self.inequality, self, obj),
+             'args': (self, obj,)})
+
+    if (self.cost_derivative is None):
+        jac = None
+    else:
+        jac = wrap_for_solver(self.cost_derivative, self, obj)
+
+    ftol = options.setdefault("ftol", 1e-6)
+    maxiter = options.setdefault("maxiter", 25)
+
+    while self.iterator < self.maxIterator:
+        print("---- iteration : {0} ----".format(self.iterator + 1))
+        minimizer_kwargs = {'method':'SLSQP', 'constraints':cons, 'args':(self, obj)}
+        x0 = self.p
+        opt_g = optimize.basinhopping(wrap_for_solver(cost_add, self.cost, obj),x0, niter=5, disp=True, minimizer_kwargs=minimizer_kwargs)
+        self.p = x0
+        x0 = opt_g.x
+        opt = optimize.minimize(wrap_for_solver(cost_add, self.cost, obj),
+                                x0,
+                                args=(self, obj),
+                                constraints=cons,
+                                jac=jac,
+                                method='SLSQP',
+                                options={"disp": True,
+                                         "maxiter": maxiter,
+                                         "ftol": ftol})
+        print(opt.message)
+        display_func()
+        print("")
+        if not (opt.status):
+            break
+        self.iterator += 1
+
+
+'''this script is a collocation algorithm on FESTIP model'''
 
 def fileReadOr(filename):
     '''function to read data from txt file'''
@@ -44,9 +159,9 @@ class Spaceplane():
         self.psl = 101325  # ambient pressure at sea level [Pa]
         self.latstart = np.deg2rad(5.2)  # deg latitude
         self.longstart = np.deg2rad(-52.775)  # deg longitude
-        self.chistart = np.deg2rad(125)  # deg flight direction
+        self.chistart = np.deg2rad(113)  # deg flight direction
         self.incl = np.deg2rad(51.6)  # deg orbit inclination
-        self.gammastart = np.deg2rad(89.9)  # deg
+        self.gammastart = np.deg2rad(89)  # deg
         self.M0 = 450400  # kg  starting mass
         self.g0 = 9.80665  # m/s2
         self.gIsp = self.g0 * 455  # g0 * Isp max
@@ -57,7 +172,7 @@ class Spaceplane():
         self.Htarget = 400000  # m target height after hohmann transfer
         self.wingSurf = 500.0  # m2
         self.lRef = 34.0  # m
-        self.k = 5e4  # [Nm] livello di precisione per trimmaggio
+        #self.k = 5e4  # [Nm] livello di precisione per trimmaggio
         self.m10 = self.M0 * 0.1
         self.xcgf = 0.37  # cg position with empty vehicle
         self.xcg0 = 0.65  # cg position at take-off
@@ -395,9 +510,9 @@ def dynamics(prob, obj, section):
 
     alfa = prob.controls(0, section)
     delta = prob.controls(1, section)
-    deltaf = prob.controls(2, section)
-    tau = prob.controls(3, section)
-    mu = prob.controls(4, section)
+    deltaf = np.zeros(len(v)) #prob.controls(2, section)
+    tau = np.zeros(len(v)) #prob.controls(3, section)
+    mu = np.zeros(len(v)) #prob.controls(4, section)
 
     Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 0)
 
@@ -452,7 +567,7 @@ def cost(prob, obj):
     h = prob.states_all_section(5)
     m = prob.states_all_section(6)
     delta = prob.controls_all_section(1)
-    tau = prob.controls_all_section(3)
+    tau = np.zeros(len(h)) #prob.controls_all_section(3)
 
     Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 0)
 
@@ -478,12 +593,12 @@ def equality(prob, obj):
 
     alfa = prob.controls_all_section(0)
     delta = prob.controls_all_section(1)
-    deltaf = prob.controls_all_section(2)
-    tau = prob.controls_all_section(3)
-    mu = prob.controls_all_section(4)
+    deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
+    tau = np.zeros(len(v)) #prob.controls_all_section(3)
+    mu = np.zeros(len(v)) #prob.controls_all_section(4)
 
     States = np.array((v[-1], chi[-1], gamma[-1], teta[-1], lam[-1], h[-1], m[-1]))
-    Controls = np.array((alfa[-1], delta[-1], deltaf[-1], tau[-1], mu[-1]))
+    Controls = np.array((alfa[-1], delta[-1], 0.0, 0.0, 0.0)) #deltaf[-1], tau[-1], mu[-1]))
     vt = np.sqrt(obj.GMe / (obj.Re + h[-1]))  # - obj.omega*np.cos(lam[-1])*(obj.Re+h[-1])
 
     def vass(states, controls, dyn, omega, obj):
@@ -563,16 +678,16 @@ def equality(prob, obj):
                  to_new_int(obj.latstart, np.deg2rad(2), np.deg2rad(30), 0.0, 1.0), unit=1)
     result.equal(to_new_int(h[0] / 1e4, 0.0, 20, 0.0, 1.0), to_new_int(1 / 1e4, 0.0, 20, 0.0, 1.0), unit=1)
     result.equal(to_new_int(m[0], obj.m10, obj.M0, 0.0, 1.0), to_new_int(obj.M0, obj.m10, obj.M0, 0.0, 1.0), unit=1)
-    result.equal(to_new_int(alfa[0], np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0),
-                 to_new_int(0.0, np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0), unit=1)
+    #result.equal(to_new_int(alfa[0], np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0),
+    #             to_new_int(0.0, np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0), unit=1)
     result.equal(delta[0], 1.0, unit=1)
     #result.equal(to_new_int(deltaf[0], np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
      #            to_new_int(0.0, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0), unit=1)
     #result.equal(to_new_int(tau[0], -1, 1, 0.0, 1.0), to_new_int(0.0, -1, 1, 0.0, 1.0), unit=1)
-    result.equal(to_new_int(mu[0], np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),
-                 to_new_int(0.0, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)
-    result.equal(to_new_int(mu[-1], np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),
-                 to_new_int(0.0, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)
+    #result.equal(to_new_int(mu[0], np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),
+     #            to_new_int(0.0, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)
+    #result.equal(to_new_int(mu[-1], np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),
+     #            to_new_int(0.0, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)
     result.equal(to_new_int(vtAbs / 1e3, 0.0, 10, 0.0, 1.0), to_new_int(vt / 1e3, 0.0, 10, 0.0, 1.0), unit=1)
     result.equal(to_new_int(chiass, np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),
                  to_new_int(chifin, np.deg2rad(110), np.deg2rad(150), 0.0, 1.0), unit=1)
@@ -594,9 +709,9 @@ def inequality(prob, obj):
     alfa = prob.controls_all_section(0)
     # print(alfa)
     delta = prob.controls_all_section(1)
-    deltaf = prob.controls_all_section(2)
-    tau = prob.controls_all_section(3)
-    mu = prob.controls_all_section(4)
+    deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
+    tau = np.zeros(len(v)) #prob.controls_all_section(3)
+    #mu = np.zeros(len(v)) #prob.controls_all_section(4)
     t = prob.time_update()
 
     Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 0)
@@ -609,7 +724,7 @@ def inequality(prob, obj):
     T, Deps, isp, MomT = obj.thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], obj.psl, obj.M0, obj.m10,
                                     obj.lRef, obj.xcgf, obj.xcg0)
 
-    MomTot = MomA + MomT
+    #MomTot = MomA + MomT
 
     # dynamic pressure
 
@@ -623,23 +738,23 @@ def inequality(prob, obj):
     Dv2 = np.sqrt(obj.GMe / obj.r2) * (1 - np.sqrt((2 * r1) / (r1 + obj.r2)))
     mf = m[-1] / (np.exp(Dv1 / obj.gIsp) * np.exp(Dv2 / (obj.g0 * isp[-1])))
 
-    diff_chi = np.diff(np.rad2deg(chi))
-    diff_gamma = np.diff(np.rad2deg(gamma))
-    diff_alfa = np.diff(np.rad2deg(alfa))
-    diff_delta = np.diff(delta * 100)
-    diff_deltaf = np.diff(np.rad2deg(deltaf))
-    diff_tau = np.diff(tau * 100)
-    diff_mu = np.diff(np.rad2deg(mu))
-    diff_t = np.diff(t)
+    #diff_chi = np.diff(np.rad2deg(chi))
+    #diff_gamma = np.diff(np.rad2deg(gamma))
+    #diff_alfa = np.diff(np.rad2deg(alfa))
+    #diff_delta = np.diff(delta * 100)
+    #diff_deltaf = np.diff(np.rad2deg(deltaf))
+    #diff_tau = np.diff(tau * 100)
+    #diff_mu = np.diff(np.rad2deg(mu))
+    #diff_t = np.diff(t)
     # print(diff_t)
-    mchi = abs(diff_chi / diff_t)
-    mgamma = abs(diff_gamma / diff_t)
-    malfa = abs(diff_alfa / diff_t)
-    mdelta = abs(diff_delta / diff_t)
-    mtau = abs(diff_tau / diff_t)
-    mdeltaf = abs(diff_deltaf / diff_t)
-    mmu = abs(diff_mu / diff_t)
-    mthrot = np.hstack((mdelta, mtau))
+    #mchi = abs(diff_chi / diff_t)
+    #mgamma = abs(diff_gamma / diff_t)
+    #malfa = abs(diff_alfa / diff_t)
+    #mdelta = abs(diff_delta / diff_t)
+    #mtau = abs(diff_tau / diff_t)
+    #mdeltaf = abs(diff_deltaf / diff_t)
+    #mmu = abs(diff_mu / diff_t)
+    #mthrot = np.hstack((mdelta, mtau))
     result = Condition()
 
     # lower bounds
@@ -672,14 +787,14 @@ def inequality(prob, obj):
 
     result.lower_bound(delta, 0.001, unit=1)  # delta lower bound
 
-    result.lower_bound(to_new_int(deltaf, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),  # obj.deltaf_lb, unit=1)
-                       to_new_int(np.deg2rad(-20), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
-                       unit=1)  # deltaf lower bound
+    #result.lower_bound(to_new_int(deltaf, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),  # obj.deltaf_lb, unit=1)
+     #                  to_new_int(np.deg2rad(-20), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
+      #                 unit=1)  # deltaf lower bound
 
-    result.lower_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(-1, -1, 1, 0, 1), unit=1)  # tau lower bound
+    #result.lower_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(-1, -1, 1, 0, 1), unit=1)  # tau lower bound
 
-    result.lower_bound(to_new_int(mu, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),  # obj.mu_lb, unit=1)
-                       to_new_int(np.deg2rad(-60), np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)  # mu lower bound
+    #result.lower_bound(to_new_int(mu, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),  # obj.mu_lb, unit=1)
+     #                  to_new_int(np.deg2rad(-60), np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)  # mu lower bound
 
     result.lower_bound(to_new_int(mf, obj.m10, obj.M0, 0.0, 1.0),
                        to_new_int(obj.m10, obj.m10, obj.M0, 0.0, 1.0), unit=1)  # mf lower bound
@@ -687,8 +802,8 @@ def inequality(prob, obj):
     result.lower_bound(to_new_int(h[-1] / 1e4, 0.0, 20, 0.0, 1.0), to_new_int(8, 0.0, 20, 0.0, 1.0),
                        unit=1)  # final h lower bound
 
-    result.lower_bound(to_new_int(MomTot / 1e4, -1e2, 1e2, 0.0, 1.0), to_new_int(-obj.k / 1e4, -1e2, 1e2, 0.0, 1.0),
-                       unit=1)  # total moment lower bound
+    #result.lower_bound(to_new_int(MomTot / 1e4, -1e2, 1e2, 0.0, 1.0), to_new_int(-obj.k / 1e4, -1e2, 1e2, 0.0, 1.0),
+     #                  unit=1)  # total moment lower bound
 
     result.lower_bound(to_new_int(az, -1e2, 1e2, 0.0, 1.0), to_new_int(-obj.MaxAz, -1e2, 1e2, 0.0, 1.0),
                        unit=1)  # ax lower bound
@@ -722,17 +837,17 @@ def inequality(prob, obj):
 
     result.upper_bound(delta, 1.0, unit=1)  # delta upper bound
 
-    result.upper_bound(to_new_int(deltaf, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),  # obj.deltaf_ub, unit=1)
-                       to_new_int(np.deg2rad(30), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
-                       unit=1)  # deltaf upper bound
+    #result.upper_bound(to_new_int(deltaf, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),  # obj.deltaf_ub, unit=1)
+     #                  to_new_int(np.deg2rad(30), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
+      #                 unit=1)  # deltaf upper bound
 
-    result.upper_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(1, -1, 1, 0, 1), unit=1)  # tau upper bound
+    #result.upper_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(1, -1, 1, 0, 1), unit=1)  # tau upper bound
 
-    result.upper_bound(to_new_int(mu, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),  # obj.mu_ub, unit=1)
-                       to_new_int(np.deg2rad(60), np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)  # mu upper bound
+    #result.upper_bound(to_new_int(mu, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),  # obj.mu_ub, unit=1)
+     #                  to_new_int(np.deg2rad(60), np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)  # mu upper bound
 
-    result.upper_bound(to_new_int(MomTot / 1e5, -1e2, 1e2, 0.0, 1.0), to_new_int(obj.k / 1e5, -1e2, 1e2, 0.0, 1.0),
-                       unit=1)  # momtot upper bound
+    #result.upper_bound(to_new_int(MomTot / 1e5, -1e2, 1e2, 0.0, 1.0), to_new_int(obj.k / 1e5, -1e2, 1e2, 0.0, 1.0),
+     #                  unit=1)  # momtot upper bound
 
     result.upper_bound(to_new_int(az, -1e2, 1e2, 0.0, 1.0), to_new_int(obj.MaxAz, -1e2, 1e2, 0.0, 1.0),
                        unit=1)  # az upper bound
@@ -769,9 +884,9 @@ def dynamicsVel(states, contr, obj):
     m = states[6]
     alfa = contr[0]
     delta = contr[1]
-    deltaf = contr[2]
-    tau = contr[3]
-    mu = contr[4]
+    deltaf = 0.0 #contr[2]
+    tau = 0.0 #contr[3]
+    mu = 0.0 #contr[4]
 
     Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 1)
 
@@ -853,18 +968,18 @@ if __name__ == '__main__':
     pool = Pool(processes=3)
     plt.ion()
     start = time.time()
-    n = [40]
-    time_init = [0.0, 350]
+    n = [80]
+    time_init = [0.0, 600]
     num_states = [7]
-    num_controls = [5]
-    max_iteration = 40
+    num_controls = [2]
+    max_iteration = 30
     Ncontrols = num_controls[0]
     Nstates = num_states[0]
     Npoints = n[0]
     varStates = Nstates * Npoints
     varTot = (Nstates + Ncontrols) * Npoints
     Nint = 10000
-    maxiter = 30
+    maxiter = 150
     ftol = 1e-8
     if flag_savefig:
         os.makedirs("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}".format(
@@ -882,16 +997,16 @@ if __name__ == '__main__':
     unit_v = 1e4
     unit_chi = np.deg2rad(150)
     unit_gamma = np.deg2rad(90)
-    unit_teta = np.deg2rad(60)
+    unit_teta = np.deg2rad(-60)
     unit_lam = np.deg2rad(30)
     unit_h = 2e5
     unit_m = obj.M0
     unit_t = 700
     unit_alfa = np.deg2rad(40)
     unit_delta = 1
-    unit_deltaf = np.deg2rad(30)
-    unit_tau = 1
-    unit_mu = np.deg2rad(60)
+    #unit_deltaf = np.deg2rad(30)
+    #unit_tau = 1
+    #unit_mu = np.deg2rad(60)
     prob.set_unit_states_all_section(0, unit_v)
     prob.set_unit_states_all_section(1, unit_chi)
     prob.set_unit_states_all_section(2, unit_gamma)
@@ -901,9 +1016,9 @@ if __name__ == '__main__':
     prob.set_unit_states_all_section(6, unit_m)
     prob.set_unit_controls_all_section(0, unit_alfa)
     prob.set_unit_controls_all_section(1, unit_delta)
-    prob.set_unit_controls_all_section(2, unit_deltaf)
-    prob.set_unit_controls_all_section(3, unit_tau)
-    prob.set_unit_controls_all_section(4, unit_mu)
+    #prob.set_unit_controls_all_section(2, unit_deltaf)
+    #prob.set_unit_controls_all_section(3, unit_tau)
+    #prob.set_unit_controls_all_section(4, unit_mu)
     prob.set_unit_time(unit_t)
 
     # =================
@@ -921,9 +1036,9 @@ if __name__ == '__main__':
     part1 = np.repeat(1.0, obj.n40)
     part2 = Guess.linear(prob.time_all_section[obj.n40:], 1.0, 0.05)
     delta_init = np.hstack((part1, part2))
-    deltaf_init = Guess.zeros(prob.time_all_section)
-    tau_init = Guess.zeros(prob.time_all_section)
-    mu_init = Guess.zeros(prob.time_all_section)
+    #deltaf_init = Guess.zeros(prob.time_all_section)
+    #tau_init = Guess.zeros(prob.time_all_section)
+    #mu_init = Guess.zeros(prob.time_all_section)
 
     # ===========
     # Substitution initial value to parameter vector to be optimized
@@ -938,9 +1053,9 @@ if __name__ == '__main__':
     prob.set_states_all_section(6, m_init)
     prob.set_controls_all_section(0, alfa_init)
     prob.set_controls_all_section(1, delta_init)
-    prob.set_controls_all_section(2, deltaf_init)
-    prob.set_controls_all_section(3, tau_init)
-    prob.set_controls_all_section(4, mu_init)
+    #prob.set_controls_all_section(2, deltaf_init)
+    #prob.set_controls_all_section(3, tau_init)
+    #prob.set_controls_all_section(4, mu_init)
 
     # ========================
     # Main Process
@@ -961,7 +1076,7 @@ if __name__ == '__main__':
         m = prob.states_all_section(6)
         h = prob.states_all_section(5)
         delta = prob.controls_all_section(1)
-        tau = prob.controls_all_section(3)
+        tau = np.zeros(len(m)) #prob.controls_all_section(3)
 
         tf = prob.time_final(-1)
 
@@ -983,7 +1098,7 @@ if __name__ == '__main__':
         print("final time  : {0:.3f}".format(tf))
 
 
-    prob.solve(obj, display_func, ftol=ftol, maxiter=maxiter)
+    solve(obj, display_func, ftol=ftol, maxiter=maxiter)
 
     end = time.time()
     time_elapsed = end - start
@@ -991,7 +1106,7 @@ if __name__ == '__main__':
     print("Time elapsed:for total optimization ", tformat)
 
 
-    def dynamicsInt(t, states, alfa_int, delta_int, deltaf_int, tau_int, mu_int):
+    def dynamicsInt(t, states, alfa_int, delta_int):#, deltaf_int, tau_int, mu_int):
         # this functions receives the states and controls unscaled and calculates the dynamics
 
         v = states[0]
@@ -1003,9 +1118,9 @@ if __name__ == '__main__':
         m = states[6]
         alfa = alfa_int(t)
         delta = delta_int(t)
-        deltaf = deltaf_int(t)
-        tau = tau_int(t)
-        mu = mu_int(t)
+        deltaf = 0.0 #deltaf_int(t)
+        tau = 0.0 #tau_int(t)
+        mu = 0.0 #mu_int(t)
 
         # if h<0:
         #   print("h: ", h, "gamma: ", gamma, "v: ", v)
@@ -1057,9 +1172,9 @@ if __name__ == '__main__':
 
         alfa_Int = interpolate.PchipInterpolator(time, controls[0, :])
         delta_Int = interpolate.PchipInterpolator(time, controls[1, :])
-        deltaf_Int = interpolate.PchipInterpolator(time, controls[2, :])
-        tau_Int = interpolate.PchipInterpolator(time, controls[3, :])
-        mu_Int = interpolate.PchipInterpolator(time, controls[4, :])
+        #deltaf_Int = 0.0 #interpolate.PchipInterpolator(time, controls[2, :])
+        #tau_Int = 0.0 #interpolate.PchipInterpolator(time, controls[3, :])
+        #mu_Int = 0.0 #interpolate.PchipInterpolator(time, controls[4, :])
 
         time_new = np.linspace(0, time[-1], Nint)
 
@@ -1073,13 +1188,13 @@ if __name__ == '__main__':
         for i in range(Nint - 1):
             # print(i, x[i,:])
             # print(u[i,:])
-            k1 = dt * dyn(t[i], x[i, :], alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+            k1 = dt * dyn(t[i], x[i, :], alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k1: ", k1)
-            k2 = dt * dyn(t[i] + dt / 2, x[i, :] + k1 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+            k2 = dt * dyn(t[i] + dt / 2, x[i, :] + k1 / 2, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k2: ", k2)
-            k3 = dt * dyn(t[i] + dt / 2, x[i, :] + k2 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+            k3 = dt * dyn(t[i] + dt / 2, x[i, :] + k2 / 2, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k3: ", k3)
-            k4 = dt * dyn(t[i + 1], x[i, :] + k3, alfa_Int, delta_Int, deltaf_Int, tau_Int, mu_Int)
+            k4 = dt * dyn(t[i + 1], x[i, :] + k3, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k4: ", k4)
             x[i + 1, :] = x[i, :] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
@@ -1099,9 +1214,9 @@ if __name__ == '__main__':
         mres = x[:, 6]
         alfares = alfa_Int(time_new)
         deltares = delta_Int(time_new)
-        deltafres = deltaf_Int(time_new)
-        taures = tau_Int(time_new)
-        mures = mu_Int(time_new)
+        deltafres = 0.0 #deltaf_Int(time_new)
+        taures = 0.0 #tau_Int(time_new)
+        mures = 0.0 #mu_Int(time_new)
 
         return vres, chires, gammares, tetares, lamres, hres, mres, time_new, alfares, deltares, deltafres, taures, mures
 
@@ -1123,12 +1238,12 @@ if __name__ == '__main__':
     m = prob.states_all_section(6)
     alfa = prob.controls_all_section(0)
     delta = prob.controls_all_section(1)
-    deltaf = prob.controls_all_section(2)
-    tau = prob.controls_all_section(3)
-    mu = prob.controls_all_section(4)
+    deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
+    tau = np.zeros(len(v)) #prob.controls_all_section(3)
+    mu = np.zeros(len(v)) #prob.controls_all_section(4)
     time = prob.time_update()
 
-    Uval = np.vstack((alfa, delta, deltaf, tau, mu))
+    Uval = np.vstack((alfa, delta))#, deltaf, tau, mu))
 
     Xinit = np.array((v[0], chi[0], gamma[0], teta[0], lam[0], h[0], m[0]))
 
@@ -1298,8 +1413,8 @@ if __name__ == '__main__':
     plt.title("Throttle profile")
     plt.plot(time, delta, ".", label="Delta")
     plt.plot(tres, deltares, label="Interp")
-    plt.plot(time, tau, ".", label="Tau")
-    plt.plot(tres, taures, label="Interp")
+    #plt.plot(time, tau, ".", label="Tau")
+    #plt.plot(tres, taures, label="Interp")
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" % ")
@@ -1318,7 +1433,7 @@ if __name__ == '__main__':
     if flag_savefig:
         plt.savefig(savefig_file + "angAttack" + ".png")
 
-    plt.figure(9)
+    '''plt.figure(9)
     plt.title("Body Flap deflection profile")
     plt.plot(time, np.rad2deg(deltaf), ".", label="Delta f")
     plt.plot(tres, np.rad2deg(deltafres), label="Interp")
@@ -1338,7 +1453,7 @@ if __name__ == '__main__':
     plt.ylabel(" deg ")
     plt.legend(loc="best")
     if flag_savefig:
-        plt.savefig(savefig_file + "Roll" + ".png")
+        plt.savefig(savefig_file + "Roll" + ".png")'''
 
     '''
     plt.subplot(3,1,1)
@@ -1457,8 +1572,8 @@ if __name__ == '__main__':
     plt.figure(17)
     plt.title("Moment")
     plt.plot(time, MomTot / 1000, marker=".", label="Total Moment")
-    plt.axhline(obj.k / 1000, 0, time[-1], color='r')
-    plt.axhline(-obj.k / 1000, 0, time[-1], color='r')
+    #plt.axhline(obj.k / 1000, 0, time[-1], color='r')
+    #plt.axhline(-obj.k / 1000, 0, time[-1], color='r')
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" kNm ")

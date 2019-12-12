@@ -13,11 +13,11 @@ class Rocket:
     g0 = 9.80665  # Gravitational acceleration on Earth surface [m/s^2]
 
     def __init__(self):
-        self.M0 = 5000  # Initial total mass [kg]
+        self.M0 = 500000  # Initial total mass [kg]
         self.Mc = 0.4  # Initial Propellant mass over total mass
         self.Cd = 0.2  # Drag Coefficient [-]
-        self.area = 10  # area [m2]
-        self.Isp = 300.0  # Isp [s]
+        self.area = 2*np.pi*(5.4/2)*52 + np.pi*(5.4/2)**2  # area [m2]
+        self.Isp = 400.0  # Isp [s]
         self.max_thrust = 2  # maximum thrust to initial weight ratio
 
     def air_density(self, h):
@@ -101,7 +101,7 @@ plt.close("all")
 plt.ion()
 # Program Starting Point
 time_init = [0.0, 600]
-n = [60]
+n = [30]
 Nint = 10000
 Npoints = n[0]
 Nstates = 3
