@@ -44,7 +44,7 @@ class Spaceplane:
         self.psl = 101325  # ambient pressure at sea level [Pa]
         self.latstart = np.deg2rad(5.2)  # deg latitude
         self.longstart = np.deg2rad(-52.775)  # deg longitude
-        self.chistart = np.deg2rad(113)  # deg flight direction
+        self.chistart = np.deg2rad(125)  # deg flight direction
         self.incl = np.deg2rad(51.6)  # deg orbit inclination
         self.gammastart = np.deg2rad(89)  # deg
         self.M0 = 450400  # kg  starting mass
@@ -63,6 +63,7 @@ class Spaceplane:
         self.xcg0 = 0.65  # cg position at take-off
         self.pref = 21.25
         self.Hini = 100000
+        self.hvert = 100
         self.r2 = self.Re + self.Htarget
         self.Rtarget = self.Re + self.Hini  # m/s
         self.Vtarget = np.sqrt(self.GMe / self.Rtarget)  # m/s forse da modificare con velocita' assoluta
@@ -136,20 +137,24 @@ def dynamicsInt(t, states, alfa_Int, delta_Int): #, deltaf_Int, tau_Int, mu_Int)
         g = g0 * (obj.Re / (obj.Re + h)) ** 2
     # g = np.asarray(g, dtype=np.float64)
 
-    dx = np.array((((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
-                   (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi)),
-                   ((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma)) - np.cos(gamma) * np.cos(chi) *
-                   np.tan(lam) * (v / (obj.Re + h)) + 2 * obj.omega * (
-                           np.cos(lam) * np.tan(gamma) * np.sin(chi) - np.sin(lam)) \
-                   - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(chi),
-                   ((T * np.sin(eps) + L) * np.cos(mu)) / (m * v) - (g / v - v / (obj.Re + h)) * np.cos(
-                       gamma) + 2 * obj.omega \
-                   * np.cos(lam) * np.cos(chi) + (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * \
-                   (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma)),
-                   -np.cos(gamma) * np.cos(chi) * (v / ((obj.Re + h) * np.cos(lam))),
-                   np.cos(gamma) * np.sin(chi) * (v / (obj.Re + h)),
-                   v * np.sin(gamma),
-                   -T / (g0 * isp)))
+    if h < obj.hvert:
+        dx = np.array(((T * np.cos(eps) - D) / m - g, 0, 0, 0, 0, v, -T / (g0 * isp)))
+    else:
+        dx = np.array((((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
+                       (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi)),
+                       ((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma)) - np.cos(gamma) * np.cos(chi) *
+                       np.tan(lam) * (v / (obj.Re + h)) + 2 * obj.omega * (
+                               np.cos(lam) * np.tan(gamma) * np.sin(chi) - np.sin(lam)) \
+                       - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(
+                           chi),
+                       ((T * np.sin(eps) + L) * np.cos(mu)) / (m * v) - (g / v - v / (obj.Re + h)) * np.cos(
+                           gamma) + 2 * obj.omega \
+                       * np.cos(lam) * np.cos(chi) + (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * \
+                       (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma)),
+                       -np.cos(gamma) * np.cos(chi) * (v / ((obj.Re + h) * np.cos(lam))),
+                       np.cos(gamma) * np.sin(chi) * (v / (obj.Re + h)),
+                       v * np.sin(gamma),
+                       -T / (g0 * isp)))
 
     return dx
 
@@ -188,20 +193,24 @@ def dynamicsVel(states, contr):
     else:
         g = g0 * (obj.Re / (obj.Re + h)) ** 2
 
-    dx = np.array((((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
-                   (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi)),
-                   ((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma)) - np.cos(gamma) * np.cos(chi) *
-                   np.tan(lam) * (v / (obj.Re + h)) + 2 * obj.omega * (
-                           np.cos(lam) * np.tan(gamma) * np.sin(chi) - np.sin(lam)) \
-                   - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(chi),
-                   ((T * np.sin(eps) + L) * np.cos(mu)) / (m * v) - (g / v - v / (obj.Re + h)) * np.cos(
-                       gamma) + 2 * obj.omega \
-                   * np.cos(lam) * np.cos(chi) + (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * \
-                   (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma)),
-                   -np.cos(gamma) * np.cos(chi) * (v / ((obj.Re + h) * np.cos(lam))),
-                   np.cos(gamma) * np.sin(chi) * (v / (obj.Re + h)),
-                   v * np.sin(gamma),
-                   -T / (g0 * isp)))
+    if h < obj.hvert:
+        dx = np.array(((T * np.cos(eps) - D) / m - g, 0, 0, 0, 0, v, -T / (g0 * isp)))
+    else:
+        dx = np.array((((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
+                       (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi)),
+                       ((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma)) - np.cos(gamma) * np.cos(chi) *
+                       np.tan(lam) * (v / (obj.Re + h)) + 2 * obj.omega * (
+                               np.cos(lam) * np.tan(gamma) * np.sin(chi) - np.sin(lam)) \
+                       - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(
+                           chi),
+                       ((T * np.sin(eps) + L) * np.cos(mu)) / (m * v) - (g / v - v / (obj.Re + h)) * np.cos(
+                           gamma) + 2 * obj.omega \
+                       * np.cos(lam) * np.cos(chi) + (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * \
+                       (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma)),
+                       -np.cos(gamma) * np.cos(chi) * (v / ((obj.Re + h) * np.cos(lam))),
+                       np.cos(gamma) * np.sin(chi) * (v / (obj.Re + h)),
+                       v * np.sin(gamma),
+                       -T / (g0 * isp)))
 
     return dx
 
@@ -282,9 +291,9 @@ def SingleShootingMulti(var, dyn, Nint, i):
     '''tstart and tfin are the initial and final time of the considered leg'''
     alfa = np.zeros((NContPoints))
     delta = np.zeros((NContPoints))
-    deltaf = np.zeros((NContPoints))
-    tau = np.zeros((NContPoints))
-    mu = np.zeros((NContPoints))
+    #deltaf = np.zeros((NContPoints))
+    #tau = np.zeros((NContPoints))
+    #mu = np.zeros((NContPoints))
     states = var[i * Nstates:(i + 1) * Nstates]  # orig intervals
     if i ==0:
         tstart = 0
@@ -447,9 +456,9 @@ def MultiShooting(var, dyn):
          #   obj.ineqOld = ineq_c
           #  obj.eqOld = eq_c
     except ValueError:
-        eq_c = obj.eqOld
-        ineq_c = obj.ineqOld
-        cost = -0.05
+        eq_c = obj.eqOld*2
+        ineq_c = obj.ineqOld*2
+        cost = obj.costOld/2
 
     return eq_c, ineq_c, cost
 
@@ -932,14 +941,14 @@ if __name__ == '__main__':
 
     '''reading of aerodynamic coefficients and specific impulse from file'''
 
-    cl = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt")
-    cd = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt")
-    cm = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt")
+    cl = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt")
+    cd = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt")
+    cm = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt")
     cl = np.asarray(cl)
     cd = np.asarray(cd)
     cm = np.asarray(cm)
 
-    with open("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
+    with open("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
         impulse = []
         for line in f:
             line = line.split()
@@ -980,7 +989,7 @@ if __name__ == '__main__':
     general_tol = 1e-8
     tr_radius = 10
     constr_penalty = 10
-    maxiter = 100  # max number of iterations for nlp solver
+    maxiter = 200  # max number of iterations for nlp solver
 
     '''definiton of initial conditions'''
 
@@ -1037,8 +1046,8 @@ if __name__ == '__main__':
         '''creation of vector of time intervals'''
         dt = np.hstack((dt, tnew[i + 1] - tnew[i]))
 
-    uplimx = np.tile([1e4, np.deg2rad(270), np.deg2rad(89.99), 0.0, np.deg2rad(25), 2e5, obj.M0], Nleg)
-    inflimx = np.tile([1.0, np.deg2rad(90), np.deg2rad(-89.99), np.deg2rad(-70), np.deg2rad(2), 1.0, obj.m10], Nleg)
+    uplimx = np.tile([1e4, np.deg2rad(270), np.deg2rad(89), 0.0, np.deg2rad(25), 2e5, obj.M0], Nleg)
+    inflimx = np.tile([1.0, np.deg2rad(90), np.deg2rad(-89), np.deg2rad(-70), np.deg2rad(2), 1.0, obj.m10], Nleg)
     uplimu = np.tile([np.deg2rad(40), 1.0], Nleg * NContPoints)
     inflimu = np.tile([np.deg2rad(-2), 0.0001], Nleg * NContPoints)
 
@@ -1079,7 +1088,7 @@ if __name__ == '__main__':
     bndT_slsqp = ((0.0, 1.0),)
     bnds_slsqp = bndX_slsqp * Nleg + bndU_slsqp * Nleg * NContPoints + bndT_slsqp * Nleg
 
-    sparseJac = load_npz("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz")
+    sparseJac = load_npz("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz")
     sp = sparseJac.todense()
     row = np.shape(sp)[0]
     column = np.shape(sp)[1]
@@ -1131,7 +1140,7 @@ if __name__ == '__main__':
     while iterator < tot_it:
 
         print("Start global search")
-        minimizer_kwargs = {'method':'SLSQP', "constraints":cons_slsqp, "bounds":bnds_slsqp, "options": {"maxiter":200}}
+        minimizer_kwargs = {'method':'SLSQP', "constraints":cons_slsqp, "bounds":bnds_slsqp, "options": {"maxiter":50}}
         optb = basinhopping(cost_fun, X0a, niter=5, disp=True, minimizer_kwargs=minimizer_kwargs, take_step=bounded_step)
         #optb = shgo(cost_fun, bnds_slsqp, minimizer_kwargs=minimizer_kwargs, options={"disp": True, "maxtime":1})
         print("Done global search")

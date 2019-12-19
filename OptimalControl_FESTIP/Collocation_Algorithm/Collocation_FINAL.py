@@ -19,120 +19,6 @@ from scipy.optimize import basinhopping
 sys.path.insert(0, 'home/francesco/git_workspace/FESTIP_Work')
 
 
-def solve(self, obj, display_func=_dummy_func, **options):
-    """ solve NLP
-
-    Args:
-        obj (object instance) : instance
-        display_func (function) : function to display intermediate values
-        ftol (float, optional) : Precision goal for the value of f in the
-            stopping criterion, (default: 1e-6)
-        maxiter (int, optional) : Maximum number of iterations., (default : 25)
-
-    Examples:
-        "prob" is Problem class's instance.
-
-        >>> prob.solve(obj, display_func, ftol=1e-12)
-
-    """
-    assert len(self.dynamics) != 0, "It must be set dynamics"
-    assert self.cost is not None, "It must be set cost function"
-    assert self.equality is not None, "It must be set equality function"
-    assert self.inequality is not None, "It must be set inequality function"
-
-    def equality_add(equality_func, obj):
-        """ add pseudospectral method conditions to equality function.
-        collocation point condition and knotting condition.
-        """
-        result = self.equality(self, obj)
-
-        # collation point condition
-        for i in range(self.number_of_section):
-            D = self.D
-            derivative = np.zeros(0)
-            for j in range(self.number_of_states[i]):
-                state_temp = self.states(j, i) / self.unit_states[i][j]
-                derivative = np.hstack((derivative, D[i].dot(state_temp)))
-            tix = self.time_start(i) / self.unit_time
-            tfx = self.time_final(i) / self.unit_time
-            dx = self.dynamics[i](self, obj, i)
-            result = np.hstack((result, derivative - (tfx - tix) / 2.0 * dx))
-
-        # knotting condition
-        for knot in range(self.number_of_section - 1):
-            if (self.number_of_states[knot] != self.number_of_states[knot + 1]):
-                continue  # if states are not continuous on knot, knotting condition skip
-            for state in range(self.number_of_states[knot]):
-                param_prev = self.states(state, knot) / self.unit_states[knot][state]
-                param_post = self.states(state, knot + 1) / self.unit_states[knot][state]
-                if (self.knot_states_smooth[knot]):
-                    result = np.hstack((result, param_prev[-1] - param_post[0]))
-
-        return result
-
-    def cost_add(cost_func, obj):
-        """Combining nonintegrated function and integrated function.
-        """
-        not_integrated = self.cost(self, obj)
-        if self.running_cost is None:
-            return not_integrated
-        integrand = self.running_cost(self, obj)
-        weight = np.concatenate([i for i in self.w])
-        integrated = sum(integrand * weight)
-        return not_integrated + integrated
-
-    def wrap_for_solver(func, arg0, arg1):
-        def for_solver(p, arg0, arg1):
-            self.p = p
-            return func(arg0, arg1)
-
-        return for_solver
-
-    # def wrap_for_solver(func, *args):
-    #     def for_solver(p, *args):
-    #         self.p = p
-    #         return func(*args)
-    #     return for_solver
-
-    cons = ({'type': 'eq',
-             'fun': wrap_for_solver(equality_add, self.equality, obj),
-             'args': (self, obj,)},
-            {'type': 'ineq',
-             'fun': wrap_for_solver(self.inequality, self, obj),
-             'args': (self, obj,)})
-
-    if (self.cost_derivative is None):
-        jac = None
-    else:
-        jac = wrap_for_solver(self.cost_derivative, self, obj)
-
-    ftol = options.setdefault("ftol", 1e-6)
-    maxiter = options.setdefault("maxiter", 25)
-
-    while self.iterator < self.maxIterator:
-        print("---- iteration : {0} ----".format(self.iterator + 1))
-        minimizer_kwargs = {'method':'SLSQP', 'constraints':cons, 'args':(self, obj)}
-        x0 = self.p
-        opt_g = optimize.basinhopping(wrap_for_solver(cost_add, self.cost, obj),x0, niter=5, disp=True, minimizer_kwargs=minimizer_kwargs)
-        self.p = x0
-        x0 = opt_g.x
-        opt = optimize.minimize(wrap_for_solver(cost_add, self.cost, obj),
-                                x0,
-                                args=(self, obj),
-                                constraints=cons,
-                                jac=jac,
-                                method='SLSQP',
-                                options={"disp": True,
-                                         "maxiter": maxiter,
-                                         "ftol": ftol})
-        print(opt.message)
-        display_func()
-        print("")
-        if not (opt.status):
-            break
-        self.iterator += 1
-
-
 '''this script is a collocation algorithm on FESTIP model'''
 
 def fileReadOr(filename):
@@ -159,7 +45,6 @@ class Spaceplane():
         self.psl = 101325  # ambient pressure at sea level [Pa]
         self.latstart = np.deg2rad(5.2)  # deg latitude
         self.longstart = np.deg2rad(-52.775)  # deg longitude
-        self.chistart = np.deg2rad(113)  # deg flight direction
         self.incl = np.deg2rad(51.6)  # deg orbit inclination
         self.gammastart = np.deg2rad(89)  # deg
         self.M0 = 450400  # kg  starting mass
@@ -182,6 +67,7 @@ class Spaceplane():
         self.Rtarget = self.Re + self.Hini  # m/s
         self.Vtarget = np.sqrt(self.GMe / self.Rtarget)  # m/s forse da modificare con velocita' assoluta
         self.chi_fin = 0.5 * np.pi + np.arcsin(np.cos(self.incl) / np.cos(self.latstart))  # value in radians
+        self.chistart = np.deg2rad(125)  # deg flight direction
         self.mach = np.array([0.0, 0.3, 0.6, 0.9, 1.2, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 20.0])
         self.angAttack = np.array([-2.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.5, 25.0, 30.0, 35.0, 40.0])
         #self.angAttack = np.linspace(-2.0, 40.0, 5)
@@ -195,8 +81,9 @@ class Spaceplane():
         self.pcoeff = [0.16439, 0.030072, 0.0073526, 0.0025207, 0.505861E-3, 0.36918E-3, 0.27906E-3]
         self.tcoeff2 = [2.937, 4.698, 9.249, 18.11, 12.941, 8.12, 5.1]
         self.tcoeff1 = [180.65, 210.02, 257.0, 349.49, 892.79, 1022.2, 1103.4]
+        self.hvert = 100
         self.n = prob.nodes
-        self.n10 = int(n[0] / 100 * 10)
+        '''self.n10 = int(n[0] / 100 * 10)
         self.n90 = n[0] - self.n10
         self.n15 = int(n[0] / 100 * 15)
         self.n85 = n[0] - self.n15
@@ -205,7 +92,7 @@ class Spaceplane():
         self.n30 = int(n[0] / 100 * 30)
         self.n70 = n[0] - self.n30
         self.n35 = int(n[0] / 100 * 35)
-        self.n65 = n[0] - self.n35
+        self.n65 = n[0] - self.n35'''
         self.n40 = int(n[0] / 100 * 40)
         self.n60 = n[0] - self.n40
         self.n45 = int(n[0] / 100 * 45)
@@ -511,7 +398,7 @@ def dynamics(prob, obj, section):
     alfa = prob.controls(0, section)
     delta = prob.controls(1, section)
     deltaf = np.zeros(len(v)) #prob.controls(2, section)
-    tau = np.zeros(len(v)) #prob.controls(3, section)
+    tau = prob.controls(2, section)
     mu = np.zeros(len(v)) #prob.controls(4, section)
 
     Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 0)
@@ -541,25 +428,34 @@ def dynamics(prob, obj, section):
     # term3 = 2 * obj.omega * np.cos(lam) * np.cos(chi)
     # term4 = (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma))
     # print("term1: ", max(abs(term1)), "term2: ", max(abs(term2)), "term3: ", max(abs(term3)), "term4: ", max(abs(term4)), max(max(abs(term1)), max(abs(term2)), max(abs(term3)), max(abs(term4))))
+    for i in range(len(h)):
+        if h[i] > obj.hvert:
+            hi = i-1
+            break
 
     dx = Dynamics(prob, section)
 
-    dx[0] = ((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
-            (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi))
+    dx[0] = (T[0:hi]*np.cos(eps[0:hi]) - D[0:hi])/m[0:hi] - g[0:hi]
+    dx[1] = np.zeros((hi))
+    dx[2] = np.zeros((hi))
+    dx[3] = np.zeros((hi))
+    dx[4] = np.zeros((hi))
+    dx[5] = v[0:hi]
+    dx[6] = -T[0:hi] / (g0 * isp[0:hi])
 
-    dx[1] = ((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma)) - np.cos(gamma) * np.cos(chi) * np.tan(lam) \
-            * (v / (obj.Re + h)) + 2 * obj.omega * (np.cos(lam) * np.tan(gamma) * np.sin(chi) - np.sin(lam)) \
-            - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(chi)
 
-    dx[2] = ((T * np.sin(eps) + L) * np.cos(mu)) / (m * v) - (g / v - v / (obj.Re + h)) * np.cos(gamma) + 2 * obj.omega \
-            * np.cos(lam) * np.cos(chi) + (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * \
-            (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma))
-
-    dx[3] = -np.cos(gamma) * np.cos(chi) * (v / ((obj.Re + h) * np.cos(lam)))
-    dx[4] = np.cos(gamma) * np.sin(chi) * (v / (obj.Re + h))
-    dx[5] = v * np.sin(gamma)
-    dx[6] = -T / (g0 * isp)
-
+    dx[0] = np.hstack((dx[0], (T[hi:] * np.cos(eps[hi:]) - D[hi:]) / m[hi:] - g[hi:] * np.sin(gamma[hi:]) + (obj.omega ** 2) * (obj.Re + h[hi:]) * np.cos(lam[hi:]) * \
+            (np.cos(lam[hi:]) * np.sin(gamma[hi:]) - np.sin(lam[hi:]) * np.cos(gamma[hi:]) * np.sin(chi[hi:]))))
+    dx[1] = np.hstack((dx[1], ((T[hi:] * np.sin(eps[hi:]) + L[hi:]) * np.sin(mu[hi:])) / (m[hi:] * v[hi:] * np.cos(gamma[hi:])) - np.cos(gamma[hi:]) * np.cos(chi[hi:]) * np.tan(lam[hi:]) \
+            * (v[hi:] / (obj.Re + h[hi:])) + 2 * obj.omega * (np.cos(lam[hi:]) * np.tan(gamma[hi:]) * np.sin(chi[hi:]) - np.sin(lam[hi:])) \
+            - (obj.omega ** 2) * ((obj.Re + h[hi:]) / (v[hi:] * np.cos(gamma[hi:]))) * np.cos(lam[hi:]) * np.sin(lam[hi:]) * np.cos(chi[hi:])))
+    dx[2] = np.hstack((dx[2], ((T[hi:] * np.sin(eps[hi:]) + L[hi:]) * np.cos(mu[hi:])) / (m[hi:] * v[hi:]) - (g[hi:] / v[hi:] - v[hi:] / (obj.Re + h[hi:])) * np.cos(gamma[hi:]) + 2 * obj.omega \
+            * np.cos(lam[hi:]) * np.cos(chi[hi:]) + (obj.omega ** 2) * ((obj.Re + h[hi:]) / v[hi:]) * np.cos(lam[hi:]) * \
+            (np.sin(lam[hi:]) * np.sin(gamma[hi:]) * np.sin(chi[hi:]) + np.cos(lam[hi:]) * np.cos(gamma[hi:]))))
+    dx[3] = np.hstack((dx[3], -np.cos(gamma[hi:]) * np.cos(chi[hi:]) * (v[hi:] / ((obj.Re + h[hi:]) * np.cos(lam[hi:])))))
+    dx[4] = np.hstack((dx[4], np.cos(gamma[hi:]) * np.sin(chi[hi:]) * (v[hi:] / (obj.Re + h[hi:]))))
+    dx[5] = np.hstack((dx[5], v[hi:] * np.sin(gamma[hi:])))
+    dx[6] = np.hstack((dx[6], -T[hi:] / (g0 * isp[hi:])))
     return dx()
 
 
@@ -567,7 +463,7 @@ def cost(prob, obj):
     h = prob.states_all_section(5)
     m = prob.states_all_section(6)
     delta = prob.controls_all_section(1)
-    tau = np.zeros(len(h)) #prob.controls_all_section(3)
+    tau = prob.controls_all_section(2)
 
     Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 0)
 
@@ -593,12 +489,12 @@ def equality(prob, obj):
 
     alfa = prob.controls_all_section(0)
     delta = prob.controls_all_section(1)
-    deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
-    tau = np.zeros(len(v)) #prob.controls_all_section(3)
-    mu = np.zeros(len(v)) #prob.controls_all_section(4)
+    #deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
+    tau = prob.controls_all_section(2)
+    #mu = np.zeros(len(v)) #prob.controls_all_section(4)
 
     States = np.array((v[-1], chi[-1], gamma[-1], teta[-1], lam[-1], h[-1], m[-1]))
-    Controls = np.array((alfa[-1], delta[-1], 0.0, 0.0, 0.0)) #deltaf[-1], tau[-1], mu[-1]))
+    Controls = np.array((alfa[-1], delta[-1], tau[-1])) #deltaf[-1], tau[-1], mu[-1]))
     vt = np.sqrt(obj.GMe / (obj.Re + h[-1]))  # - obj.omega*np.cos(lam[-1])*(obj.Re+h[-1])
 
     def vass(states, controls, dyn, omega, obj):
@@ -683,7 +579,7 @@ def equality(prob, obj):
     result.equal(delta[0], 1.0, unit=1)
     #result.equal(to_new_int(deltaf[0], np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
      #            to_new_int(0.0, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0), unit=1)
-    #result.equal(to_new_int(tau[0], -1, 1, 0.0, 1.0), to_new_int(0.0, -1, 1, 0.0, 1.0), unit=1)
+    result.equal(to_new_int(tau[0], -1, 1, 0.0, 1.0), to_new_int(0.0, -1, 1, 0.0, 1.0), unit=1)
     #result.equal(to_new_int(mu[0], np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),
      #            to_new_int(0.0, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)
     #result.equal(to_new_int(mu[-1], np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),
@@ -710,7 +606,7 @@ def inequality(prob, obj):
     # print(alfa)
     delta = prob.controls_all_section(1)
     deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
-    tau = np.zeros(len(v)) #prob.controls_all_section(3)
+    tau = prob.controls_all_section(2)
     #mu = np.zeros(len(v)) #prob.controls_all_section(4)
     t = prob.time_update()
 
@@ -791,7 +687,7 @@ def inequality(prob, obj):
      #                  to_new_int(np.deg2rad(-20), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
       #                 unit=1)  # deltaf lower bound
 
-    #result.lower_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(-1, -1, 1, 0, 1), unit=1)  # tau lower bound
+    result.lower_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(-1, -1, 1, 0, 1), unit=1)  # tau lower bound
 
     #result.lower_bound(to_new_int(mu, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),  # obj.mu_lb, unit=1)
      #                  to_new_int(np.deg2rad(-60), np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)  # mu lower bound
@@ -841,7 +737,7 @@ def inequality(prob, obj):
      #                  to_new_int(np.deg2rad(30), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
       #                 unit=1)  # deltaf upper bound
 
-    #result.upper_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(1, -1, 1, 0, 1), unit=1)  # tau upper bound
+    result.upper_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(1, -1, 1, 0, 1), unit=1)  # tau upper bound
 
     #result.upper_bound(to_new_int(mu, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),  # obj.mu_ub, unit=1)
      #                  to_new_int(np.deg2rad(60), np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)  # mu upper bound
@@ -885,7 +781,7 @@ def dynamicsVel(states, contr, obj):
     alfa = contr[0]
     delta = contr[1]
     deltaf = 0.0 #contr[2]
-    tau = 0.0 #contr[3]
+    tau = contr[2]
     mu = 0.0 #contr[4]
 
     Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 1)
@@ -907,22 +803,24 @@ def dynamicsVel(states, contr, obj):
         g = obj.g0 * (obj.Re / (obj.Re + h)) ** 2
     # g = np.asarray(g, dtype=np.float64)
 
-    dx = np.array((((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
-                   (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi)),
-                   ((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma)) - np.cos(gamma) * np.cos(chi) *
-                   np.tan(lam) * (v / (obj.Re + h)) + 2 * obj.omega * (
-                           np.cos(lam) * np.tan(gamma) * np.sin(chi) - np.sin(lam)) \
-                   - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(
-                       chi),
-                   ((T * np.sin(eps) + L) * np.cos(mu)) / (m * v) - (g / v - v / (obj.Re + h)) * np.cos(
-                       gamma) + 2 * obj.omega \
-                   * np.cos(lam) * np.cos(chi) + (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * \
-                   (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma)),
-                   -np.cos(gamma) * np.cos(chi) * (v / ((obj.Re + h) * np.cos(lam))),
-                   np.cos(gamma) * np.sin(chi) * (v / (obj.Re + h)),
-                   v * np.sin(gamma),
-                   -T / (g0 * isp)))
-
+    if h < obj.hvert:
+        dx = np.array(((T*np.cos(eps)-D)/m-g, 0, 0, 0, 0, v, -T / (g0 * isp)))
+    else:
+        dx = np.array((((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
+                    (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi)),
+                    ((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma)) - np.cos(gamma) * np.cos(chi) *
+                    np.tan(lam) * (v / (obj.Re + h)) + 2 * obj.omega * (
+                               np.cos(lam) * np.tan(gamma) * np.sin(chi) - np.sin(lam)) \
+                    - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(
+                           chi),
+                    ((T * np.sin(eps) + L) * np.cos(mu)) / (m * v) - (g / v - v / (obj.Re + h)) * np.cos(
+                           gamma) + 2 * obj.omega \
+                    * np.cos(lam) * np.cos(chi) + (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * \
+                    (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma)),
+                    -np.cos(gamma) * np.cos(chi) * (v / ((obj.Re + h) * np.cos(lam))),
+                    np.cos(gamma) * np.sin(chi) * (v / (obj.Re + h)),
+                    v * np.sin(gamma),
+                    -T / (g0 * isp)))
     return dx
 
 
@@ -968,17 +866,17 @@ if __name__ == '__main__':
     pool = Pool(processes=3)
     plt.ion()
     start = time.time()
-    n = [80]
+    n = [100]
     time_init = [0.0, 600]
     num_states = [7]
-    num_controls = [2]
+    num_controls = [3]
     max_iteration = 30
     Ncontrols = num_controls[0]
     Nstates = num_states[0]
     Npoints = n[0]
     varStates = Nstates * Npoints
     varTot = (Nstates + Ncontrols) * Npoints
-    Nint = 10000
+    Nint = 1000
     maxiter = 150
     ftol = 1e-8
     if flag_savefig:
@@ -1005,7 +903,7 @@ if __name__ == '__main__':
     unit_alfa = np.deg2rad(40)
     unit_delta = 1
     #unit_deltaf = np.deg2rad(30)
-    #unit_tau = 1
+    unit_tau = 1
     #unit_mu = np.deg2rad(60)
     prob.set_unit_states_all_section(0, unit_v)
     prob.set_unit_states_all_section(1, unit_chi)
@@ -1017,7 +915,7 @@ if __name__ == '__main__':
     prob.set_unit_controls_all_section(0, unit_alfa)
     prob.set_unit_controls_all_section(1, unit_delta)
     #prob.set_unit_controls_all_section(2, unit_deltaf)
-    #prob.set_unit_controls_all_section(3, unit_tau)
+    prob.set_unit_controls_all_section(2, unit_tau)
     #prob.set_unit_controls_all_section(4, unit_mu)
     prob.set_unit_time(unit_t)
 
@@ -1037,7 +935,7 @@ if __name__ == '__main__':
     part2 = Guess.linear(prob.time_all_section[obj.n40:], 1.0, 0.05)
     delta_init = np.hstack((part1, part2))
     #deltaf_init = Guess.zeros(prob.time_all_section)
-    #tau_init = Guess.zeros(prob.time_all_section)
+    tau_init = Guess.zeros(prob.time_all_section)
     #mu_init = Guess.zeros(prob.time_all_section)
 
     # ===========
@@ -1054,7 +952,7 @@ if __name__ == '__main__':
     prob.set_controls_all_section(0, alfa_init)
     prob.set_controls_all_section(1, delta_init)
     #prob.set_controls_all_section(2, deltaf_init)
-    #prob.set_controls_all_section(3, tau_init)
+    prob.set_controls_all_section(2, tau_init)
     #prob.set_controls_all_section(4, mu_init)
 
     # ========================
@@ -1076,7 +974,7 @@ if __name__ == '__main__':
         m = prob.states_all_section(6)
         h = prob.states_all_section(5)
         delta = prob.controls_all_section(1)
-        tau = np.zeros(len(m)) #prob.controls_all_section(3)
+        tau = prob.controls_all_section(2)
 
         tf = prob.time_final(-1)
 
@@ -1098,7 +996,7 @@ if __name__ == '__main__':
         print("final time  : {0:.3f}".format(tf))
 
 
-    solve(obj, display_func, ftol=ftol, maxiter=maxiter)
+    prob.solve(obj, display_func, ftol=ftol, maxiter=maxiter)
 
     end = time.time()
     time_elapsed = end - start
@@ -1106,7 +1004,7 @@ if __name__ == '__main__':
     print("Time elapsed:for total optimization ", tformat)
 
 
-    def dynamicsInt(t, states, alfa_int, delta_int):#, deltaf_int, tau_int, mu_int):
+    def dynamicsInt(t, states, alfa_int, delta_int, tau_int):#, deltaf_int, tau_int, mu_int):
         # this functions receives the states and controls unscaled and calculates the dynamics
 
         v = states[0]
@@ -1119,7 +1017,7 @@ if __name__ == '__main__':
         alfa = alfa_int(t)
         delta = delta_int(t)
         deltaf = 0.0 #deltaf_int(t)
-        tau = 0.0 #tau_int(t)
+        tau = tau_int(t)
         mu = 0.0 #mu_int(t)
 
         # if h<0:
@@ -1143,21 +1041,25 @@ if __name__ == '__main__':
         else:
             g = obj.g0 * (obj.Re / (obj.Re + h)) ** 2
 
-        dx = np.array((((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
-                       (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi)),
-                       ((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma)) - np.cos(gamma) * np.cos(chi) *
-                       np.tan(lam) * (v / (obj.Re + h)) + 2 * obj.omega * (
-                               np.cos(lam) * np.tan(gamma) * np.sin(chi) - np.sin(lam)) \
-                       - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(
-                           chi),
-                       ((T * np.sin(eps) + L) * np.cos(mu)) / (m * v) - (g / v - v / (obj.Re + h)) * np.cos(
-                           gamma) + 2 * obj.omega \
-                       * np.cos(lam) * np.cos(chi) + (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * \
-                       (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma)),
-                       -np.cos(gamma) * np.cos(chi) * (v / ((obj.Re + h) * np.cos(lam))),
-                       np.cos(gamma) * np.sin(chi) * (v / (obj.Re + h)),
-                       v * np.sin(gamma),
-                       -T / (g0 * isp)))
+        if h < obj.hvert:
+            dx = np.array(((T * np.cos(eps) - D) / m - g, 0, 0, 0, 0, v, -T / (g0 * isp)))
+        else:
+            dx = np.array(
+                (((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
+                 (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi)),
+                 ((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma)) - np.cos(gamma) * np.cos(chi) *
+                 np.tan(lam) * (v / (obj.Re + h)) + 2 * obj.omega * (
+                         np.cos(lam) * np.tan(gamma) * np.sin(chi) - np.sin(lam)) \
+                 - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(
+                     chi),
+                 ((T * np.sin(eps) + L) * np.cos(mu)) / (m * v) - (g / v - v / (obj.Re + h)) * np.cos(
+                     gamma) + 2 * obj.omega \
+                 * np.cos(lam) * np.cos(chi) + (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * \
+                 (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma)),
+                 -np.cos(gamma) * np.cos(chi) * (v / ((obj.Re + h) * np.cos(lam))),
+                 np.cos(gamma) * np.sin(chi) * (v / (obj.Re + h)),
+                 v * np.sin(gamma),
+                 -T / (g0 * isp)))
         dx = np.reshape(dx, (7,))
         return dx
 
@@ -1172,9 +1074,9 @@ if __name__ == '__main__':
 
         alfa_Int = interpolate.PchipInterpolator(time, controls[0, :])
         delta_Int = interpolate.PchipInterpolator(time, controls[1, :])
-        #deltaf_Int = 0.0 #interpolate.PchipInterpolator(time, controls[2, :])
-        #tau_Int = 0.0 #interpolate.PchipInterpolator(time, controls[3, :])
-        #mu_Int = 0.0 #interpolate.PchipInterpolator(time, controls[4, :])
+        #deltaf_Int = interpolate.PchipInterpolator(time, controls[2, :])
+        tau_Int = interpolate.PchipInterpolator(time, controls[2, :])
+        #mu_Int = interpolate.PchipInterpolator(time, controls[4, :])
 
         time_new = np.linspace(0, time[-1], Nint)
 
@@ -1188,13 +1090,13 @@ if __name__ == '__main__':
         for i in range(Nint - 1):
             # print(i, x[i,:])
             # print(u[i,:])
-            k1 = dt * dyn(t[i], x[i, :], alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k1 = dt * dyn(t[i], x[i, :], alfa_Int, delta_Int, tau_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k1: ", k1)
-            k2 = dt * dyn(t[i] + dt / 2, x[i, :] + k1 / 2, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k2 = dt * dyn(t[i] + dt / 2, x[i, :] + k1 / 2, alfa_Int, delta_Int, tau_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k2: ", k2)
-            k3 = dt * dyn(t[i] + dt / 2, x[i, :] + k2 / 2, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k3 = dt * dyn(t[i] + dt / 2, x[i, :] + k2 / 2, alfa_Int, delta_Int, tau_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k3: ", k3)
-            k4 = dt * dyn(t[i + 1], x[i, :] + k3, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k4 = dt * dyn(t[i + 1], x[i, :] + k3, alfa_Int, delta_Int, tau_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k4: ", k4)
             x[i + 1, :] = x[i, :] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
@@ -1214,9 +1116,9 @@ if __name__ == '__main__':
         mres = x[:, 6]
         alfares = alfa_Int(time_new)
         deltares = delta_Int(time_new)
-        deltafres = 0.0 #deltaf_Int(time_new)
-        taures = 0.0 #tau_Int(time_new)
-        mures = 0.0 #mu_Int(time_new)
+        deltafres = np.zeros(len(time_new)) #deltaf_Int(time_new)
+        taures = tau_Int(time_new)
+        mures = np.zeros(len(time_new)) #mu_Int(time_new)
 
         return vres, chires, gammares, tetares, lamres, hres, mres, time_new, alfares, deltares, deltafres, taures, mures
 
@@ -1239,11 +1141,11 @@ if __name__ == '__main__':
     alfa = prob.controls_all_section(0)
     delta = prob.controls_all_section(1)
     deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
-    tau = np.zeros(len(v)) #prob.controls_all_section(3)
+    tau = prob.controls_all_section(2)
     mu = np.zeros(len(v)) #prob.controls_all_section(4)
     time = prob.time_update()
 
-    Uval = np.vstack((alfa, delta))#, deltaf, tau, mu))
+    Uval = np.vstack((alfa, delta, tau))#, deltaf, tau, mu))
 
     Xinit = np.array((v[0], chi[0], gamma[0], teta[0], lam[0], h[0], m[0]))
 
@@ -1252,17 +1154,26 @@ if __name__ == '__main__':
 
     Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 0)
 
+    Pressres, rhores, cres = obj.isa(hres, obj.psl, obj.g0, obj.Re, 0)
+
     M = v / c
 
-    L, D, MomA = obj.aeroForces(M, alfa, deltaf, cd, cl, cm, v, obj.wingSurf, rho, obj.lRef, obj.M0, m, obj.m10,
-                                obj.xcg0,
-                                obj.xcgf, obj.pref, n[0])
+    Mres = vres / cres
+
+    L, D, MomA = obj.aeroForces(M, alfa, deltaf, cd, cl, cm, v, obj.wingSurf, rho, obj.lRef, obj.M0, m, obj.m10, obj.xcg0, obj.xcgf, obj.pref, n[0])
+
+    Lres, Dres, MomAres = obj.aeroForces(Mres, alfares, deltafres, cd, cl, cm, vres, obj.wingSurf, rhores, obj.lRef, obj.M0, mres, obj.m10,
+                                obj.xcg0, obj.xcgf, obj.pref, len(vres))
 
     T, Deps, isp, MomT = obj.thrust(Press, m, presv, spimpv, delta, tau, n[0], obj.psl, obj.M0, obj.m10, obj.lRef,
                                     obj.xcgf,
                                     obj.xcg0)
 
+    Tres, Depsres, ispres, MomTres = obj.thrust(Pressres, mres, presv, spimpv, deltares, taures, len(vres), obj.psl, obj.M0, obj.m10, obj.lRef,
+                                    obj.xcgf,obj.xcg0)
+
     MomTot = MomA + MomT
+    MomTotres = MomAres + MomTres
 
     g0 = obj.g0
     eps = Deps + alfa
@@ -1270,11 +1181,15 @@ if __name__ == '__main__':
     # dynamic pressure
 
     q = 0.5 * rho * (v ** 2)
+    qres = 0.5 * rhores * (vres ** 2)
 
     # accelerations
 
     ax = (T * np.cos(Deps) - D * np.cos(alfa) + L * np.sin(alfa)) / m
     az = (T * np.sin(Deps) + D * np.sin(alfa) + L * np.cos(alfa)) / m
+
+    ax_res = (Tres * np.cos(Depsres) - Dres * np.cos(alfares) + Lres * np.sin(alfares)) / mres
+    az_res = (Tres * np.sin(Depsres) + Dres * np.sin(alfares) + Lres * np.cos(alfares)) / mres
 
     r1 = h + obj.Re
     Dv1 = np.sqrt(obj.GMe / r1) * (np.sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1)
@@ -1402,6 +1317,8 @@ if __name__ == '__main__':
     plt.title("Acceleration")
     plt.plot(time, ax, marker=".", label="Acc x")
     plt.plot(time, az, marker=".", label="Acc z")
+    plt.plot(tres, ax_res, label="Acc x Integration")
+    plt.plot(tres, az_res, label="Acc z Integration")
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel("Acceleration [m/s2]")
@@ -1413,8 +1330,8 @@ if __name__ == '__main__':
     plt.title("Throttle profile")
     plt.plot(time, delta, ".", label="Delta")
     plt.plot(tres, deltares, label="Interp")
-    #plt.plot(time, tau, ".", label="Tau")
-    #plt.plot(tres, taures, label="Interp")
+    plt.plot(time, tau, ".", label="Tau")
+    plt.plot(tres, taures, label="Interp")
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" % ")
@@ -1562,6 +1479,7 @@ if __name__ == '__main__':
     plt.figure(16)
     plt.title("Dynamic pressure profile")
     plt.plot(time, q / 1000, marker=".", label="Q")
+    plt.plot(tres, qres / 1000, label="Integration")
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" kPa ")
@@ -1572,6 +1490,7 @@ if __name__ == '__main__':
     plt.figure(17)
     plt.title("Moment")
     plt.plot(time, MomTot / 1000, marker=".", label="Total Moment")
+    plt.plot(tres, MomTotres / 1000, label="Integration")
     #plt.axhline(obj.k / 1000, 0, time[-1], color='r')
     #plt.axhline(-obj.k / 1000, 0, time[-1], color='r')
     plt.grid()
