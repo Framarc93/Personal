@@ -81,7 +81,7 @@ class Spaceplane():
         self.pcoeff = [0.16439, 0.030072, 0.0073526, 0.0025207, 0.505861E-3, 0.36918E-3, 0.27906E-3]
         self.tcoeff2 = [2.937, 4.698, 9.249, 18.11, 12.941, 8.12, 5.1]
         self.tcoeff1 = [180.65, 210.02, 257.0, 349.49, 892.79, 1022.2, 1103.4]
-        self.hvert = 150
+        self.hvert = 100
         self.n = prob.nodes
         '''self.n10 = int(n[0] / 100 * 10)
         self.n90 = n[0] - self.n10
@@ -566,8 +566,8 @@ def equality(prob, obj):
     result.equal(to_new_int(v[0] / 1e3, 0.0, 10, 0.0, 1.0), to_new_int(1.0 / 1e3, 0.0, 10, 0.0, 1.0), unit=1)
     #result.equal(to_new_int(chi[0], np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),
      #           to_new_int(obj.chistart, np.deg2rad(110), np.deg2rad(150), 0.0, 1.0), unit=1)
-    result.equal(to_new_int(gamma[0], np.deg2rad(-40), np.deg2rad(89.9), 0.0, 1.0),
-                 to_new_int(obj.gammastart, np.deg2rad(-40), np.deg2rad(89.9), 0.0, 1.0), unit=1)
+    result.equal(to_new_int(gamma[0], np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),
+                 to_new_int(obj.gammastart, np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0), unit=1)
     result.equal(to_new_int(teta[0], np.deg2rad(-60), 0.0, 0.0, 1.0),
                  to_new_int(obj.longstart, np.deg2rad(-60), 0.0, 0.0, 1.0), unit=1)
     result.equal(to_new_int(lam[0], np.deg2rad(2), np.deg2rad(30), 0.0, 1.0),
@@ -587,8 +587,8 @@ def equality(prob, obj):
     result.equal(to_new_int(vtAbs / 1e3, 0.0, 10, 0.0, 1.0), to_new_int(vt / 1e3, 0.0, 10, 0.0, 1.0), unit=1)
     result.equal(to_new_int(chiass, np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),
                  to_new_int(chifin, np.deg2rad(110), np.deg2rad(150), 0.0, 1.0), unit=1)
-    result.equal(to_new_int(gamma[-1], np.deg2rad(-40), np.deg2rad(89.9), 0.0, 1.0),
-                 to_new_int(0.0, np.deg2rad(-40), np.deg2rad(89.9), 0.0, 1.0), unit=1)
+    result.equal(to_new_int(gamma[-1], np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),
+                 to_new_int(0.0, np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0), unit=1)
 
     return result()
 
@@ -661,8 +661,8 @@ def inequality(prob, obj):
                        to_new_int(np.deg2rad(110), np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),
                        unit=1)  # chi lower bound
 
-    result.lower_bound(to_new_int(gamma, np.deg2rad(-40), np.deg2rad(89.9), 0.0, 1.0),  # obj.gamma_lb, unit=1)
-                       to_new_int(np.deg2rad(-40), np.deg2rad(-40), np.deg2rad(89.9), 0.0, 1.0),
+    result.lower_bound(to_new_int(gamma, np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),  # obj.gamma_lb, unit=1)
+                       to_new_int(np.deg2rad(-40), np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),
                        unit=1)  # gamma lower bound
 
     result.lower_bound(to_new_int(teta, np.deg2rad(-60), 0.0, 0.0, 1.0),
@@ -671,7 +671,7 @@ def inequality(prob, obj):
     result.lower_bound(to_new_int(lam, np.deg2rad(2), np.deg2rad(30), 0.0, 1.0),
                        to_new_int(np.deg2rad(2), np.deg2rad(2), np.deg2rad(30), 0.0, 1.0), unit=1)  # lambda lower bound
 
-    result.lower_bound(to_new_int(h / 1e4, 0.0, 20, 0.0, 1.0), to_new_int(1e-5, 0.0, 12, 0.0, 1.0),
+    result.lower_bound(to_new_int(h / 1e4, 0.0, 12, 0.0, 1.0), to_new_int(1e-5, 0.0, 12, 0.0, 1.0),
                        unit=1)  # h lower bound
 
     result.lower_bound(to_new_int(m, obj.m10, obj.M0, 0.0, 1.0),
@@ -681,7 +681,7 @@ def inequality(prob, obj):
                        to_new_int(np.deg2rad(-2), np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0),
                        unit=1)  # alpha lower bound
 
-    result.lower_bound(delta, 0.001, unit=1)  # delta lower bound
+    result.lower_bound(delta, 0.00001, unit=1)  # delta lower bound
 
     #result.lower_bound(to_new_int(deltaf, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),  # obj.deltaf_lb, unit=1)
      #                  to_new_int(np.deg2rad(-20), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
@@ -695,7 +695,7 @@ def inequality(prob, obj):
     result.lower_bound(to_new_int(mf, obj.m10, obj.M0, 0.0, 1.0),
                        to_new_int(obj.m10, obj.m10, obj.M0, 0.0, 1.0), unit=1)  # mf lower bound
 
-    result.lower_bound(to_new_int(h[-1] / 1e4, 0.0, 20, 0.0, 1.0), to_new_int(8, 0.0, 20, 0.0, 1.0),
+    result.lower_bound(to_new_int(h[-1] / 1e4, 0.0, 12, 0.0, 1.0), to_new_int(8, 0.0, 12, 0.0, 1.0),
                        unit=1)  # final h lower bound
 
     #result.lower_bound(to_new_int(MomTot / 1e4, -1e2, 1e2, 0.0, 1.0), to_new_int(-obj.k / 1e4, -1e2, 1e2, 0.0, 1.0),
@@ -712,8 +712,8 @@ def inequality(prob, obj):
                        to_new_int(np.deg2rad(150), np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),
                        unit=1)  # chi upper bound
 
-    result.upper_bound(to_new_int(gamma, np.deg2rad(-40), np.deg2rad(89.9), 0.0, 1.0),
-                       to_new_int(np.deg2rad(89.9), np.deg2rad(-40), np.deg2rad(89.9), 0.0, 1.0),
+    result.upper_bound(to_new_int(gamma, np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),
+                       to_new_int(np.deg2rad(89), np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),
                        unit=1)  # gamma upper bound
 
     result.upper_bound(to_new_int(teta, np.deg2rad(-60), 0.0, 0.0, 1.0),
@@ -722,7 +722,7 @@ def inequality(prob, obj):
     result.upper_bound(to_new_int(lam, np.deg2rad(2), np.deg2rad(30), 0.0, 1.0),
                        to_new_int(np.deg2rad(30), np.deg2rad(2), np.deg2rad(30), 0.0, 1.0), unit=1)  # lam upper bound
 
-    result.upper_bound(to_new_int(h / 1e4, 0.0, 20, 0.0, 1.0), to_new_int(12, 0.0, 12, 0.0, 1.0),
+    result.upper_bound(to_new_int(h / 1e4, 0.0, 12, 0.0, 1.0), to_new_int(12, 0.0, 12, 0.0, 1.0),
                        unit=1)  # h upper bound
 
     result.upper_bound(to_new_int(m, obj.m10, obj.M0, 0.0, 1.0), to_new_int(obj.M0, obj.m10, obj.M0, 0.0, 1.0),
@@ -866,7 +866,7 @@ if __name__ == '__main__':
     pool = Pool(processes=3)
     plt.ion()
     start = time.time()
-    n = [55]
+    n = [65]
     time_init = [0.0, 600]
     num_states = [7]
     num_controls = [2]
@@ -877,7 +877,7 @@ if __name__ == '__main__':
     varStates = Nstates * Npoints
     varTot = (Nstates + Ncontrols) * Npoints
     Nint = 1000
-    maxiter = 150
+    maxiter = 300
     ftol = 1e-8
     if flag_savefig:
         os.makedirs("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}".format(
@@ -894,7 +894,7 @@ if __name__ == '__main__':
 
     unit_v = 1e4
     unit_chi = np.deg2rad(150)
-    unit_gamma = np.deg2rad(90)
+    unit_gamma = np.deg2rad(89)
     unit_teta = np.deg2rad(-60)
     unit_lam = np.deg2rad(30)
     unit_h = 120000
