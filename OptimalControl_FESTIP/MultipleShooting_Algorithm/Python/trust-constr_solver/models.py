@@ -1,7 +1,6 @@
 import numpy as np
 
 def isa(alt, pstart, g0, r):
-
     t0 = 288.15
     p0 = pstart
     prevh = 0.0
@@ -65,6 +64,7 @@ def isa(alt, pstart, g0, r):
                 break
             else:
                 t0, p0 = cal(p0, t0, a[i], prevh, hv[i])
+                p = p0
                 prevh = hv[i]
 
     elif 90000 <= alt <= 190000:
@@ -75,7 +75,7 @@ def isa(alt, pstart, g0, r):
         zb = h90[6]
         z = h90[-1]
         b = zb - tcoeff1[6] / a90[6]
-        t = tcoeff1[6] + (tcoeff2[6] * (z - zb)) / 1000
+        #t = tcoeff1[6] + (tcoeff2[6] * (z - zb)) / 1000
         tm = tmcoeff[6] + a90[6] * (z - zb) / 1000
         add1 = 1 / ((r + b) * (r + z)) + (1 / ((r + b) ** 2)) * np.log(abs((z - b) / (z + r)))
         add2 = 1 / ((r + b) * (r + zb)) + (1 / ((r + b) ** 2)) * np.log(abs((zb - b) / (zb + r)))

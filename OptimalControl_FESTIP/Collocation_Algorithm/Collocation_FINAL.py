@@ -866,7 +866,7 @@ if __name__ == '__main__':
     pool = Pool(processes=3)
     plt.ion()
     start = time.time()
-    n = [65]
+    n = [40]
     time_init = [0.0, 600]
     num_states = [7]
     num_controls = [2]
@@ -877,7 +877,7 @@ if __name__ == '__main__':
     varStates = Nstates * Npoints
     varTot = (Nstates + Ncontrols) * Npoints
     Nint = 1000
-    maxiter = 300
+    maxiter = 500
     ftol = 1e-8
     if flag_savefig:
         os.makedirs("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}".format(

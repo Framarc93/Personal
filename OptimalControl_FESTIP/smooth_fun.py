@@ -24,8 +24,8 @@ def smooth_init(leg, contp):
     delta = delta[-1]
     #deltaf = np.load("deltaf.npy")
     #deltaf = deltaf[-1]
-    #tau = np.load("tau.npy")
-    #tau = tau[-1]
+    tau = np.load("tau.npy")
+    tau = tau[-1]
     #mu = np.load("mu.npy")
     #mu = mu[-1]
     time = np.load("time.npy")
@@ -40,6 +40,7 @@ def smooth_init(leg, contp):
     m = list(m)
     alfa = list(alfa)
     delta = list(delta)
+    tau = list(tau)
     time = list(time)
 
     to_remove = list(np.where(np.diff(time) == 0)[0])
@@ -54,6 +55,7 @@ def smooth_init(leg, contp):
             m.pop(i)
             alfa.pop(i)
             delta.pop(i)
+            tau.pop(i)
             time.pop(i)
         to_remove = list(np.where(np.diff(time) == 0)[0])
 
@@ -82,8 +84,8 @@ def smooth_init(leg, contp):
     delta_new = delta_int(time_cont)
     #deltaf_int = splrep(time, deltaf, s=1)
     #deltaf_new = splev(time_cont, deltaf_int, der=0)
-    #tau_int = splrep(time, tau, s=1)
-    #tau_new = splev(time_cont, tau_int, der=0)
+    tau_int = PchipInterpolator(time, tau)
+    tau_new = tau_int(time_cont)
     #mu_int = splrep(time, mu, s=1)
     #mu_new = splev(time_cont, mu_int, der=0)
 
@@ -113,7 +115,7 @@ def smooth_init(leg, contp):
     plt.plot(time_cont, mu_new)
     plt.show()'''
 
-    return v_new, chi_new, gamma_new, teta_new, lam_new, h_new, m_new, alfa_new, delta_new #, deltaf_new, tau_new, mu_new
+    return v_new, chi_new, gamma_new, teta_new, lam_new, h_new, m_new, alfa_new, delta_new, tau_new #, deltaf_new, tau_new, mu_new
 
 def bound_def(X, U, uplimx, inflimx, uplimu, inflimu):
     lbs = np.zeros((len(X)))

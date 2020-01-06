@@ -11,9 +11,9 @@ import os
 from scipy.sparse import csc_matrix, save_npz, load_npz
 import sys
 from smooth_fun import *
-from multiprocessing import Pool
+import multiprocessing
 from functools import partial
-
+import os
 sys.path.insert(0, 'home/francesco/Desktop/PhD/FESTIP_Work')
 
 
@@ -31,7 +31,18 @@ sys.path.insert(0, 'home/francesco/Desktop/PhD/FESTIP_Work')
 
 start = time.time()
 timestr = time.strftime("%Y%m%d-%H%M%S")
-savefig_file = "MultiShooting_{}_{}_".format(os.path.basename(__file__), timestr)
+flag_save = True
+laptop = True
+if flag_save and laptop:
+    os.makedirs("/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm"
+               "/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_".format(os.path.basename(__file__), timestr))
+    savefig_file = "/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
+    savedata_file ="/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_/Data_".format(os.path.basename(__file__), timestr)
+elif flag_save and not laptop:
+    os.makedirs("/home/francesco/Desktop/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm"
+               "/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_".format(os.path.basename(__file__), timestr))
+    savefig_file = "/home/francesco/Desktop/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
+    savedata_file ="/home/francesco/Desktop/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_/Data_".format(os.path.basename(__file__), timestr)
 
 '''vehicle parameters'''
 
@@ -117,6 +128,11 @@ def dynamicsInt(t, states, alfa_Int, delta_Int): #, deltaf_Int, tau_Int, mu_Int)
     tau = 0.0 #tau_Int(t)
     mu = 0.0 #mu_Int(t)
 
+    if h > 1e5 or np.isinf(h):
+        h = 1e5
+    elif h < 1 or np.isnan(h):
+        h = 1
+
     Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
 
     M = v / c
@@ -172,7 +188,7 @@ def dynamicsVel(states, contr):
     alfa = contr[0]
     delta = contr[1]
     deltaf = 0.0 #contr[2]
-    tau = 0.0 #contr[3]
+    tau = 0.0 #contr[2]
     mu = 0.0 #contr[4]
 
     Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
@@ -227,7 +243,7 @@ def inequalityAll(states, controls, varnum):
     alfa = np.transpose(controls[:, 0])
     delta = np.transpose(controls[:, 1])
     deltaf = np.zeros(len(v)) #np.transpose(controls[:, 2])
-    tau = np.zeros(len(v)) #np.transpose(controls[:, 3])  # tau back to [-1, 1] interval
+    tau = np.zeros(len(v)) #np.transpose(controls[:, 2])  # tau back to [-1, 1] interval
     # mu = np.transpose(controls[:, 4])
 
     Press, rho, c = isaMulti(h, obj.psl, obj.g0, obj.Re)
@@ -241,17 +257,17 @@ def inequalityAll(states, controls, varnum):
 
     L = np.asarray(L, dtype=np.float64)
     D = np.asarray(D, dtype=np.float64)
-    MomA = np.asarray(MomA, dtype=np.float64)
+    #MomA = np.asarray(MomA, dtype=np.float64)
 
     T, Deps, isp, MomT = thrustMulti(Press, m, presv, spimpv, delta, tau, varnum, obj.psl, obj.M0, obj.m10, obj.lRef,
                                      obj.xcgf, obj.xcg0)
 
     T = np.asarray(T, dtype=np.float64)
-    # isp = np.asarray(isp, dtype=np.float64)
+    #isp = np.asarray(isp, dtype=np.float64)
     Deps = np.asarray(Deps, dtype=np.float64)
-    MomT = np.asarray(MomT, dtype=np.float64)
+    #MomT = np.asarray(MomT, dtype=np.float64)
 
-    MomTot = MomA + MomT
+    #MomTot = MomA + MomT
 
     # dynamic pressure
 
@@ -278,7 +294,7 @@ def inequalityAll(states, controls, varnum):
     return iC
 
 
-def SingleShootingMulti(var, dyn, Nint, i):
+def SingleShootingMulti(i, var, dyn, Nint):
     '''this function integrates the dynamics equation over time.'''
     '''INPUT: states: states vector
               controls: controls matrix
@@ -307,7 +323,7 @@ def SingleShootingMulti(var, dyn, Nint, i):
         alfa[k] = var[varStates + i * (Ncontrols * NContPoints) + Ncontrols * k]
         delta[k] = var[varStates + i * (Ncontrols * NContPoints) + 1 + Ncontrols * k]
         #deltaf[k] = var[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
-        #tau[k] = var[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
+        #tau[k] = var[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
         #mu[k] = var[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
 
     controls = np.vstack((alfa, delta))#, deltaf, tau, mu))  # orig intervals
@@ -323,7 +339,7 @@ def SingleShootingMulti(var, dyn, Nint, i):
     alfa_Int = interpolate.PchipInterpolator(timeCont, controls[0, :])
     delta_Int = interpolate.PchipInterpolator(timeCont, controls[1, :])
     #deltaf_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
-    #tau_Int = interpolate.PchipInterpolator(timeCont, controls[3, :])
+    #tau_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
     #mu_Int = interpolate.PchipInterpolator(timeCont, controls[4, :])
 
     time_int = np.linspace(tstart, tfin, Nintlocal)
@@ -373,9 +389,9 @@ def MultiShooting(var, dyn):
     mres = np.zeros((0))
     alfares = np.zeros((0))
     deltares = np.zeros((0))
-    deltafres = np.zeros((0))
-    taures = np.zeros((0))
-    mures = np.zeros((0))
+    #deltafres = np.zeros((0))
+    #taures = np.zeros((0))
+    #mures = np.zeros((0))
     tres = np.zeros((0))
 
     states_atNode = np.zeros((0))
@@ -383,7 +399,7 @@ def MultiShooting(var, dyn):
     varD = var * (obj.UBV - obj.LBV) + obj.LBV
 
     try:
-        res = p.map(partial(SingleShootingMulti, varD, dyn, Nint), range(Nleg))
+        res = p.map(partial(SingleShootingMulti, var=varD, dyn=dyn, Nint=Nint), range(Nleg))
 
         for i in range(Nleg):
             leg = res[i]
@@ -397,9 +413,9 @@ def MultiShooting(var, dyn):
             tres = np.hstack((tres, leg[7]))
             alfares = np.hstack((alfares, leg[8]))
             deltares = np.hstack((deltares, leg[9]))
-            deltafres = np.hstack((deltafres, leg[10]))
-            taures = np.hstack((taures, leg[11]))
-            mures = np.hstack((mures, leg[12]))
+            #deltafres = np.hstack((deltafres, leg[10]))
+            #taures = np.hstack((taures, leg[11]))
+            #mures = np.hstack((mures, leg[12]))
             states_atNode = np.hstack((states_atNode, (
                 (vres[-1], chires[-1], gammares[-1], tetares[-1], lamres[-1], hres[-1], mres[-1]))))  # new intervals
 
@@ -431,7 +447,7 @@ def MultiShooting(var, dyn):
         h = states_after[-1, 5]
         m = states_after[-1, 6]
         delta = controls_after[-1, 1]
-        tau = 0.0 #controls_after[-1, 3]
+        tau = 0.0 #controls_after[-1, 2]
 
         Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
 
@@ -484,7 +500,7 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
     alfa_Int = interpolate.PchipInterpolator(timeCont, controls[0, :])
     delta_Int = interpolate.PchipInterpolator(timeCont, controls[1, :])
     #deltaf_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
-    #tau_Int = interpolate.PchipInterpolator(timeCont, controls[3, :])
+    #tau_Int = interpolate.PchipInterpolator(timeCont, controls[2, :])
     #mu_Int = interpolate.PchipInterpolator(timeCont, controls[4, :])
 
 
@@ -532,22 +548,22 @@ def SingleShooting(states, controls, dyn, tstart, tfin, Nint):
 def plot(var, Nint):
 
     time = np.zeros((1))
-    timeTotal = np.zeros((0))
+    #timeTotal = np.zeros((0))
     alfaCP = np.zeros((Nleg, NContPoints))
     deltaCP = np.zeros((Nleg, NContPoints))
-    deltafCP = np.zeros((Nleg, NContPoints))
-    tauCP = np.zeros((Nleg, NContPoints))
-    muCP = np.zeros((Nleg, NContPoints))
-    res = open("res_{}_{}.txt".format(os.path.basename(__file__), timestr), "w")
+    #deltafCP = np.zeros((Nleg, NContPoints))
+    #tauCP = np.zeros((Nleg, NContPoints))
+    #muCP = np.zeros((Nleg, NContPoints))
+
     tCtot = np.zeros((0))
     timestart = 0.0
     varD = var * (obj.UBV - obj.LBV) + obj.LBV
     for i in range(Nleg):
         alfa = np.zeros((NContPoints))
         delta = np.zeros((NContPoints))
-        deltaf = np.zeros((NContPoints))
-        tau = np.zeros((NContPoints))
-        mu = np.zeros((NContPoints))
+        #deltaf = np.zeros((NContPoints))
+        #tau = np.zeros((NContPoints))
+        #mu = np.zeros((NContPoints))
         states = varD[i * Nstates:(i + 1) * Nstates]  # orig intervals
 
         timeend = timestart + varD[i + varTot]
@@ -563,7 +579,7 @@ def plot(var, Nint):
             deltaCP[i, k] = delta[k]
             #deltaf[k] = varD[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
             #deltafCP[i, k] = deltaf[k]
-            #tau[k] = varD[varStates + i * (Ncontrols * NContPoints) + 3 + Ncontrols * k]
+            #tau[k] = varD[varStates + i * (Ncontrols * NContPoints) + 2 + Ncontrols * k]
             #tauCP[i, k] = tau[k]
             #mu[k] = varD[varStates + i * (Ncontrols * NContPoints) + 4 + Ncontrols * k]
             #muCP[i, k] = mu[k]
@@ -609,7 +625,7 @@ def plot(var, Nint):
                 g.append(g0)
             else:
                 g.append(obj.g0 * (obj.Re / (obj.Re + alt)) ** 2)
-        g = np.asarray(g, dtype=np.float64)
+        #g = np.asarray(g, dtype=np.float64)
         # dynamic pressure
 
         q = 0.5 * rho * (vres ** 2)
@@ -619,21 +635,24 @@ def plot(var, Nint):
         ax = (T * np.cos(Deps) - D * np.cos(alfares) + L * np.sin(alfares)) / mres
         az = (T * np.sin(Deps) + D * np.sin(alfares) + L * np.cos(alfares)) / mres
 
-        res.write("Number of leg: " + str(Nleg) + "\n"
-            + "Number of NLP iterations: " + str(maxiter) + "\n" + "Leg Number:" + str(i) + "\n" + "v: " + str(
-            vres) + "\n" + "Chi: " + str(np.rad2deg(chires))
-            + "\n" + "Gamma: " + str(np.rad2deg(gammares)) + "\n" + "Teta: " + str(
-            np.rad2deg(tetares)) + "\n" + "Lambda: "
-            + str(np.rad2deg(lamres)) + "\n" + "Height: " + str(hres) + "\n" + "Mass: " + str(
-            mres) + "\n" + "mf: " + str(mf) + "\n"
-            + "Objective Function: " + str(-mf / obj.M0) + "\n" + "Alfa: "
-            + str(np.rad2deg(alfares)) + "\n" + "Delta: " + str(deltares) + "\n" + "Delta f: " + str(
-            np.rad2deg(deltafres)) + "\n"
-            + "Tau: " + str(taures) + "\n" + "Eps: " + str(np.rad2deg(eps)) + "\n" + "Lift: "
-            + str(L) + "\n" + "Drag: " + str(D) + "\n" + "Thrust: " + str(T) + "\n" + "Spimp: " + str(
-            isp) + "\n" + "c: "
-            + str(c) + "\n" + "Mach: " + str(M) + "\n" + "Time vector: " + str(timeTotal) + "\n" + "Press: " + str(
-            Press) + "\n" + "Dens: " + str(rho) + "\n" + "Time elapsed during optimization: " + tformat)
+        if flag_save:
+            res = open(savedata_file + "res_{}_{}.txt".format(os.path.basename(__file__), timestr), "w")
+            res.write("Number of leg: " + str(Nleg) + "\n"
+                + "Number of NLP iterations: " + str(maxiter) + "\n" + "Leg Number:" + str(i) + "\n" + "v: " + str(
+                vres) + "\n" + "Chi: " + str(np.rad2deg(chires))
+                + "\n" + "Gamma: " + str(np.rad2deg(gammares)) + "\n" + "Teta: " + str(
+                np.rad2deg(tetares)) + "\n" + "Lambda: "
+                + str(np.rad2deg(lamres)) + "\n" + "Height: " + str(hres) + "\n" + "Mass: " + str(
+                mres) + "\n" + "mf: " + str(mf) + "\n"
+                + "Objective Function: " + str(-mf / obj.M0) + "\n" + "Alfa: "
+                + str(np.rad2deg(alfares)) + "\n" + "Delta: " + str(deltares) + "\n" + "Delta f: " + str(
+                np.rad2deg(deltafres)) + "\n"
+                + "Tau: " + str(taures) + "\n" + "Eps: " + str(np.rad2deg(eps)) + "\n" + "Lift: "
+                + str(L) + "\n" + "Drag: " + str(D) + "\n" + "Thrust: " + str(T) + "\n" + "Spimp: " + str(
+                isp) + "\n" + "c: "
+                + str(c) + "\n" + "Mach: " + str(M) + "\n" + "Time vector: " + str(timeTotal) + "\n" + "Press: " + str(
+                Press) + "\n" + "Dens: " + str(rho) + "\n" + "Time elapsed during optimization: " + tformat)
+            res.close()
 
         downrange = (vres ** 2) / g * np.sin(2 * gammares)
 
@@ -644,7 +663,8 @@ def plot(var, Nint):
         plt.ylabel("m/s")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "velocity" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "velocity" + ".png")
 
 
         plt.figure(1)
@@ -654,7 +674,8 @@ def plot(var, Nint):
         plt.ylabel("deg")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "chi" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "chi" + ".png")
 
 
         plt.figure(2)
@@ -664,7 +685,8 @@ def plot(var, Nint):
         plt.ylabel("deg")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "gamma" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "gamma" + ".png")
 
 
         plt.figure(3)
@@ -674,7 +696,8 @@ def plot(var, Nint):
         plt.ylabel("deg")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "theta" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "theta" + ".png")
 
 
         plt.figure(4)
@@ -684,7 +707,8 @@ def plot(var, Nint):
         plt.ylabel("deg")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "lambda" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "lambda" + ".png")
 
 
         plt.figure(5)
@@ -698,7 +722,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Chi", "Gamma", "Theta", "Lambda"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "angles" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "angles" + ".png")
 
 
         plt.figure(6)
@@ -708,7 +733,8 @@ def plot(var, Nint):
         plt.ylabel("km")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "altitude" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "altitude" + ".png")
 
 
         plt.figure(7)
@@ -718,7 +744,8 @@ def plot(var, Nint):
         plt.ylabel("kg")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "mass" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "mass" + ".png")
 
 
         plt.figure(8)
@@ -730,7 +757,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "alpha" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "alpha" + ".png")
 
 
         plt.figure(9)
@@ -744,7 +772,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Delta", "Tau", "Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "throttles" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "throttles" + ".png")
 
 
         '''plt.figure(10)
@@ -756,7 +785,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "deltaf" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "deltaf" + ".png")
 
         plt.figure(11)
         plt.title("Bank angle profile \u03BC")
@@ -767,7 +797,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Control points"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "mu" + ".png")'''
+        if flag_save:
+            plt.savefig(savefig_file + "mu" + ".png")'''
 
 
         plt.figure(12)
@@ -777,7 +808,8 @@ def plot(var, Nint):
         plt.ylabel("kPa")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "dynPress" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "dynPress" + ".png")
 
 
         plt.figure(13)
@@ -789,7 +821,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["ax", "az"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "accelerations" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "accelerations" + ".png")
 
 
         plt.figure(14)
@@ -798,7 +831,8 @@ def plot(var, Nint):
         plt.grid()
         plt.ylabel("km")
         plt.xlabel("km")
-        plt.savefig(savefig_file + "downrange" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "downrange" + ".png")
 
 
         plt.figure(15)
@@ -811,7 +845,8 @@ def plot(var, Nint):
         plt.xlabel("time [s]")
         plt.legend(["Thrust", "Lift", "Drag"], loc="best")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "forces" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "forces" + ".png")
 
 
         plt.figure(16)
@@ -820,7 +855,8 @@ def plot(var, Nint):
         plt.grid()
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "mach" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "mach" + ".png")
 
 
         plt.figure(17)
@@ -832,7 +868,8 @@ def plot(var, Nint):
         plt.ylabel("kNm")
         plt.xlabel("time [s]")
         plt.axvline(time[i], color="k", alpha=0.5)
-        plt.savefig(savefig_file + "moment" + ".png")
+        if flag_save:
+            plt.savefig(savefig_file + "moment" + ".png")
 
         timestart = timeend
 
@@ -841,7 +878,7 @@ def plot(var, Nint):
     print("altitude Hohmann starts: {0:.5f}".format(hres[-1]))
     print("final time  : {}".format(time))
 
-    res.close()
+
     plt.show()
     plt.close(0)
     plt.close(1)
@@ -935,20 +972,21 @@ def cost_fun(var):
 
         return cost
 
+
 if __name__ == '__main__':
     obj = Spaceplane()
 
 
     '''reading of aerodynamic coefficients and specific impulse from file'''
 
-    cl = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt")
-    cd = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt")
-    cm = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt")
+    cl = fileReadOr("/home/francesco/Desktop/PhD//Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt")
+    cd = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt")
+    cm = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt")
     cl = np.asarray(cl)
     cd = np.asarray(cd)
     cm = np.asarray(cm)
 
-    with open("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
+    with open("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
         impulse = []
         for line in f:
             line = line.split()
@@ -989,7 +1027,7 @@ if __name__ == '__main__':
     general_tol = 1e-8
     tr_radius = 10
     constr_penalty = 10
-    maxiter = 200  # max number of iterations for nlp solver
+    maxiter = 200 # max number of iterations for nlp solver
 
     '''definiton of initial conditions'''
 
@@ -999,7 +1037,7 @@ if __name__ == '__main__':
 
     vars = smooth_init(Nleg, NContPoints)
 
-    v_init = vars[0]
+    '''v_init = vars[0]
     chi_init = vars[1]
     gamma_init = vars[2]
     teta_init = vars[3]
@@ -1009,7 +1047,7 @@ if __name__ == '__main__':
     alfa_init = vars[7]
     delta_init = vars[8]
     #deltaf_init = vars[9]
-    #tau_init = vars[10]
+    tau_init = vars[9]
     #mu_init = vars[11]
     v_init[0] = 1.0
     chi_init[0] = obj.chistart
@@ -1022,7 +1060,21 @@ if __name__ == '__main__':
     delta_init[0] = 1.0
     #deltaf_init[0] = 0.0
     #tau_init[0] = 0.0
-    #mu_init[0] = 0.0
+    #mu_init[0] = 0.0'''
+    t_stat = np.linspace(0, time_tot, Nbar)
+    t_contr = np.linspace(0, time_tot, NContPoints*Nleg)
+    v_init = Guess.linear(t_stat, 1, obj.Vtarget)
+    chi_init = Guess.linear(t_stat, obj.chistart, obj.chi_fin)
+    gamma_init = Guess.linear(t_stat, obj.gammastart, 0.0)
+    teta_init = Guess.constant(t_stat, obj.longstart)
+    lam_init = Guess.constant(t_stat, obj.latstart)
+    h_init = Guess.linear(t_stat, 1, obj.Hini)
+    m_init = Guess.linear(t_stat, obj.M0, obj.m10)
+
+    alfa_init = Guess.zeros(t_contr)
+    part1 = np.repeat(1.0, int(len(t_contr)/3))
+    part2 = Guess.linear(t_contr[int(len(t_contr)/3):], 1.0, 0.05)
+    delta_init = np.hstack((part1, part2))
 
     states_init = np.array((v_init[0], chi_init[0], gamma_init[0], teta_init[0], lam_init[0], h_init[0], m_init[0]))
     cont_init = np.array((alfa_init[0], delta_init[0]))#, deltaf_init[0], tau_init[0], mu_init[0]))
@@ -1046,7 +1098,7 @@ if __name__ == '__main__':
         '''creation of vector of time intervals'''
         dt = np.hstack((dt, tnew[i + 1] - tnew[i]))
 
-    uplimx = np.tile([1e4, np.deg2rad(270), np.deg2rad(89), 0.0, np.deg2rad(25), 2e5, obj.M0], Nleg)
+    uplimx = np.tile([1e4, np.deg2rad(270), np.deg2rad(89), 0.0, np.deg2rad(25), 1e5, obj.M0], Nleg)
     inflimx = np.tile([1.0, np.deg2rad(90), np.deg2rad(-89), np.deg2rad(-70), np.deg2rad(2), 1.0, obj.m10], Nleg)
     uplimu = np.tile([np.deg2rad(40), 1.0], Nleg * NContPoints)
     inflimu = np.tile([np.deg2rad(-2), 0.0001], Nleg * NContPoints)
@@ -1088,7 +1140,7 @@ if __name__ == '__main__':
     bndT_slsqp = ((0.0, 1.0),)
     bnds_slsqp = bndX_slsqp * Nleg + bndU_slsqp * Nleg * NContPoints + bndT_slsqp * Nleg
 
-    sparseJac = load_npz("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz")
+    sparseJac = load_npz("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz")
     sp = sparseJac.todense()
     row = np.shape(sp)[0]
     column = np.shape(sp)[1]
@@ -1135,12 +1187,13 @@ if __name__ == '__main__':
     '''NLP SOLVER'''
 
     iterator = 0
-    tot_it = 4
-    p = Pool(processes=Nleg)
+    tot_it = 5
+    nbCPU = multiprocessing.cpu_count()
+    p = multiprocessing.Pool(nbCPU)
     while iterator < tot_it:
 
         print("Start global search")
-        minimizer_kwargs = {'method':'SLSQP', "constraints":cons_slsqp, "bounds":bnds_slsqp, "options": {"maxiter":50}}
+        minimizer_kwargs = {'method':'SLSQP', "constraints":cons_slsqp, "bounds":bnds_slsqp, "options": {"maxiter":200}}
         optb = basinhopping(cost_fun, X0a, niter=5, disp=True, minimizer_kwargs=minimizer_kwargs, take_step=bounded_step)
         #optb = shgo(cost_fun, bnds_slsqp, minimizer_kwargs=minimizer_kwargs, options={"disp": True, "maxtime":1})
         print("Done global search")
