@@ -1017,7 +1017,7 @@ if __name__ == '__main__':
     print("Time elapsed:for total optimization ", tformat)
 
 
-    def dynamicsInt(t, states, alfa_int, delta_int):#, deltaf_int, tau_int, mu_int):
+    def dynamicsInt(t, states, delta_int):#, deltaf_int, tau_int, mu_int):
         # this functions receives the states and controls unscaled and calculates the dynamics
 
         v = states[0]
@@ -1162,7 +1162,7 @@ if __name__ == '__main__':
     mu = np.zeros(len(v)) #prob.controls_all_section(4)
 
 
-    Uval = np.vstack((delta))#, deltaf, tau, mu))
+    Uval = np.array((delta,)) #np.vstack((delta))#, deltaf, tau, mu))
 
     Xinit = np.array((v[0], chi[0], gamma[0], teta[0], lam[0], h[0], m[0]))
 
