@@ -32,17 +32,16 @@ sys.path.insert(0, 'home/francesco/Desktop/PhD/FESTIP_Work')
 start = time.time()
 timestr = time.strftime("%Y%m%d-%H%M%S")
 flag_save = True
-laptop = True
+laptop = False
 if flag_save and laptop:
     os.makedirs("/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm"
                "/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_".format(os.path.basename(__file__), timestr))
     savefig_file = "/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
     savedata_file ="/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_/Data_".format(os.path.basename(__file__), timestr)
 elif flag_save and not laptop:
-    os.makedirs("/home/francesco/Desktop/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm"
-               "/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_".format(os.path.basename(__file__), timestr))
-    savefig_file = "/home/francesco/Desktop/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
-    savedata_file ="/home/francesco/Desktop/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_/Data_".format(os.path.basename(__file__), timestr)
+    os.makedirs("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_".format(os.path.basename(__file__), timestr))
+    savefig_file = "/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
+    savedata_file ="/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_/Data_".format(os.path.basename(__file__), timestr)
 
 '''vehicle parameters'''
 
@@ -979,14 +978,14 @@ if __name__ == '__main__':
 
     '''reading of aerodynamic coefficients and specific impulse from file'''
 
-    cl = fileReadOr("/home/francesco/Desktop/PhD//Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt")
-    cd = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt")
-    cm = fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt")
+    cl = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt")
+    cd = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt")
+    cm = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt")
     cl = np.asarray(cl)
     cd = np.asarray(cd)
     cm = np.asarray(cm)
 
-    with open("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
+    with open("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
         impulse = []
         for line in f:
             line = line.split()
@@ -1140,7 +1139,7 @@ if __name__ == '__main__':
     bndT_slsqp = ((0.0, 1.0),)
     bnds_slsqp = bndX_slsqp * Nleg + bndU_slsqp * Nleg * NContPoints + bndT_slsqp * Nleg
 
-    sparseJac = load_npz("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz")
+    sparseJac = load_npz("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz")
     sp = sparseJac.todense()
     row = np.shape(sp)[0]
     column = np.shape(sp)[1]
@@ -1193,7 +1192,7 @@ if __name__ == '__main__':
     while iterator < tot_it:
 
         print("Start global search")
-        minimizer_kwargs = {'method':'SLSQP', "constraints":cons_slsqp, "bounds":bnds_slsqp, "options": {"maxiter":200}}
+        minimizer_kwargs = {'method':'SLSQP', "constraints":cons_slsqp, "bounds":bnds_slsqp, "options": {"maxiter":300}}
         optb = basinhopping(cost_fun, X0a, niter=5, disp=True, minimizer_kwargs=minimizer_kwargs, take_step=bounded_step)
         #optb = shgo(cost_fun, bnds_slsqp, minimizer_kwargs=minimizer_kwargs, options={"disp": True, "maxtime":1})
         print("Done global search")

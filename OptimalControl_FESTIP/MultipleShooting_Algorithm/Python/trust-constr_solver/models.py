@@ -82,9 +82,10 @@ def isa(alt, pstart, g0, r):
         p = pcoeff[6] * np.exp(-m0 / (a90[6] * Rs) * g0 * r ** 2 * (add1 - add2))
         d = p / (R * tm)
         c = np.sqrt(1.4 * R * tm)
-
-    return p, d, c
-
+    try:
+        return p, d, c
+    except UnboundLocalError:
+        print("e")
 
 def thrustSimpl(presamb, mass, presv, spimpv, delta, slpres, wlo, we, lref, xcgf, xcg0):
     nimp = 17
