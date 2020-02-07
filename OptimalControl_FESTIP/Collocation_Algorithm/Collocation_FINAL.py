@@ -15,6 +15,8 @@ from scipy import optimize
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import splev, splrep
 from scipy.optimize import basinhopping
+import scipy.io as sio
+from import_initialCond import init_conds
 
 sys.path.insert(0, 'home/francesco/git_workspace/FESTIP_Work')
 
@@ -83,16 +85,34 @@ class Spaceplane():
         self.tcoeff1 = [180.65, 210.02, 257.0, 349.49, 892.79, 1022.2, 1103.4]
         self.hvert = 100
         self.n = prob.nodes
+        self.gammamax = np.deg2rad(89.9)
+        self.gammamin = np.deg2rad(-50)
+        self.chimax = np.deg2rad(150)
+        self.chimin = np.deg2rad(100)
+        self.lammax = np.deg2rad(30)
+        self.lammin = np.deg2rad(2)
+        self.tetamax = np.deg2rad(-10)
+        self.tetamin = np.deg2rad(-70)
+        self.hmax = 2e5
+        self.hmin = 1.0
+        self.vmax = 1e4
+        self.vmin = 1.0
+        self.alfamax = np.deg2rad(40)
+        self.alfamin = np.deg2rad(-2)
+        self.deltamax = 1.0
+        self.deltamin = 0.0
+        self.vstart = 0.1
+        self.hstart = 0.1
         '''self.n10 = int(n[0] / 100 * 10)
         self.n90 = n[0] - self.n10
         self.n15 = int(n[0] / 100 * 15)
         self.n85 = n[0] - self.n15
         self.n20 = int(n[0] / 100 * 20)
-        self.n80 = n[0] - self.n20
-        self.n30 = int(n[0] / 100 * 30)
-        self.n70 = n[0] - self.n30
+        self.n80 = n[0] - self.n20'''
+        self.n32 = int(n[0] / 100 * 20)
+        #self.n70 = n[0] - self.n30
         self.n35 = int(n[0] / 100 * 35)
-        self.n65 = n[0] - self.n35'''
+        #self.n65 = n[0] - self.n35
         self.n40 = int(n[0] / 100 * 40)
         self.n60 = n[0] - self.n40
         self.n45 = int(n[0] / 100 * 45)
@@ -395,11 +415,11 @@ def dynamics(prob, obj, section):
     h = prob.states(5, section)
     m = prob.states(6, section)
     #time = prob.time_update()
-    alfa = np.zeros(len(v)) #prob.controls(0, section)
+    alfa = prob.controls(0, section)
     #part1 = np.repeat(1.0, int(len(v) * 0.4))
     #part2 = Guess.linear(time[int(len(v) * 0.4):], 1.0, 0.0001)
     #delta = np.hstack((part1, part2))
-    delta = prob.controls(0, section)
+    delta = prob.controls(1, section)
     deltaf = np.zeros(len(v)) #prob.controls(2, section)
     tau = np.zeros(len(v)) #prob.controls(2, section)
     mu = np.zeros(len(v)) #prob.controls(4, section)
@@ -425,11 +445,13 @@ def dynamics(prob, obj, section):
         else:
             g[k] = obj.g0 * (obj.Re / (obj.Re + alt)) ** 2  # [m/s2]
             k += 1
-
+    hi = 0
     for i in range(len(h)):
         if h[i] > obj.hvert:
             hi = i-1
             break
+    if hi == 0:
+        hi = 1
 
     dx = Dynamics(prob, section)
 
@@ -464,7 +486,7 @@ def cost(prob, obj):
     #part1 = np.repeat(1.0, int(len(m) * 0.4))
     #part2 = Guess.linear(time[int(len(m) * 0.4):], 1.0, 0.0001)
     #delta = np.hstack((part1, part2))
-    delta = prob.controls_all_section(0)
+    delta = prob.controls_all_section(1)
     tau = np.zeros(len(h)) #prob.controls_all_section(2)
 
     Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 0)
@@ -489,12 +511,12 @@ def equality(prob, obj):
     h = prob.states_all_section(5)
     m = prob.states_all_section(6)
 
-    alfa = np.zeros(len(v)) #prob.controls_all_section(0)
+    alfa = prob.controls_all_section(0)
     #part1 = np.repeat(1.0, int(len(v) * 0.4))
     #time = prob.time_update()
     #part2 = Guess.linear(time[int(len(v) * 0.4):], 1.0, 0.0001)
     #delta = np.hstack((part1, part2))
-    delta = prob.controls_all_section(0)
+    delta = prob.controls_all_section(1)
     #deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
     #tau = prob.controls_all_section(2)
     #mu = np.zeros(len(v)) #prob.controls_all_section(4)
@@ -569,32 +591,33 @@ def equality(prob, obj):
     result = Condition()
 
     # event condition
-    result.equal(to_new_int(v[0] / 1e3, 0.0, 10, 0.0, 1.0), to_new_int(1.0 / 1e3, 0.0, 10, 0.0, 1.0), unit=1)
-    #result.equal(to_new_int(chi[0], np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),
-     #           to_new_int(obj.chistart, np.deg2rad(110), np.deg2rad(150), 0.0, 1.0), unit=1)
-    result.equal(to_new_int(gamma[0], np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),
-                 to_new_int(obj.gammastart, np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0), unit=1)
-    result.equal(to_new_int(teta[0], np.deg2rad(-60), 0.0, 0.0, 1.0),
-                 to_new_int(obj.longstart, np.deg2rad(-60), 0.0, 0.0, 1.0), unit=1)
-    result.equal(to_new_int(lam[0], np.deg2rad(2), np.deg2rad(30), 0.0, 1.0),
-                 to_new_int(obj.latstart, np.deg2rad(2), np.deg2rad(30), 0.0, 1.0), unit=1)
-    result.equal(to_new_int(h[0] / 1e4, 0.0, 12, 0.0, 1.0), to_new_int(1 / 1e4, 0.0, 12, 0.0, 1.0), unit=1)
-    result.equal(to_new_int(m[0], obj.m10, obj.M0, 0.0, 1.0), to_new_int(obj.M0, obj.m10, obj.M0, 0.0, 1.0), unit=1)
-    #result.equal(to_new_int(alfa[0], np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0),
-    #             to_new_int(0.0, np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0), unit=1)
-    result.equal(delta[0], 1.0, unit=1)
-    #result.equal(to_new_int(deltaf[0], np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
-     #            to_new_int(0.0, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0), unit=1)
-    #result.equal(to_new_int(tau[0], -1, 1, 0.0, 1.0), to_new_int(0.0, -1, 1, 0.0, 1.0), unit=1)
-    #result.equal(to_new_int(mu[0], np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),
-     #            to_new_int(0.0, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)
-    #result.equal(to_new_int(mu[-1], np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),
-     #            to_new_int(0.0, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)
-    result.equal(to_new_int(vtAbs / 1e3, 0.0, 10, 0.0, 1.0), to_new_int(vt / 1e3, 0.0, 10, 0.0, 1.0), unit=1)
-    result.equal(to_new_int(chiass, np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),
-                 to_new_int(chifin, np.deg2rad(110), np.deg2rad(150), 0.0, 1.0), unit=1)
-    result.equal(to_new_int(gamma[-1], np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),
-                 to_new_int(0.0, np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(v[0], obj.vmin, obj.vmax, 0.0, 1.0), to_new_int(obj.vstart, obj.vmin, obj.vmax, 0.0, 1.0), unit=1)      #########   O L D  ##########
+    # result.equal(to_new_int(chi[0], obj.chimin, obj.chimax, 0.0, 1.0), to_new_int(obj.chistart, obj.chimin, obj.chimax, 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(gamma[0], obj.gammamin, obj.gammamax, 0.0, 1.0), to_new_int(obj.gammastart, obj.gammamin, obj.gammamax, 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(teta[0], obj.tetamin, obj.tetamax, 0.0, 1.0), to_new_int(obj.longstart, obj.tetamin, obj.tetamax, 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(lam[0], obj.lammin, obj.lammax, 0.0, 1.0), to_new_int(obj.latstart, obj.lammin, obj.lammax, 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(h[0], obj.hmin, obj.hmax, 0.0, 1.0), to_new_int(obj.hstart, obj.hmin, obj.hmax, 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(m[0], obj.m10, obj.M0, 0.0, 1.0), to_new_int(obj.M0, obj.m10, obj.M0, 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(alfa[0], np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0), to_new_int(0.0, np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(deltaf[0], np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0), to_new_int(0.0, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(tau[0], -1, 1, 0.0, 1.0), to_new_int(0.0, -1, 1, 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(mu[0], np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), to_new_int(0.0, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(mu[-1], np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), to_new_int(0.0, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(vtAbs, obj.vmin, obj.vmax, 0.0, 1.0), to_new_int(vt, obj.vmin, obj.vmax, 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(chiass, obj.chimin, obj.chimax, 0.0, 1.0), to_new_int(chifin, obj.chimin, obj.chimax, 0.0, 1.0), unit=1)
+    # result.equal(to_new_int(gamma[-1], obj.gammamin, obj.gammamax, 0.0, 1.0), to_new_int(0.0, obj.gammamin, obj.gammamax, 0.0, 1.0), unit=1)
+
+    result.equal(v[0], obj.vstart, unit=obj.vmax)
+    result.equal(chi[0], obj.chistart, unit=obj.chimax)
+    result.equal(gamma[0], obj.gammastart, unit=obj.gammastart)
+    result.equal(teta[0], obj.longstart, unit=obj.tetamax)
+    result.equal(lam[0], obj.latstart, unit=obj.lammax)
+    result.equal(h[0], obj.hstart, unit=obj.hmax)
+    result.equal(m[0], obj.M0, unit=obj.M0)
+    result.equal(delta[0], 1.0, unit=obj.deltamax)
+    result.equal(vtAbs, vt, unit=obj.vmax)
+    result.equal(chiass, chifin, unit=obj.chimax)
+    result.equal(gamma[-1], 0.0, unit=obj.gammamax)
 
     return result()
 
@@ -608,12 +631,11 @@ def inequality(prob, obj):
     h = prob.states_all_section(5)
     m = prob.states_all_section(6)
     time = prob.time_update()
-    alfa = np.zeros(len(v)) #prob.controls_all_section(0)
-
+    alfa = prob.controls_all_section(0)
     #part1 = np.repeat(1.0, int(len(v) * 0.4))
     #part2 = Guess.linear(time[int(len(v) * 0.4):], 1.0, 0.0001)
     #delta = np.hstack((part1, part2))
-    delta = prob.controls_all_section(0)
+    delta = prob.controls_all_section(1)
     deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
     tau = np.zeros(len(v)) #prob.controls_all_section(2)
     #mu = np.zeros(len(v)) #prob.controls_all_section(4)
@@ -663,84 +685,64 @@ def inequality(prob, obj):
     result = Condition()
 
     # lower bounds
-    result.lower_bound(to_new_int(v / 1e3, 0.0, 10, 0.0, 1.0), to_new_int(1e-5, 0.0, 10, 0.0, 1.0),
-                       unit=1)  # v lower bound
+    # result.lower_bound(to_new_int(v, obj.vmin, obj.vmax, 0.0, 1.0), to_new_int(obj.vmin, obj.vmin, obj.vmax, 0.0, 1.0), unit=1)  # v lower bound                                   ############### OLD  ###################
+    # result.lower_bound(to_new_int(chi, obj.chimin, obj.chimax, 0.0, 1.0), to_new_int(obj.chimin, obj.chimin, obj.chimax, 0.0, 1.0), unit=1)  # chi lower bound
+    # result.lower_bound(to_new_int(gamma, obj.gammamin, obj.gammamax, 0.0, 1.0), to_new_int(obj.gammamin, obj.gammamin, obj.gammamax, 0.0, 1.0), unit=1)  # gamma lower bound
+    # result.lower_bound(to_new_int(teta, obj.tetamin, obj.tetamax, 0.0, 1.0), to_new_int(obj.tetamin, obj.tetamin, obj.tetamax, 0.0, 1.0), unit=1)  # teta lower bound
+    # result.lower_bound(to_new_int(lam, obj.lammin, obj.lammax, 0.0, 1.0), to_new_int(obj.lammin, obj.lammin, obj.lammax, 0.0, 1.0), unit=1)  # lambda lower bound
+    # result.lower_bound(to_new_int(h, obj.hmin, obj.hmax, 0.0, 1.0), to_new_int(obj.hmin, obj.hmin, obj.hmax, 0.0, 1.0), unit=1)  # h lower bound
+    # result.lower_bound(to_new_int(m, obj.m10, obj.M0, 0.0, 1.0), to_new_int(obj.m10, obj.m10, obj.M0, 0.0, 1.0), unit=1)  # m lower bound
+    # result.lower_bound(to_new_int(alfa, np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0), to_new_int(np.deg2rad(-2), np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0), unit=1)  # alpha lower bound
+    # result.lower_bound(delta, obj.deltamin, unit=1)  # delta lower bound
+    # result.lower_bound(to_new_int(deltaf, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),  # obj.deltaf_lb, unit=1), to_new_int(np.deg2rad(-20), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0), unit=1)  # deltaf lower bound
+    # result.lower_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(-1, -1, 1, 0, 1), unit=1)  # tau lower bound
+    # result.lower_bound(to_new_int(mu, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),  to_new_int(np.deg2rad(-60), np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)  # mu lower bound
+    # result.lower_bound(to_new_int(mf, obj.m10, obj.M0, 0.0, 1.0), to_new_int(obj.m10, obj.m10, obj.M0, 0.0, 1.0), unit=1)  # mf lower bound
+    # result.lower_bound(to_new_int(h[-1], obj.hmin, obj.hmax, 0.0, 1.0), to_new_int(6e4, obj.hmin, obj.hmax, 0.0, 1.0), unit=1)  # final h lower bound
+    # result.lower_bound(to_new_int(MomTot / 1e4, -1e2, 1e2, 0.0, 1.0), to_new_int(-obj.k / 1e4, -1e2, 1e2, 0.0, 1.0), unit=1)  # total moment lower bound
+    # result.lower_bound(to_new_int(az, -1e2, 1e2, 0.0, 1.0), to_new_int(-obj.MaxAz, -1e2, 1e2, 0.0, 1.0), unit=1)  # ax lower bound
 
-    result.lower_bound(to_new_int(chi, np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),
-                       to_new_int(np.deg2rad(110), np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),
-                       unit=1)  # chi lower bound
-
-    result.lower_bound(to_new_int(gamma, np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),  # obj.gamma_lb, unit=1)
-                       to_new_int(np.deg2rad(-40), np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),
-                       unit=1)  # gamma lower bound
-
-    result.lower_bound(to_new_int(teta, np.deg2rad(-60), 0.0, 0.0, 1.0),
-                       to_new_int(np.deg2rad(-60), np.deg2rad(-60), 0.0, 0.0, 1.0), unit=1)  # teta lower bound
-
-    result.lower_bound(to_new_int(lam, np.deg2rad(2), np.deg2rad(30), 0.0, 1.0),
-                       to_new_int(np.deg2rad(2), np.deg2rad(2), np.deg2rad(30), 0.0, 1.0), unit=1)  # lambda lower bound
-
-    result.lower_bound(to_new_int(h / 1e4, 0.0, 12, 0.0, 1.0), to_new_int(1e-5, 0.0, 12, 0.0, 1.0),
-                       unit=1)  # h lower bound
-
-    result.lower_bound(to_new_int(m, obj.m10, obj.M0, 0.0, 1.0),
-                       to_new_int(obj.m10, obj.m10, obj.M0, 0.0, 1.0), unit=1)  # m lower bound
-
-    #result.lower_bound(to_new_int(alfa, np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0),  # obj.alfa_lb, unit=1)
-     #                  to_new_int(np.deg2rad(-2), np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0),
-      #                 unit=1)  # alpha lower bound
-
-    #result.lower_bound(delta, 0.00001, unit=1)  # delta lower bound
-
-    #result.lower_bound(to_new_int(deltaf, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),  # obj.deltaf_lb, unit=1)
-     #                  to_new_int(np.deg2rad(-20), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
-      #                 unit=1)  # deltaf lower bound
-
-    #result.lower_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(-1, -1, 1, 0, 1), unit=1)  # tau lower bound
-
-    #result.lower_bound(to_new_int(mu, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),  # obj.mu_lb, unit=1)
-     #                  to_new_int(np.deg2rad(-60), np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)  # mu lower bound
-
-    result.lower_bound(to_new_int(mf, obj.m10, obj.M0, 0.0, 1.0),
-                       to_new_int(obj.m10, obj.m10, obj.M0, 0.0, 1.0), unit=1)  # mf lower bound
-
-    result.lower_bound(to_new_int(h[-1] / 1e4, 0.0, 12, 0.0, 1.0), to_new_int(8, 0.0, 12, 0.0, 1.0),
-                       unit=1)  # final h lower bound
-
-    #result.lower_bound(to_new_int(MomTot / 1e4, -1e2, 1e2, 0.0, 1.0), to_new_int(-obj.k / 1e4, -1e2, 1e2, 0.0, 1.0),
-     #                  unit=1)  # total moment lower bound
-
-    #result.lower_bound(to_new_int(az, -1e2, 1e2, 0.0, 1.0), to_new_int(-obj.MaxAz, -1e2, 1e2, 0.0, 1.0),
-    #                   unit=1)  # ax lower bound
+    result.lower_bound(v, obj.vmin, unit=obj.vmax)  # v lower bound
+    result.lower_bound(chi, obj.chimin, unit=obj.chimax)  # chi lower bound
+    result.lower_bound(gamma, obj.gammamin, unit=obj.gammamax)  # gamma lower bound
+    result.lower_bound(teta, obj.tetamin, unit=obj.tetamax)  # teta lower bound
+    result.lower_bound(lam, obj.lammin, unit=obj.lammax)  # lambda lower bound
+    result.lower_bound(h, obj.hmin, unit=obj.hmax)  # h lower bound
+    result.lower_bound(m, obj.m10, unit=obj.M0)  # m lower bound
+    result.lower_bound(alfa, obj.alfamin, unit=obj.alfamax)  # alpha lower bound
+    result.lower_bound(delta, obj.deltamin, unit=obj.deltamax)  # delta lower bound
+    result.lower_bound(mf, obj.m10, unit=obj.M0)  # mf lower bound
+    result.lower_bound(h[-1], 6e4, unit=obj.hmax)  # final h lower bound
+    result.lower_bound(az, -obj.MaxAz, unit=obj.MaxAz)  # ax lower bound
 
     # upper bounds
-    result.upper_bound(to_new_int(v / 1e3, 0.0, 10, 0.0, 1.0), to_new_int(10, 0.0, 10, 0.0, 1.0),
+    '''result.upper_bound(to_new_int(v, obj.vmin, obj.vmax, 0.0, 1.0), to_new_int(obj.vmax, obj.vmin, obj.vmax, 0.0, 1.0),
                        unit=1)  # v upper bound
 
-    result.upper_bound(to_new_int(chi, np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),  # obj.chi_ub, unit=1)
-                       to_new_int(np.deg2rad(150), np.deg2rad(110), np.deg2rad(150), 0.0, 1.0),
+    result.upper_bound(to_new_int(chi, obj.chimin, obj.chimax, 0.0, 1.0),  # obj.chi_ub, unit=1)
+                       to_new_int(obj.chimax, obj.chimin, obj.chimax, 0.0, 1.0),
                        unit=1)  # chi upper bound
 
-    result.upper_bound(to_new_int(gamma, np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),
-                       to_new_int(np.deg2rad(89), np.deg2rad(-40), np.deg2rad(89), 0.0, 1.0),
+    result.upper_bound(to_new_int(gamma, obj.gammamin, obj.gammamax, 0.0, 1.0),
+                       to_new_int(obj.gammamax, obj.gammamin, obj.gammamax, 0.0, 1.0),
                        unit=1)  # gamma upper bound
 
-    result.upper_bound(to_new_int(teta, np.deg2rad(-60), 0.0, 0.0, 1.0),
-                       to_new_int(0.0, np.deg2rad(-60), 0.0, 0.0, 1.0), unit=1)  # teta upper bound
+    result.upper_bound(to_new_int(teta, obj.tetamin, obj.tetamax, 0.0, 1.0),
+                       to_new_int(obj.tetamax, obj.tetamin, obj.tetamax, 0.0, 1.0), unit=1)  # teta upper bound
 
-    result.upper_bound(to_new_int(lam, np.deg2rad(2), np.deg2rad(30), 0.0, 1.0),
-                       to_new_int(np.deg2rad(30), np.deg2rad(2), np.deg2rad(30), 0.0, 1.0), unit=1)  # lam upper bound
+    result.upper_bound(to_new_int(lam, obj.lammin, obj.lammax, 0.0, 1.0),
+                       to_new_int(obj.lammax, obj.lammin, obj.lammax, 0.0, 1.0), unit=1)  # lam upper bound
 
-    result.upper_bound(to_new_int(h / 1e4, 0.0, 12, 0.0, 1.0), to_new_int(12, 0.0, 12, 0.0, 1.0),
+    result.upper_bound(to_new_int(h, obj.hmin, obj.hmax, 0.0, 1.0), to_new_int(obj.hmax, obj.hmin, obj.hmax, 0.0, 1.0),
                        unit=1)  # h upper bound
 
     result.upper_bound(to_new_int(m, obj.m10, obj.M0, 0.0, 1.0), to_new_int(obj.M0, obj.m10, obj.M0, 0.0, 1.0),
                        unit=1)  # m upper bound
 
-    #result.upper_bound(to_new_int(alfa, np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0),  # obj.alfa_ub, unit=1)
-     #                  to_new_int(np.deg2rad(40), np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0), unit=1)  # alfa upper bound
+    result.upper_bound(to_new_int(alfa, np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0),  # obj.alfa_ub, unit=1)
+                       to_new_int(np.deg2rad(40), np.deg2rad(-2), np.deg2rad(40), 0.0, 1.0), unit=1)  # alfa upper bound
 
-    result.upper_bound(delta, 1.0, unit=1)  # delta upper bound
+    result.upper_bound(delta, obj.deltamax, unit=1)  # delta upper bound
 
     #result.upper_bound(to_new_int(deltaf, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),  # obj.deltaf_ub, unit=1)
      #                  to_new_int(np.deg2rad(30), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
@@ -760,20 +762,21 @@ def inequality(prob, obj):
     result.upper_bound(to_new_int(ax, 0.0, 1e2, 0.0, 1.0), to_new_int(obj.MaxAx, 0.0, 1e2, 0.0, 1.0),
                        unit=1)  # ax upper bound
 
-    result.upper_bound(to_new_int(q / 1000, 0.0, 1e2, 0.0, 1.0), to_new_int(obj.MaxQ / 1000, 0.0, 1e2, 0.0, 1.0),
-                       unit=1)  # q upper bound
+    result.upper_bound(to_new_int(q, 0.0, 5e4, 0.0, 1.0), to_new_int(obj.MaxQ, 0.0, 5e4, 0.0, 1.0),
+                       unit=1)  # q upper bound'''
 
-    # result.upper_bound(mchi, np.repeat(np.tan(0.), n[0]-1), unit=1) # bound on slope of first chi points
-    #result.upper_bound(mgamma[:obj.n20], np.repeat(np.tan(0.17), obj.n20), unit=1) # bound on slope of first gamma points
-    #result.upper_bound(malfa, np.repeat(np.tan(0.17), n[0]-1), unit=1) # bound on alfa slope
-    # result.upper_bound(malfa[obj.n65:], np.repeat(np.tan(0.31), obj.n35 - 1), unit=1) # bound on slope of last alfa points
-    #result.upper_bound(mdeltaf, np.repeat(np.tan(0.17), n[0]-1), unit=1) # bound on deltaf slope
-    # result.upper_bound(mdeltaf[obj.n20:obj.n80], np.repeat(np.tan(0.87), obj.n80-obj.n20), unit=1)  # bound on deltaf slo
-    # result.upper_bound(mdeltaf[:obj.n20], np.repeat(np.tan(0.31), obj.n20), unit=1) # bound on last deltaf slope
-    # result.upper_bound(mthrot, np.repeat(np.tan(0.87), (n[0]-1)*2), unit=1) # bound on throttles slope
-    #result.upper_bound(mmu, np.repeat(np.tan(0.17), n[0]-1), unit=1)  # bound on mu slope
-    # result.upper_bound(mmu[obj.n35:obj.n65], np.repeat(np.tan(0.61), obj.n65 - obj.n35), unit=1)
-    #result.upper_bound(mmu[obj.n65:], np.repeat(np.tan(0.26), obj.n35 - 1), unit=1)  # bound on mu slope
+    result.upper_bound(v, obj.vmax, unit=obj.vmax)  # v upper bound
+    result.upper_bound(chi, obj.chimax, unit=obj.chimax)  # chi upper bound
+    result.upper_bound(gamma, obj.gammamax, unit=obj.gammamax)  # gamma upper bound
+    result.upper_bound(teta, obj.tetamax, unit=obj.tetamax)  # teta upper bound
+    result.upper_bound(lam, obj.lammax, unit=obj.lammax)  # lam upper bound
+    result.upper_bound(h, obj.hmax, unit=obj.hmax)  # h upper bound
+    result.upper_bound(m, obj.M0, unit=obj.M0)  # m upper bound
+    result.upper_bound(alfa, obj.alfamax, unit=obj.alfamax)  # alfa upper bound
+    result.upper_bound(delta, obj.deltamax, unit=obj.deltamax)  # delta upper bound
+    result.upper_bound(az, obj.MaxAz, unit=obj.MaxAz)  # az upper bound
+    result.upper_bound(ax, obj.MaxAx, unit=obj.MaxAx)  # ax upper bound
+    result.upper_bound(q, obj.MaxQ, unit=obj.MaxQ)  # q upper bound
 
     return result()
 
@@ -787,7 +790,7 @@ def dynamicsVel(states, contr, obj):
     lam = states[4]
     h = states[5]
     m = states[6]
-    alfa = 0.0 #contr[0]
+    alfa = contr[0]
     delta = contr[1]
     deltaf = 0.0 #contr[2]
     tau = 0.0 #contr[2]
@@ -871,23 +874,30 @@ if __name__ == '__main__':
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
     flag_savefig = True
+    source = 'matlab'
+    if source == 'matlab':
+        mat_contents = sio.loadmat( '/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat')
+        tfin = mat_contents['t'][0][-1]
+    else:
+        tfin = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_timeTot.npy')[-1]
 
     pool = Pool(processes=3)
     plt.ion()
     start = time.time()
-    n = [30]
-    time_init = [0.0, 400]
+    n = [50]
+    time_init = [0.0, tfin]
     num_states = [7]
-    num_controls = [1]
-    max_iteration = 5
+    num_controls = [2]
+    max_iteration = 1
     Ncontrols = num_controls[0]
     Nstates = num_states[0]
     Npoints = n[0]
     varStates = Nstates * Npoints
     varTot = (Nstates + Ncontrols) * Npoints
-    Nint = 1000
-    maxiter = 100
+    Nint = 400
+    maxiter = 10000
     ftol = 1e-8
+
     if flag_savefig:
         os.makedirs("/home/francesco/Desktop/PhD/FESTIP_Work/Collocation_Algorithm/Results/Res{}_p{}_it{}x{}_{}".format(
             os.path.basename(__file__), n[0], maxiter, max_iteration, timestr))
@@ -901,15 +911,15 @@ if __name__ == '__main__':
     # create instance of operating object
     obj = Spaceplane()
 
-    unit_v = 1e4
-    unit_chi = np.deg2rad(150)
-    unit_gamma = np.deg2rad(89)
-    unit_teta = np.deg2rad(-60)
-    unit_lam = np.deg2rad(30)
-    unit_h = 120000
+    unit_v = obj.vmax
+    unit_chi = obj.chimax
+    unit_gamma = obj.gammamax
+    unit_teta = obj.tetamax
+    unit_lam = obj.lammax
+    unit_h = obj.hmax
     unit_m = obj.M0
     unit_t = 700
-    #unit_alfa = np.deg2rad(40)
+    unit_alfa = np.deg2rad(40)
     unit_delta = 1
     #unit_deltaf = np.deg2rad(30)
     #unit_tau = 1
@@ -921,8 +931,8 @@ if __name__ == '__main__':
     prob.set_unit_states_all_section(4, unit_lam)
     prob.set_unit_states_all_section(5, unit_h)
     prob.set_unit_states_all_section(6, unit_m)
-    #prob.set_unit_controls_all_section(0, unit_alfa)
-    prob.set_unit_controls_all_section(0, unit_delta)
+    prob.set_unit_controls_all_section(0, unit_alfa)
+    prob.set_unit_controls_all_section(1, unit_delta)
     #prob.set_unit_controls_all_section(2, unit_deltaf)
     #prob.set_unit_controls_all_section(2, unit_tau)
     #prob.set_unit_controls_all_section(4, unit_mu)
@@ -931,7 +941,19 @@ if __name__ == '__main__':
     # =================
     # initial parameters guess
     # velocity
-    v_init = Guess.linear(prob.time_all_section, 1, obj.Vtarget)
+
+    states_init, controls_init = init_conds(prob.time_update(), source)
+
+    v_init = states_init[0]
+    chi_init = states_init[1]
+    gamma_init = states_init[2]
+    teta_init = states_init[3]
+    lam_init = states_init[4]
+    h_init = states_init[5]
+    m_init = states_init[6]
+    alfa_init = controls_init[0]
+    delta_init = controls_init[1]
+    '''v_init = Guess.linear(prob.time_all_section, 1, obj.Vtarget)
     chi_init = Guess.linear(prob.time_all_section, obj.chistart, obj.chi_fin)
     gamma_init = Guess.linear(prob.time_all_section, obj.gammastart, 0.0)
     teta_init = Guess.constant(prob.time_all_section, obj.longstart)
@@ -940,9 +962,9 @@ if __name__ == '__main__':
     m_init = Guess.linear(prob.time_all_section, obj.M0, obj.m10)
 
     #alfa_init = Guess.zeros(prob.time_all_section)
-    part1 = np.repeat(1.0, obj.n40)
-    part2 = Guess.linear(prob.time_all_section[obj.n40:], 1.0, 0.05)
-    delta_init = np.hstack((part1, part2))
+    part1 = np.repeat(1.0, obj.n32)
+    part2 = Guess.linear(prob.time_all_section[obj.n32:], 1.0, 0.001)
+    delta_init = np.hstack((part1, part2))'''
     #deltaf_init = Guess.zeros(prob.time_all_section)
     #tau_init = Guess.zeros(prob.time_all_section)
     #mu_init = Guess.zeros(prob.time_all_section)
@@ -958,8 +980,8 @@ if __name__ == '__main__':
     prob.set_states_all_section(4, lam_init)
     prob.set_states_all_section(5, h_init)
     prob.set_states_all_section(6, m_init)
-    #prob.set_controls_all_section(0, alfa_init)
-    prob.set_controls_all_section(0, delta_init)
+    prob.set_controls_all_section(0, alfa_init)
+    prob.set_controls_all_section(1, delta_init)
     #prob.set_controls_all_section(2, deltaf_init)
     #prob.set_controls_all_section(2, tau_init)
     #prob.set_controls_all_section(4, mu_init)
@@ -986,7 +1008,7 @@ if __name__ == '__main__':
         #part1 = np.repeat(1.0, int(len(m) * 0.4))
         #part2 = Guess.linear(time[int(len(m) * 0.4):], 1.0, 0.0001)
         #delta = np.hstack((part1, part2))
-        delta = prob.controls_all_section(0)
+        delta = prob.controls_all_section(1)
         tau = np.zeros(len(m)) #prob.controls_all_section(2)
 
         tf = prob.time_final(-1)
@@ -1017,7 +1039,7 @@ if __name__ == '__main__':
     print("Time elapsed:for total optimization ", tformat)
 
 
-    def dynamicsInt(t, states, delta_int):#, deltaf_int, tau_int, mu_int):
+    def dynamicsInt(t, states, alfa_int, delta_int):#, deltaf_int, tau_int, mu_int):
         # this functions receives the states and controls unscaled and calculates the dynamics
 
         v = states[0]
@@ -1027,7 +1049,7 @@ if __name__ == '__main__':
         lam = states[4]
         h = states[5]
         m = states[6]
-        alfa = 0.0 #alfa_int(t)
+        alfa = alfa_int(t)
         delta = delta_int(t)
         deltaf = 0.0 #deltaf_int(t)
         tau = 0.0 #tau_int(t)
@@ -1085,8 +1107,8 @@ if __name__ == '__main__':
 
         # now interpolation of controls
 
-        #alfa_Int = interpolate.PchipInterpolator(time, controls[0, :])
-        delta_Int = interpolate.PchipInterpolator(time, controls[0, :])
+        alfa_Int = interpolate.PchipInterpolator(time, controls[0, :])
+        delta_Int = interpolate.PchipInterpolator(time, controls[1, :])
         #deltaf_Int = interpolate.PchipInterpolator(time, controls[2, :])
         #tau_Int = interpolate.PchipInterpolator(time, controls[2, :])
         #mu_Int = interpolate.PchipInterpolator(time, controls[4, :])
@@ -1103,13 +1125,13 @@ if __name__ == '__main__':
         for i in range(Nint - 1):
             # print(i, x[i,:])
             # print(u[i,:])
-            k1 = dt * dyn(t[i], x[i, :], delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k1 = dt * dyn(t[i], x[i, :], alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k1: ", k1)
-            k2 = dt * dyn(t[i] + dt / 2, x[i, :] + k1 / 2, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k2 = dt * dyn(t[i] + dt / 2, x[i, :] + k1 / 2, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k2: ", k2)
-            k3 = dt * dyn(t[i] + dt / 2, x[i, :] + k2 / 2, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k3 = dt * dyn(t[i] + dt / 2, x[i, :] + k2 / 2, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k3: ", k3)
-            k4 = dt * dyn(t[i + 1], x[i, :] + k3, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k4 = dt * dyn(t[i + 1], x[i, :] + k3, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
             # print("k4: ", k4)
             x[i + 1, :] = x[i, :] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
@@ -1127,7 +1149,7 @@ if __name__ == '__main__':
         lamres = x[:, 4]
         hres = x[:, 5]
         mres = x[:, 6]
-        alfares = np.zeros(len(time_new)) #alfa_Int(time_new)
+        alfares = alfa_Int(time_new)
         deltares = delta_Int(time_new)
         deltafres = np.zeros(len(time_new)) #deltaf_Int(time_new)
         taures = np.zeros(len(time_new)) #tau_Int(time_new)
@@ -1152,17 +1174,17 @@ if __name__ == '__main__':
     h = prob.states_all_section(5)
     m = prob.states_all_section(6)
     time = prob.time_update()
-    alfa = np.zeros(len(v)) #prob.controls_all_section(0)
+    alfa = prob.controls_all_section(0)
     #part1 = np.repeat(1.0, int(len(v) * 0.4))
     #part2 = Guess.linear(time[int(len(v) * 0.4):], 1.0, 0.0001)
     #delta = np.hstack((part1, part2))
-    delta = prob.controls_all_section(0)
+    delta = prob.controls_all_section(1)
     deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
     tau = np.zeros(len(v)) #prob.controls_all_section(2)
     mu = np.zeros(len(v)) #prob.controls_all_section(4)
 
 
-    Uval = np.array((delta,)) #np.vstack((delta))#, deltaf, tau, mu))
+    Uval = np.array((alfa, delta)) #np.vstack((delta))#, deltaf, tau, mu))
 
     Xinit = np.array((v[0], chi[0], gamma[0], teta[0], lam[0], h[0], m[0]))
 

@@ -51,7 +51,7 @@ def isa(alt, pstart, g0, r):
                 break
         return t, p, tm
 
-    if alt < 0:
+    if alt < 0 or np.isnan(alt):
         # print("h < 0", alt)
         t = t0
         p = p0
@@ -72,7 +72,7 @@ def isa(alt, pstart, g0, r):
         t, p, tpm = atm90(a90, alt, h90, tcoeff1, pcoeff, tcoeff2, tmcoeff)
         d = p / (R * tpm)
         c = np.sqrt(1.4 * R * tpm)
-    elif alt > 190000:
+    elif alt > 190000 or np.isinf(alt):
         zb = h90[6]
         z = h90[-1]
         b = zb - tcoeff1[6] / a90[6]
@@ -173,7 +173,7 @@ def aeroForces(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass, m10
     cM1 = coefCalc(cm, M, alfag, deltafg)
     cM = cM1 + cL * (Dx / leng) * np.cos(alfa) + cD * (Dx / leng) * np.sin(alfa)
     mom = 0.5 * (v ** 2) * sup * leng * rho * cM
-    if np.isnan(l) == True:
+    '''if np.isnan(l) == True:
         print("L is nan")
     if np.isnan(d) == True:
         print("D is nan")
@@ -182,7 +182,7 @@ def aeroForces(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass, m10
         print(v, rho)
     if np.isinf(d) == True:
         print("D is inf")
-        print(v, rho)
+        print(v, rho)'''
     return l, d, mom
 
 
@@ -248,16 +248,18 @@ def thrust(presamb, mass, presv, spimpv, delta, tau, slpres, wlo, we, lref, xcgf
 
     thrust = np.sqrt(thrx ** 2 + thrz ** 2)
 
-    deps = np.arctan(thrz / thrx)
+    #deps = np.arctan(thrz / thrx)
+
+    deps = 0.0
 
     if np.isnan(thrust) == True:
         print("T is nan")
-    if np.isnan(deps) == True:
-        print("deps is nan")
+    #if np.isnan(deps) == True:
+    #    print("deps is nan")
     if np.isinf(thrust) == True:
         print("T is inf")
-    if np.isinf(deps) == True:
-        print("deps is inf")
+    #if np.isinf(deps) == True:
+    #    print("deps is inf")
 
     return thrust, deps, spimp, mommot
 
@@ -531,8 +533,8 @@ def thrustMulti(presamb, mass, presv, spimpv, delta, tau, npoint, slpres, wlo, w
         thrz = -tau[j] * (2.5e6 - 22 * slpres + 9.92 * presamb[j])
         thrust = np.sqrt(thrx ** 2 + thrz ** 2)
 
-        deps = np.arctan(thrz / thrx)
-
+        #deps = np.arctan(thrz / thrx)
+        deps = 0.0
         Thrust.append(thrust)
         Deps.append(deps)
         Simp.append(spimp)
@@ -548,7 +550,7 @@ def thrustMulti(presamb, mass, presv, spimpv, delta, tau, npoint, slpres, wlo, w
     return Thrust, Deps, Simp, Mom
 
 
-def vass(states, controls, dyn, omega):
+def vass(states, controls, dyn, omega, cl, cd, cm, obj, presv, spimpv):
     Re = 6371000
     v = states[0]
     chi = states[1]
@@ -556,6 +558,27 @@ def vass(states, controls, dyn, omega):
     teta = states[3]
     lam = states[4]
     h = states[5]
+
+    '''if np.isinf(h):
+        h = 2e5
+    elif np.isnan(h):
+        h = 0
+    if np.isinf(v):
+        v = 1e4
+    elif np.isnan(v):
+        v = 0
+    if np.isinf(gamma):
+        gamma = np.deg2rad(89)
+    elif np.isnan(gamma):
+        gamma = np.deg2rad(-89)
+    if np.isinf(chi):
+        chi = np.deg2rad(250)
+    elif np.isnan(chi):
+        chi = np.deg2rad(90)
+    if np.isinf(lam):
+        lam = np.deg2rad(30)
+    elif np.isnan(lam):
+        lam = np.deg2rad(2)'''
 
     vv = np.array((-v * np.cos(gamma) * np.cos(chi),
                    v * np.cos(gamma) * np.sin(chi),
@@ -585,7 +608,7 @@ def vass(states, controls, dyn, omega):
                   (Re + h) * np.cos(lam) * np.sin(teta),
                   (Re + h) * np.sin(lam)))
 
-    dx = dyn(states, controls)
+    dx = dyn(states, controls, cl, cd, cm, obj, presv, spimpv)
     xp = np.array((dx[5] * np.cos(lam) * np.cos(teta) - (Re + h) * dx[4] * np.sin(lam) * np.cos(teta) - (Re + h) * dx[3]
                    * np.cos(lam) * np.sin(teta),
                    dx[5] * np.cos(lam) * np.sin(teta) - (Re + h) * dx[4] * np.sin(lam) * np.sin(teta) + (Re + h) * dx[3]

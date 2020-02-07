@@ -1,5 +1,5 @@
 from OpenGoddard.optimize import Guess
-from scipy.optimize import minimize, NonlinearConstraint, Bounds
+from scipy.optimize import basinhopping
 import time
 import datetime
 import sys
@@ -8,10 +8,9 @@ import os
 import dynamics as dyns
 import ShootingFunctions as shoot
 import plot as plt
-from scipy.sparse import csc_matrix, save_npz, load_npz
-
 sys.path.insert(0, 'home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP')
 import models as mod
+
 
 timestr = time.strftime("%Y%m%d-%H%M%S")
 flag_save = True
@@ -66,24 +65,22 @@ class Spaceplane:
         self.ineqOld = np.zeros((0))
         self.States = np.zeros((0))
         self.Controls = np.zeros((0))
-        self.gammamax = np.deg2rad(89.9)
-        self.gammamin = np.deg2rad(-50)
+        self.gammamax = np.deg2rad(89)
+        self.gammamin = np.deg2rad(-89)
         self.chimax = np.deg2rad(150)
-        self.chimin = np.deg2rad(100)
+        self.chimin = np.deg2rad(90)
         self.lammax = np.deg2rad(30)
         self.lammin = np.deg2rad(2)
-        self.tetamax = np.deg2rad(-10)
-        self.tetamin = np.deg2rad(-70)
+        self.thetamax = np.deg2rad(-10)
+        self.thetamin = np.deg2rad(-70)
         self.hmax = 2e5
-        self.hmin = 0.5
+        self.hmin = 1.0
         self.vmax = 1e4
-        self.vmin = 0.5
+        self.vmin = 1.0
         self.alphamax = np.deg2rad(40)
         self.alphamin = np.deg2rad(-2)
         self.deltamax = 1.0
         self.deltamin = 0.0
-        self.vstart = 0.1
-        self.hstart = 0.1
 
 
 def constraints(var):
@@ -91,25 +88,26 @@ def constraints(var):
         return np.concatenate((obj.eqOld, obj.ineqOld))
 
     else:
-        ineq_c, eq_c, cost = shoot.SingleShooting(var, dyns.dynamicsInt, Nint, Nstates, NContPoints, obj, varStates, Ncontrols, cl, cd, cm, presv, spimpv, NineqCond, cont_init)
+        eq_c, ineq_c, cost = shoot.SingleShooting(var, dyns.dynamicsInt)
         return np.concatenate((eq_c, ineq_c))
 
 def constraints_slsqp(var, type):
     if (var==obj.varOld).all():
-        if type == 'eq':
+        if type == "eq":
             return obj.eqOld
         else:
             return obj.ineqOld
     else:
-        ineq, eq, cost = shoot.SingleShooting(var, dyns.dynamicsInt, Nint, Nstates, NContPoints, obj, varStates, Ncontrols, cl, cd, cm, presv, spimpv, NineqCond, cont_init)
-        if type == 'eq':
+        eq, ineq, cost = shoot.SingleShooting(var, dyns.dynamicsInt, Nint, Nstates, NContPoints, obj, varStates, Ncontrols, cl, cd, cm, presv, spimpv, states_init, cont_init)
+        if type == "eq":
             return eq
         else:
             return ineq
 
+
 cons_slsqp = ({'type': 'eq',
                'fun': constraints_slsqp,
-               'args': ("eq",)},  # equality and inequality constraints
+               'args':("eq",)},
               {'type': 'ineq',
                'fun': constraints_slsqp,
                'args': ("ineq",)})  # equality and inequality constraints
@@ -118,7 +116,7 @@ def cost_fun(var):
     if (var==obj.varOld).all():
         return obj.costOld
     else:
-        ineq, eq, cost = shoot.SingleShooting(var, dyns.dynamicsInt, Nint, Nstates, NContPoints, obj, varStates, Ncontrols, cl, cd, cm, presv, spimpv, NineqCond, cont_init)
+        eq, ineq, cost = shoot.SingleShooting(var, dyns.dynamicsInt, Nint, Nstates, NContPoints, obj, varStates, Ncontrols,  cl, cd, cm, presv, spimpv, states_init, cont_init)
         return cost
 
 
@@ -157,22 +155,21 @@ if __name__ == '__main__':
     '''set problem parameters'''
 
     tfin = 350 # initial time
-    NContPoints = 20  # number of control points for interpolation inside each interval
-    Nint = 300 # number of points for each single shooting integration
-    Nstates = 1  # number of states
+    NContPoints = 30  # number of control points for interpolation inside each interval
+    Nint = 500 # number of points for each single shooting integration
+    Nstates = 7  # number of states
     Ncontrols = 2  # number of controls
     varStates = Nstates # total number of optimization variables for states
     varControls = Ncontrols * NContPoints   # total number of optimization variables for controls
     varTot = varStates + varControls  # total number of optimization variables for states and controls
-    NineqCond = 10 # Nleg * NContPoints - Nbar + 2
+    NineqCond = NContPoints #Nint # Nleg * NContPoints - Nbar + 2
     tcontr = np.linspace(0, tfin, int(varControls / Ncontrols))  # time vector used for interpolation of controls intial guess
-    solver='SLSQP'
-    save_matrix = False
+
     '''NLP solver parameters'''
     general_tol = 1e-8
-    tr_radius = 1
+    tr_radius = 10
     constr_penalty = 10
-    maxiter = 1 # max number of iterations for nlp solver
+    maxiter = 20 # max number of iterations for nlp solver
 
     '''definiton of initial conditions'''
 
@@ -182,7 +179,7 @@ if __name__ == '__main__':
 
     ####### INITIAL CONDITIONS  ON CONTROLS #######
     t_contr_init = np.linspace(0, tfin, NContPoints)
-    alfa_init = np.ones(len(t_contr_init))*np.deg2rad(5) #Guess.linear(t_contr_init, np.deg2rad(2), np.deg2rad(8))
+    alfa_init = np.ones((len(t_contr_init))) * np.deg2rad(2)
     part1 = np.repeat(1.0, int(len(t_contr_init)/3))
     part2 = Guess.linear(t_contr_init[int(len(t_contr_init)/3):], obj.deltamax, obj.deltamin)
     delta_init = np.hstack((part1, part2))
@@ -190,7 +187,7 @@ if __name__ == '__main__':
     UGuess = np.array((alfa_init, delta_init))  # , deltaf_init, tau_init, mu_init))  # states initial guesses
 
     ###### INITIAL CONDITIONS ON STATES  #########
-    states_init = np.array((1.0, obj.chistart, obj.gammastart, obj.thetastart, obj.lamstart, 1.0, obj.M0))  # initial conditions on states
+    states_init = np.array((0.0, obj.chistart, obj.gammastart, obj.thetastart, obj.lamstart, 0.0, obj.M0))  # initial conditions on states
 
 
     for i in range(int(varControls / Ncontrols)):
@@ -198,75 +195,54 @@ if __name__ == '__main__':
         for j in range(Ncontrols):
             U = np.hstack((U, UGuess[j][i]))
 
-    UbS = np.array([obj.chimax])
-    LbS = np.array([obj.chimin])
+    UbS = np.array([obj.vmax, obj.chimax, obj.gammamax, obj.thetamax, obj.lammax, obj.hmax, obj.M0])
+    LbS = np.array([obj.vmin, obj.chimin, obj.gammamin, obj.thetamin, obj.lammin, obj.hmin, obj.m10])
     UbC = np.tile([obj.alphamax, obj.deltamax], NContPoints)
     LbC = np.tile([obj.alphamin, obj.deltamin], NContPoints)
 
-    X0d = np.hstack((states_init[1], U, tfin))  # array of initial conditions here all the angles are in radians!!!!!
+
+    X0d = np.hstack((states_init, U, tfin))  # array of initial conditions here all the angles are in radians!!!!!
     obj.varOld = np.zeros((len(X0d)))
 
-    Tlb = [250]
+    Tlb = [300]
     Tub = [700]
     obj.LBV = np.hstack((LbS, LbC, Tlb))
     obj.UBV = np.hstack((UbS, UbC, Tub))
 
     X0a = (X0d - obj.LBV)/(obj.UBV - obj.LBV)  # adimensional array of variables
 
-    if solver == "SLSQP":
-        bndX_slsqp = ((0.0, 1.0),)
-        bndU_slsqp = ((0.0, 1.0), (0.0, 1.0))#, (0.0, 1.0), (0.0, 1.0))
-        bndT_slsqp = ((0.0, 1.0),)
-        bnds_slsqp = bndX_slsqp + bndU_slsqp * NContPoints + bndT_slsqp
-    else:
-        '''constratints for trust-constr solver'''
+    bndX_slsqp = ((0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0), (0.0, 1.0))
+    bndU_slsqp = ((0.0, 1.0), (0.0, 1.0))#, (0.0, 1.0), (0.0, 1.0))
+    bndT_slsqp = ((0.0, 1.0),)
+    bnds_slsqp = bndX_slsqp + bndU_slsqp * NContPoints + bndT_slsqp
 
-        lbeq = ([0.0])
-        ubeq = ([0.0])
+    """ Custom step-function """
 
-        lbineq = ([0.0])  # lower bound for inequality constraints
-        ubineq = ([np.inf])  # upper bound for inequality constraints
+    class RandomDisplacementBounds(object):
+        """random displacement with bounds:  see: https://stackoverflow.com/a/21967888/2320035
+            Modified! (dropped acceptance-rejection sampling for a more specialized approach)
+        """
+        def __init__(self, xmin, xmax, stepsize=0.5):
+            self.xmin = xmin
+            self.xmax = xmax
+            self.stepsize = stepsize
+        def __call__(self, x):
+            """take a random step but ensure the new position is within the bounds """
+            min_step = np.maximum(self.xmin - x, -self.stepsize)
+            max_step = np.minimum(self.xmax - x, self.stepsize)
+            random_step = np.random.uniform(low=min_step, high=max_step, size=x.shape)
+            xnew = x + random_step
+            return xnew
 
-        lb = lbeq * 4 + lbineq * (5 * NineqCond + 4)  # all lower bounds
-        ub = ubeq * 4 + ubineq * (5 * NineqCond + 4)  # all upper bounds
-
-
-        if save_matrix:
-            cons = NonlinearConstraint(constraints, lb, ub, finite_diff_jac_sparsity=None)
-        else:
-            sparseJac = load_npz("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/SingleShooting_InitCond/FestipSparsity.npz")
-            sp = sparseJac.todense()
-            row = np.shape(sp)[0]
-            column = np.shape(sp)[1]
-            for i in range(row):
-                for j in range(column):
-                    if sp[i, j] != 0:
-                        sp[i, j] = 1
-            cons = NonlinearConstraint(constraints, lb, ub, finite_diff_jac_sparsity=sp)
-        '''bounds for trust-constr solver'''
-        Tlb = ([0.0])  # time lower bounds
-        Tub = ([1.0])  # time upper bounds
-        Xlb = ([0.0])
-        Xub = ([1.0])
-        Ulb = ([0.0])
-        Uub = ([1.0])
-        Vlb = Xlb * Nstates + Ulb * Ncontrols * NContPoints + Tlb
-        Vub = Xub * Nstates + Uub * Ncontrols * NContPoints + Tub
-        bnds = Bounds(Vlb, Vub)
-
+    bounded_step = RandomDisplacementBounds(np.array([b[0] for b in bnds_slsqp]), np.array([b[1] for b in bnds_slsqp]))
 
     '''NLP SOLVER'''
     iterator = 0
     tot_it = 1
     start = time.time()
     while iterator < tot_it:
-        if solver == "SLSQP":
-            opt = minimize(cost_fun, X0a, constraints=cons_slsqp, bounds=bnds_slsqp, method='SLSQP', options={"disp":True, "iprint":2})
-        elif save_matrix:
-            opt = minimize(cost_fun, X0a, constraints=cons, bounds=bnds, method='trust-constr', options={"verbose":2, 'maxiter':maxiter})
-        else:
-            opt = minimize(cost_fun, X0a, constraints=cons, bounds=bnds, method='trust-constr', options={"verbose": 2, "initial_tr_radius":tr_radius, "initial_constr_penalty":constr_penalty})
-
+        minimizer_kwargs = {'method':'SLSQP', "constraints":cons_slsqp, "bounds":bnds_slsqp, "options": {"disp":True, "iprint":2}}
+        opt = basinhopping(cost_fun, X0a, disp=True, minimizer_kwargs=minimizer_kwargs)
         X0a = opt.x
         iterator += 1
     end = time.time()
@@ -275,7 +251,4 @@ if __name__ == '__main__':
     time_elapsed = end-start
     tformat = str(datetime.timedelta(seconds=int(time_elapsed)))
     print("Time elapsed for total optimization ", tformat)
-    if save_matrix:
-        sparse = csc_matrix(opt.jac[0])
-        save_npz("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/SingleShooting_InitCond/FestipSparsity.npz", sparse)
     plt.plot(opt.x, Nint, NContPoints, obj, Nstates, varStates, Ncontrols, cl, cm ,cd, presv, spimpv, flag_save, savedata_file, savefig_file, maxiter, timestr, tformat)

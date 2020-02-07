@@ -1,6 +1,7 @@
 import numpy as np
 
 def isa(alt, pstart, g0, r):
+    alt = np.nan_to_num(alt)
     t0 = 288.15
     p0 = pstart
     prevh = 0.0
@@ -188,10 +189,9 @@ def aeroForces(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass, m10
     alfag = np.rad2deg(alfa)
     deltafg = np.rad2deg(deltaf)
     cL = coefCalc(cl, M, alfag, deltafg)
-    if np.isinf(cL) == True:
-        print("error")
-    if np.isnan(cL) == True:
-        print("error")
+    if np.isinf(cL) is True or np.isnan(cL) is True:
+        cL = np.nan_to_num(cL)
+
     cD = coefCalc(cd, M, alfag, deltafg)
 
     l = 0.5 * (v ** 2) * sup * rho * cL
@@ -201,8 +201,10 @@ def aeroForces(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass, m10
     cM1 = coefCalc(cm, M, alfag, deltafg)
     cM = cM1 + cL * (Dx / leng) * np.cos(alfa) + cD * (Dx / leng) * np.sin(alfa)
     mom = 0.5 * (v ** 2) * sup * leng * rho * cM
-    if np.isnan(l) == True:
+    '''if np.isnan(l) == True:
         print("L is nan")
+        print("v", v)
+        print("rho", rho)
     if np.isnan(d) == True:
         print("D is nan")
     if np.isinf(l) == True:
@@ -210,7 +212,7 @@ def aeroForces(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass, m10
         print(v, rho)
     if np.isinf(d) == True:
         print("D is inf")
-        print(v, rho)
+        print(v, rho)'''
     return l, d, mom
 
 
@@ -276,16 +278,16 @@ def thrust(presamb, mass, presv, spimpv, delta, tau, slpres, wlo, we, lref, xcgf
 
     thrust = np.sqrt(thrx ** 2 + thrz ** 2)
 
-    deps = np.arctan(thrz / thrx)
-
-    if np.isnan(thrust) == True:
+    #deps = np.arctan(thrz / thrx)
+    deps = 0.0
+    '''if np.isnan(thrust) == True:
         print("T is nan")
     if np.isnan(deps) == True:
         print("deps is nan")
     if np.isinf(thrust) == True:
         print("T is inf")
     if np.isinf(deps) == True:
-        print("deps is inf")
+        print("deps is inf")'''
 
     return thrust, deps, spimp, mommot
 
@@ -532,14 +534,14 @@ def aeroForcesMulti(M, alfa, deltaf, cd, cl, cm, v, sup, rho, leng, mstart, mass
         L.append(l)
         D.append(d)
         Mom.append(mom)
-        if np.isnan(l) == True:
+        '''if np.isnan(l) == True:
             print("L multi is nan")
         if np.isnan(d) == True:
             print("D multi is nan")
         if np.isinf(l) == True:
             print("L multi is inf")
         if np.isinf(d) == True:
-            print("D multi is inf")
+            print("D multi is inf")'''
     return L, D, Mom
 
 
@@ -601,24 +603,25 @@ def thrustMulti(presamb, mass, presv, spimpv, delta, tau, npoint, slpres, wlo, w
         thrz = -tau[j] * (2.5e6 - 22 * slpres + 9.92 * presamb[j])
         thrust = np.sqrt(thrx ** 2 + thrz ** 2)
 
-        deps = np.arctan(thrz / thrx)
+        #deps = np.arctan(thrz / thrx)
+        deps = 0.0
 
         Thrust.append(thrust)
         Deps.append(deps)
         Simp.append(spimp)
         Mom.append(mommot)
-        if np.isnan(thrust) == True:
+        '''if np.isnan(thrust) == True:
             print("T is nan")
         if np.isnan(deps) == True:
             print("deps is nan")
         if np.isinf(thrust) == True:
             print("T is inf")
         if np.isinf(deps) == True:
-            print("deps is inf")
+            print("deps is inf")'''
     return Thrust, Deps, Simp, Mom
 
 
-def vass(states, controls, dyn, omega):
+def vass(states, controls, dyn, omega, obj, cl, cd, cm, presv, spimpv):
     Re = 6371000
     v = states[0]
     chi = states[1]
@@ -655,7 +658,7 @@ def vass(states, controls, dyn, omega):
                   (Re + h) * np.cos(lam) * np.sin(teta),
                   (Re + h) * np.sin(lam)))
 
-    dx = dyn(states, controls)
+    dx = dyn(states, controls, obj, cl, cd, cm, presv, spimpv)
     xp = np.array((dx[5] * np.cos(lam) * np.cos(teta) - (Re + h) * dx[4] * np.sin(lam) * np.cos(teta) - (Re + h) * dx[3]
                    * np.cos(lam) * np.sin(teta),
                    dx[5] * np.cos(lam) * np.sin(teta) - (Re + h) * dx[4] * np.sin(lam) * np.sin(teta) + (Re + h) * dx[3]
