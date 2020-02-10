@@ -86,7 +86,7 @@ Dv1 = sqrt(obj.GMe / r1) * (sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1);
 Dv2 = sqrt(obj.GMe / obj.r2) * (1 - sqrt((2 * r1) / (r1 + obj.r2)));
 mf = m / exp((Dv1 + Dv2) / (obj.g0 * isp));
 
-ineq_Cond = [ineq_Cond, (obj.m10 - mf)/obj.M0, (6e4 - h)/obj.hmax, (6.8e3 - v)/obj.vmax];
+ineq_Cond = [ineq_Cond, (obj.m10 - mf)/obj.M0, (6e4 - h)/obj.hmax, (7e3 - v)/obj.vmax];
 
 eq_Cond = equality(varD, states_atNode, states_after, controls_after, obj, prob, file, states_init, cont_init);  % evaluation of equality constraints
 

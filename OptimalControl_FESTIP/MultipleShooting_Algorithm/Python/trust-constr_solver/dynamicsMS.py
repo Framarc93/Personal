@@ -14,6 +14,7 @@ def dynamicsInt(t, states, obj, cl, cd, cm, presv, spimpv, alfa_Int, delta_Int):
     deltaf = 0.0 #deltaf_Int(t)
     tau = 0.0 #tau_Int(t)
     mu = 0.0 #mu_Int(t)
+
     '''if v > obj.vmax or np.isinf(v):
         pen.append((np.nan_to_num(v) - obj.vmax) / obj.vmax)
         v = obj.vmax
@@ -87,15 +88,17 @@ def dynamicsInt(t, states, obj, cl, cd, cm, presv, spimpv, alfa_Int, delta_Int):
     else:
         dx = np.array((((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
                        (np.cos(lam) * np.sin(gamma) - np.sin(lam) * np.cos(gamma) * np.sin(chi)),
-                       ((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma)) - np.cos(gamma) * np.cos(chi) *
-                       np.tan(lam) * (v / (obj.Re + h)) + 2 * obj.omega * (
+
+                       #((T * np.sin(eps) + L) * np.sin(mu)) / (m * v * np.cos(gamma))
+                       - np.cos(gamma) * np.cos(chi) * np.tan(lam) * (v / (obj.Re + h)) + 2 * obj.omega * (
                                np.cos(lam) * np.tan(gamma) * np.sin(chi) - np.sin(lam)) \
-                       - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(
-                           chi),
+                       - (obj.omega ** 2) * ((obj.Re + h) / (v * np.cos(gamma))) * np.cos(lam) * np.sin(lam) * np.cos(chi),
+
                        ((T * np.sin(eps) + L) * np.cos(mu)) / (m * v) - (g / v - v / (obj.Re + h)) * np.cos(
                            gamma) + 2 * obj.omega \
                        * np.cos(lam) * np.cos(chi) + (obj.omega ** 2) * ((obj.Re + h) / v) * np.cos(lam) * \
                        (np.sin(lam) * np.sin(gamma) * np.sin(chi) + np.cos(lam) * np.cos(gamma)),
+
                        -np.cos(gamma) * np.cos(chi) * (v / ((obj.Re + h) * np.cos(lam))),
                        np.cos(gamma) * np.sin(chi) * (v / (obj.Re + h)),
                        v * np.sin(gamma),

@@ -621,30 +621,30 @@ def thrustMulti(presamb, mass, presv, spimpv, delta, tau, npoint, slpres, wlo, w
     return Thrust, Deps, Simp, Mom
 
 
-def vass(states, controls, dyn, omega, obj, cl, cd, cm, presv, spimpv):
+def vass(states, omega):
     Re = 6371000
     v = states[0]
     chi = states[1]
     gamma = states[2]
-    teta = states[3]
+    #teta = states[3]
     lam = states[4]
     h = states[5]
-    m = states[6]
+    #m = states[6]
     vv = np.array((-v * np.cos(gamma) * np.cos(chi),
                    v * np.cos(gamma) * np.sin(chi),
                    -v * np.sin(gamma)))
     vv[0] = vv[0] + omega * np.cos(lam) * (Re + h)
-    vela2 = np.sqrt(vv[0] ** 2 + vv[1] ** 2 + vv[2] ** 2)
-    if vv[0] <= 0.0:
+    vela = np.sqrt(vv[0] ** 2 + vv[1] ** 2 + vv[2] ** 2)
+    if vv[0] <= 0.0 or np.isnan(vv[0]):
         if abs(vv[0]) >= abs(vv[1]):
             chiass = np.arctan(abs(vv[1] / vv[0]))
-            if vv[1] < 0.0:
+            if vv[1] < 0.0 or np.isnan(vv[1]):
                 chiass = -chiass
         elif abs(vv[0]) < abs(vv[1]):
             chiass = np.pi*0.5 - np.arctan(abs(vv[0] / vv[1]))
-            if vv[1] < 0.0:
+            if vv[1] < 0.0 or np.isnan(vv[1]):
                 chiass = -chiass
-    elif vv[0] > 0.0:
+    elif vv[0] > 0.0 or np.isinf(vv[0]):
         if abs(vv[0]) >= abs(vv[1]):
             chiass = np.pi - np.arctan((abs(vv[1]/vv[0])))
             if vv[1] < 0.0:
@@ -654,7 +654,7 @@ def vass(states, controls, dyn, omega, obj, cl, cd, cm, presv, spimpv):
             if vv[1] < 0.0:
                 chiass = -chiass
 
-    x = np.array(((Re + h) * np.cos(lam) * np.cos(teta),
+    '''x = np.array(((Re + h) * np.cos(lam) * np.cos(teta),
                   (Re + h) * np.cos(lam) * np.sin(teta),
                   (Re + h) * np.sin(lam)))
 
@@ -673,6 +673,6 @@ def vass(states, controls, dyn, omega, obj, cl, cd, cm, presv, spimpv):
                      xp[1] + dxp[1],
                      xp[2] + dxp[2]))
 
-    vela = np.sqrt(vtot[0] ** 2 + vtot[1] ** 2 + vtot[2] ** 2)
+    vela = np.sqrt(vtot[0] ** 2 + vtot[1] ** 2 + vtot[2] ** 2)'''
 
-    return vela, chiass, vela2
+    return vela, chiass

@@ -60,27 +60,28 @@ def inequalityAll(states, controls, varnum, obj, cl, cd, cm, presv, spimpv):
     #momnew = to_new_int(obj.k/ 1e5, -1e3, 1e3, 0.0, 1.0) - to_new_int(MomTotA / 1e5, -1e3, 1e3, 0.0, 1.0)
     #mnew = m_toNew(mf, obj) - m_toNew(obj.m10, obj)
 
-    iC = np.hstack(((obj.MaxAx - ax)/obj.MaxAx, (obj.MaxAz - az)/obj.MaxAz, (obj.MaxQ-q)/obj.MaxQ)) #, (obj.gammamax-gamma)/obj.gammamax))
+    iC = np.hstack(((obj.MaxAx - ax)/obj.MaxAx, (obj.MaxAz - az)/obj.MaxAz, (obj.MaxQ-q)/obj.MaxQ, (obj.gammamax-gamma)/obj.gammamax))
 
     return iC
 
 def equality(var, conj, varStates, NContPoints, obj, Ncontrols, Nleg, cl, cd, cm, presv, spimpv):
     stat = obj.States[-1, :]
+    #chi = stat[1]
     h = stat[5]
-    lam = stat[4]
-    gamma = stat[2]
-    cont = obj.Controls[-1, :]
+    #lam = stat[4]
+    #gamma = stat[2]
+    #cont = obj.Controls[-1, :]
 
-    vtAbs, chiass, vtAbs2 = vass(stat, cont, dyns.dynamicsVel, obj.omega, obj, cl, cd, cm, presv, spimpv)
+    vtAbs, chiass = vass(stat, obj.omega)
 
     vvv = np.sqrt(obj.GMe / (obj.Re + h))
 
-    if np.cos(obj.incl) / np.cos(lam) > 1:
+    '''if np.cos(obj.incl) / np.cos(lam) > 1:
         chifin = np.pi
     elif np.cos(obj.incl) / np.cos(lam) < - 1:
         chifin = 0.0
     else:
-        chifin = 0.5 * np.pi + np.arcsin(np.cos(obj.incl) / np.cos(lam))
+        chifin = 0.5 * np.pi + np.arcsin(np.cos(obj.incl) / np.cos(lam))'''
     states_unit = [obj.vmax, obj.chimax, obj.gammamax, obj.tetamax, obj.lammax, obj.hmax, obj.M0]
     cont_unit = [obj.alfamax, obj.deltamax]
     eq_cond = np.zeros((0))
@@ -91,7 +92,7 @@ def equality(var, conj, varStates, NContPoints, obj, Ncontrols, Nleg, cl, cd, cm
     while i <= Nleg-1:
         eq_cond = np.concatenate((eq_cond, var[varStates+i*Ncontrols*NContPoints-1:varStates+i*Ncontrols*NContPoints] - var[varStates+i*Ncontrols*NContPoints+1:varStates+i*Ncontrols*NContPoints+Ncontrols]/cont_unit))
         i += 1
-    #eq_cond = np.concatenate((eq_cond, ((vvv - vtAbs)/obj.vmax,)))
+    eq_cond = np.concatenate((eq_cond, ((vvv - vtAbs)/obj.vmax,)))
     #eq_cond = np.concatenate((eq_cond, ((chifin - chiass)/obj.chimax,)))
     #eq_cond = np.concatenate((eq_cond, (gamma/obj.gammamax,)))  # final condition on gamma
     return eq_cond
