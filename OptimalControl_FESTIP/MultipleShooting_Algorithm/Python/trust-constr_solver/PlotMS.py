@@ -5,7 +5,7 @@ from models import *
 import os
 import matplotlib.pyplot as plt
 
-def plot(var, Nint, Nleg, NContPoints, obj, Nstates, varTot, Ncontrols, varStates, cl, cd, cm, presv, spimpv, flag_save, savedata_file, maxiter, timestr, tformat, savefig_file):
+def plot(var, Nint, Nleg, NContPoints, obj, Nstates, varTot, Ncontrols, varStates, cl, cd, cm, presv, spimpv, flag_save, savedata_file, maxiter, timestr, tformat, savefig_file, states_init):
 
     time = np.zeros((1))
 
@@ -24,9 +24,15 @@ def plot(var, Nint, Nleg, NContPoints, obj, Nstates, varTot, Ncontrols, varState
         #deltaf = np.zeros((NContPoints))
         #tau = np.zeros((NContPoints))
         #mu = np.zeros((NContPoints))
-        states = varD[i * Nstates:(i + 1) * Nstates]  # orig intervals
 
-        timeend = timestart + varD[i + varTot]
+        if i == 0:
+            states = states_init
+            states[1] = varD[0]
+        else:
+            states = varD[1 + (i - 1) * Nstates:i * Nstates + 1]  # orig intervals
+
+        timeend = timestart + varD[varTot + i]
+
         timeTotal = np.linspace(timestart, timeend, Nint)
         time = np.concatenate((time, (timeend,)))
         tC = np.linspace(timestart, timeend, NContPoints)

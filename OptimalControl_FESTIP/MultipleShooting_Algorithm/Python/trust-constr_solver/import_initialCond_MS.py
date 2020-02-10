@@ -2,9 +2,9 @@ import scipy.io as sio
 from scipy.interpolate import PchipInterpolator
 import numpy as np
 
-def init_conds(t_stat, t_contr, source):
+def init_conds(t_stat, t_contr, source, initial_path):
     if source == 'matlab':
-        mat_contents = sio.loadmat('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat')
+        mat_contents = sio.loadmat(initial_path + "/workspace_init_cond.mat")
         v = mat_contents['vres'].T[0]
         chi = mat_contents['chires'].T[0]
         gamma = mat_contents['gammares'].T[0]
@@ -16,16 +16,16 @@ def init_conds(t_stat, t_contr, source):
         delta = mat_contents['deltares'].T[0]
         t = mat_contents['t'][0]
     else:
-        v = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_v.npy')
-        chi = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_chi.npy')
-        gamma = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_gamma.npy')
-        teta = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_teta.npy')
-        lam = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_lambda.npy')
-        h = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_h.npy')
-        m = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_m.npy')
-        alfa = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_alfa.npy')
-        delta = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_delta.npy')
-        t = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_timeTot.npy')
+        v = np.load(initial_path + '/Collocation_Algorithm/nice_initCond/Data_v.npy')
+        chi = np.load(initial_path + '/Collocation_Algorithm/nice_initCond/Data_chi.npy')
+        gamma = np.load(initial_path + '/Collocation_Algorithm/nice_initCond/Data_gamma.npy')
+        teta = np.load(initial_path + '/Collocation_Algorithm/nice_initCond/Data_teta.npy')
+        lam = np.load(initial_path + '/Collocation_Algorithm/nice_initCond/Data_lambda.npy')
+        h = np.load(initial_path + '/Collocation_Algorithm/nice_initCond/Data_h.npy')
+        m = np.load(initial_path + '/Collocation_Algorithm/nice_initCond/Data_m.npy')
+        alfa = np.load(initial_path + '/Collocation_Algorithm/nice_initCond/Data_alfa.npy')
+        delta = np.load(initial_path + '/Collocation_Algorithm/nice_initCond/Data_delta.npy')
+        t = np.load(initial_path + '/Collocation_Algorithm/nice_initCond/Data_timeTot.npy')
 
     v_Int = PchipInterpolator(t, v)
     v_init = v_Int(t_stat)
@@ -48,11 +48,14 @@ def init_conds(t_stat, t_contr, source):
     m_Int = PchipInterpolator(t, m)
     m_init = m_Int(t_stat)
 
+    alfa_init = []
+    delta_init = []
     alfa_Int_post = PchipInterpolator(t, alfa)
-    alfa_init = alfa_Int_post(t_contr)
-
     delta_Int_post = PchipInterpolator(t, delta)
-    delta_init = delta_Int_post(t_contr)
+
+    for i in range(len(t_contr)):
+        alfa_init.extend(alfa_Int_post(t_contr[i]))
+        delta_init.extend(delta_Int_post(t_contr[i]))
 
     return [v_init, chi_init, gamma_init, teta_init, lam_init, h_init, m_init], [alfa_init, delta_init]
 

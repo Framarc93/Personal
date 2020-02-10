@@ -1,16 +1,16 @@
 classdef Problem
     properties
     %set problem parameters%
-    NContPoints = 5;  % number of control points for interpolation inside each interval
+    NContPoints = 7;  % number of control points for interpolation inside each interval
     Nint = 100; % number of points for each single shooting integration
     Nstates = 7;  % number of states
     Ncontrols = 2;  % number of controls 
-    NineqCond = 5;
+    NineqCond = 8;
     varStates = 0;
     varControls = 0;
     varTot = 0;
     varC = 0;
-    Nleg = 4;
+    Nleg = 6;
     Nbar = 0;
     %NLP solver parameters%
     maxiter = 1; % max number of iterations for nlp solver

@@ -16,7 +16,7 @@ def SingleShootingMulti(i, var, dyn, Nint, NContPoints, Nstates, varTot, Ncontro
     '''states and controls must be given with real values!!! not scaled!!!'''
     '''needed a fixed step integrator'''
     '''tstart and tfin are the initial and final time of the considered leg'''
-    var = np.nan_to_num(var)
+    #var = np.nan_to_num(var)
     alfa = np.zeros((NContPoints))
     delta = np.zeros((NContPoints))
     #deltaf = np.zeros((NContPoints))
@@ -46,20 +46,17 @@ def SingleShootingMulti(i, var, dyn, Nint, NContPoints, Nstates, varTot, Ncontro
     controls = np.vstack((alfa, delta))#, deltaf, tau, mu))  # orig intervals
 
     #print("single shooting")
-    tstart = np.nan_to_num(tstart)
+    '''tstart = np.nan_to_num(tstart)
     tfin = np.nan_to_num(tfin)
     if tfin <= tstart:
-        tfin = tfin + 1
+        tfin = tfin + 1'''
     timeCont = np.linspace(tstart, tfin, NContPoints)
     x = np.zeros((Nint, Nstates))
     # vector of intial states ready
     # now interpolation of controls
 
-    try:
-        alfa_Int = PchipInterpolator(timeCont, np.nan_to_num(controls[0, :]))
-    except ValueError:
-        print("E")
-    delta_Int = PchipInterpolator(timeCont, np.nan_to_num(controls[1, :]))
+    alfa_Int = PchipInterpolator(timeCont, controls[0, :])
+    delta_Int = PchipInterpolator(timeCont, controls[1, :])
     #deltaf_Int = PchipInterpolator(timeCont, controls[2, :])
     #tau_Int = PchipInterpolator(timeCont, controls[2, :])
     #mu_Int = PchipInterpolator(timeCont, controls[4, :])

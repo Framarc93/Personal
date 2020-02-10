@@ -26,12 +26,12 @@ while i <= prob.Nleg-1
 
     [vres, chires, gammares, tetares, lamres, hres, mres, t, alfares, deltares] = SingleShooting(states, controls, timestart, timeend, prob, obj, file);
     
-    vres(isnan(vres)) = 0;
-    chires(isnan(chires)) = 0;
-    gammares(isnan(gammares)) = 0;
-    tetares(isnan(tetares)) = 0;
-    lamres(isnan(lamres)) = 0;
-    hres(isnan(hres)) = 0;
+    %vres(isnan(vres)) = 0;
+    %chires(isnan(chires)) = 0;
+    %gammares(isnan(gammares)) = 0;
+    %tetares(isnan(tetares)) = 0;
+    %lamres(isnan(lamres)) = 0;
+    %hres(isnan(hres)) = 0;
     
     if i < prob.Nleg-1
         states_atNode = [states_atNode, [vres(end), chires(end), gammares(end), tetares(end), lamres(end), hres(end), mres(end)]]; 
@@ -83,7 +83,7 @@ Dv1 = sqrt(obj.GMe / r1) * (sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1);
 Dv2 = sqrt(obj.GMe / obj.r2) * (1 - sqrt((2 * r1) / (r1 + obj.r2)));
 mf = m / exp((Dv1 + Dv2) / (obj.g0 * isp));
 
-ineq_Cond = [ineq_Cond, (obj.m10 - mf)/obj.M0, (6e4 - h(end))/obj.hmax];
+ineq_Cond = [ineq_Cond, (obj.m10 - mf)/obj.M0, (6e4 - h)/obj.hmax];
 
 eq_Cond = equality(varD, states_atNode, states_after, controls_after, obj, prob, file, states_init, cont_init);  % evaluation of equality constraints
 

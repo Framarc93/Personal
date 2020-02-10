@@ -6,14 +6,17 @@ obj = Spaceplane;
 prob = Problem;
 file = Files;
 
-ff = load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat');
+ff = load('/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat');
 time_tot = ff.t(end); % initial time
-
-tcontr = linspace(0, time_tot, prob.varC);  % time vector used for interpolation of controls intial guess
-tstat = linspace(0, time_tot, prob.Nleg);
+tstat = linspace(0, time_tot, prob.Nbar);
+t_cont_vects = [];
+for i=1:prob.Nleg
+    t_cont_vects = [t_cont_vects; linspace(tstat(i), tstat(i + 1), prob.NContPoints)];  % time vector used for interpolation of controls intial guess
+end
+    
 tnew = linspace(0, time_tot, prob.Nbar);
 % Load initial conditions %
-[states_init, controls_init] = intial_conds(tstat, tcontr);
+[states_init, controls_init] = intial_conds(tstat, t_cont_vects);
 v_init = states_init(1, :);
 chi_init = states_init(2, :);
 gamma_init = states_init(3, :);
@@ -48,7 +51,6 @@ end
 k = 1;
 for i = 1:prob.varC
     %creation of vector of controls initial guesses%
-   
     for j = 1:prob.Ncontrols
         U(k) = UGuess(j, i);
         k = k + 1;

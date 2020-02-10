@@ -5,7 +5,6 @@ import time
 import datetime
 from scipy.sparse import csc_matrix, save_npz, load_npz
 import sys
-from smooth_fun import *
 import multiprocessing
 import os
 import dynamicsMS as dyns
@@ -13,26 +12,31 @@ import constraintsMS as const
 import ShootingFunctionsMS as shot
 import PlotMS as Plot
 from functools import partial
-
-sys.path.insert(0, 'home/francesco/Desktop/PhD/FESTIP_Work')
+import numpy as np
+from scipy.interpolate import PchipInterpolator
 from import_initialCond_MS import init_conds
+import scipy.io as sio
 
 '''Multiple Shooting Algorithm'''
 
 start = time.time()
 timestr = time.strftime("%Y%m%d-%H%M%S")
 flag_save = True
-laptop = False
+laptop = True
+
+if laptop:
+    initial_path = "/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP"
+else:
+    initial_path = "/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP"
 
 if flag_save and laptop:
-    os.makedirs("/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm"
-               "/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_".format(os.path.basename(__file__), timestr))
-    savefig_file = "/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
-    savedata_file ="/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_/Data_".format(os.path.basename(__file__), timestr)
+    os.makedirs(initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}".format(os.path.basename(__file__), timestr))
+    savefig_file = initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
+    savedata_file = initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Data_".format(os.path.basename(__file__), timestr)
 elif flag_save and not laptop:
-    os.makedirs("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}".format(os.path.basename(__file__), timestr))
-    savefig_file = "/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
-    savedata_file ="/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Data_".format(os.path.basename(__file__), timestr)
+    os.makedirs(initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}".format(os.path.basename(__file__), timestr))
+    savefig_file = initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
+    savedata_file = initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Data_".format(os.path.basename(__file__), timestr)
 
 '''vehicle parameters'''
 
@@ -170,7 +174,7 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
         #taurescol = np.reshape(taures, (Nint*Nleg, 1))
         t_ineq = np.linspace(0.0, tres[-1], NineqCond)
 
-        vrescol = np.nan_to_num(vrescol)
+        '''vrescol = np.nan_to_num(vrescol)
         chirescol = np.nan_to_num(chirescol)
         gammarescol = np.nan_to_num(gammarescol)
         tetarescol = np.nan_to_num(tetarescol)
@@ -178,7 +182,7 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
         hrescol = np.nan_to_num(hrescol)
         mrescol = np.nan_to_num(mrescol)
         alfarescol = np.nan_to_num(alfarescol)
-        deltarescol = np.nan_to_num(deltarescol)
+        deltarescol = np.nan_to_num(deltarescol)'''
 
         v_Int = PchipInterpolator(tres, vrescol)
         v_ineq = v_Int(t_ineq)
@@ -209,10 +213,11 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
 
         obj.States = states_after
         obj.Controls = controls_after
-
+        #if i == 0:
+         #   ineq_c = np.hstack((ineq_c, h_ineq.T[0]/obj.hmax))
         ineq_c = np.hstack((ineq_c, const.inequalityAll(states_ineq, controls_ineq, NineqCond, obj, cl, cd, cm, presv, spimpv)))
 
-    eq_c = const.equality(varD, states_atNode, varStates, Nstates, obj, states_init, Ncontrols, Nleg, cont_init, cl, cd, cm, presv, spimpv)
+    eq_c = const.equality(varD, states_atNode, varStates, NContPoints, obj, Ncontrols, Nleg, cl, cd, cm, presv, spimpv)
     h = states_after[-1, 5]
     m = states_after[-1, 6]
     delta = controls_after[-1, 1]
@@ -227,6 +232,8 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
     Dv1 = np.sqrt(obj.GMe / r1) * (np.sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1)
     Dv2 = np.sqrt(obj.GMe / obj.r2) * (1 - np.sqrt((2 * r1) / (r1 + obj.r2)))
     mf = m / np.exp((Dv1 + Dv2) / (obj.g0 * isp))
+    '''if np.isnan(mf) or mf == 0.0:
+        mf = m'''
     cost = -mf / obj.M0
     ineq_c = np.hstack((ineq_c, (mf-obj.m10)/obj.M0, (h-6e4)/obj.hmax))
 
@@ -243,14 +250,10 @@ if __name__ == '__main__':
 
     '''reading of aerodynamic coefficients and specific impulse from file'''
 
-    cl = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt")
-    cd = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt")
-    cm = fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt")
-    cl = np.asarray(cl)
-    cd = np.asarray(cd)
-    cm = np.asarray(cm)
-
-    with open("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
+    cl = fileReadOr(initial_path + "/coeff_files/clfile.txt")
+    cd = fileReadOr(initial_path + "/coeff_files/cdfile.txt")
+    cm = fileReadOr(initial_path + "/coeff_files/cmfile.txt")
+    with open(initial_path + "/coeff_files/impulse.dat") as f:
         impulse = []
         for line in f:
             line = line.split()
@@ -259,6 +262,10 @@ if __name__ == '__main__':
                 impulse.append(line)
 
     f.close()
+
+    cl = np.asarray(cl)
+    cd = np.asarray(cd)
+    cm = np.asarray(cm)
 
     presv = []
     spimpv = []
@@ -273,16 +280,16 @@ if __name__ == '__main__':
     '''set problem parameters'''
     source = 'matlab'
     if source == 'matlab':
-        mat_contents = sio.loadmat(
-            '/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat')
+        mat_contents = sio.loadmat(initial_path + "/workspace_init_cond.mat")
         time_tot = mat_contents['t'][0][-1]
     else:
-        time_tot = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_timeTot.npy')[-1]
+        time_tot = np.load(initial_path + "/Collocation_Algorithm/nice_initCond/Data_timeTot.npy")[-1]
 
-    Nbar = 5 # number of conjunction points
+    discretization = 1 # [s]  how close are the propagation points in the legs
+    Nbar = 4 # number of conjunction points
     Nleg = Nbar - 1  # number of multiple shooting sub intervals
-    NContPoints = 5  # number of control points for interpolation inside each interval
-    Nint = 100# number of points for each single shooting integration
+    NContPoints = 7  # number of control points for interpolation inside each interval
+    Nint = int((time_tot/Nleg)/discretization)# number of points for each single shooting integration
     Nstates = 7  # number of states
     Ncontrols = 2  # number of controls
     varStates = 1 + Nstates * (Nleg-1)  # total number of optimization variables for states
@@ -293,6 +300,8 @@ if __name__ == '__main__':
     tcontr = np.linspace(0, time_tot, int(varControls / Ncontrols))  # time vector used for interpolation of controls intial guess
     unit_t = 1000
     save_matrix = False
+    if save_matrix:
+        flag_save = False
     '''NLP solver parameters'''
     solver = 'trust-constr'
     OptGlobal = False
@@ -309,9 +318,11 @@ if __name__ == '__main__':
     U = np.zeros((0))
 
     t_stat = np.linspace(0, time_tot, Nbar)
-    t_contr = np.linspace(0, time_tot, NContPoints*Nleg)
+    t_cont_vects = []
+    for i in range(Nleg):
+        t_cont_vects.append(np.linspace(t_stat[i], t_stat[i + 1], NContPoints))
 
-    states_init, controls_init = init_conds(t_stat, t_contr, source)
+    states_init, controls_init = init_conds(t_stat, t_cont_vects, source, initial_path)
 
     v_init = states_init[0]
     chi_init = states_init[1]
@@ -357,8 +368,8 @@ if __name__ == '__main__':
     UbS = uplimx
     LbC = inflimu
     UbC = uplimu
-    tlb = [20]
-    tub = [200]
+    tlb = [10]
+    tub = [250]
 
     obj.LBV = np.hstack((LbS, LbC, np.repeat(tlb, Nleg)))
     obj.UBV = np.hstack((UbS, UbC, np.repeat(tub, Nleg)))
@@ -376,13 +387,12 @@ if __name__ == '__main__':
         lbineq = ([0.0])  # lower bound for inequality constraints
         ubineq = ([np.inf])  # upper bound for inequality constraints
 
-        lb = lbeq * (Nstates * (Nleg-1) + 4) + lbineq * (3 * NineqCond * Nleg + 2)  # all lower bounds
-        ub = ubeq * (Nstates * (Nleg-1) + 4) + ubineq * (3 * NineqCond * Nleg + 2)  # all upper bounds
+        lb = lbeq * ((Nstates + Ncontrols) * (Nleg-1)) + lbineq * (3 * NineqCond * Nleg + 2)# + NineqCond)  # all lower bounds
+        ub = ubeq * ((Nstates + Ncontrols) * (Nleg-1)) + ubineq * (3 * NineqCond * Nleg + 2)# + NineqCond)  # all upper bounds
         if save_matrix:
             cons = NonlinearConstraint(constraints, lb, ub, finite_diff_jac_sparsity=None)
         else:
-            sparseJac = load_npz(
-                "/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz")
+            sparseJac = load_npz(initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz")
             sp = sparseJac.todense()
             row = np.shape(sp)[0]
             column = np.shape(sp)[1]
@@ -408,7 +418,7 @@ if __name__ == '__main__':
     """ Custom step-function """
 
     if OptGlobal:
-        class RandomDisplacementBounds(object):
+        '''class RandomDisplacementBounds(object):
             """random displacement with bounds:  see: https://stackoverflow.com/a/21967888/2320035
                 Modified! (dropped acceptance-rejection sampling for a more specialized approach)
             """
@@ -427,18 +437,13 @@ if __name__ == '__main__':
                 xnew = x + random_step
 
                 return xnew
-        bounded_step = RandomDisplacementBounds(np.array([b[0] for b in bnds_slsqp]), np.array([b[1] for b in bnds_slsqp]))
+        bounded_step = RandomDisplacementBounds(np.array([b[0] for b in bnds]), np.array([b[1] for b in bnds]))'''
 
     '''NLP SOLVER'''
 
-
-
     if OptGlobal:
-        print("Start global search")
-        minimizer_kwargs = {'method':'SLSQP', "constraints":cons_slsqp, "bounds":bnds_slsqp}
-        optb = basinhopping(cost_fun, X0a, disp=True, minimizer_kwargs=minimizer_kwargs, take_step=bounded_step)
-        print("Done global search")
-        X0a = optb.x
+        minimizer_kwargs = {'method':'trust-constr', "constraints":cons, "bounds":bnds}
+        opt = basinhopping(cost_fun, X0a, disp=True, minimizer_kwargs=minimizer_kwargs)
     elif solver == 'trust-constr':
         if save_matrix:
             opt = optimize.minimize(cost_fun, X0a,
@@ -472,5 +477,6 @@ if __name__ == '__main__':
     print("Time elapsed for total optimization ", tformat)
     if save_matrix:
         sparse = csc_matrix(opt.jac[0])
-        save_npz("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz", sparse)
-    Plot.plot(opt.x, Nint, Nleg, NContPoints, obj, Nstates, varTot, Ncontrols, varStates, cl, cd, cm, presv, spimpv, flag_save, savedata_file, maxiter, timestr, tformat, savefig_file)
+        save_npz(initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz", sparse)
+    if flag_save:
+        Plot.plot(opt.x, Nint, Nleg, NContPoints, obj, Nstates, varTot, Ncontrols, varStates, cl, cd, cm, presv, spimpv, flag_save, savedata_file, maxiter, timestr, tformat, savefig_file, states_init)

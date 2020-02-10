@@ -1,6 +1,6 @@
 function [states, controls] = intial_conds(t_stat, t_contr)
 
-intial_conds = load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat');
+intial_conds = load('/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat');
 v = intial_conds.vres;
 chi = intial_conds.chires;
 gamma = intial_conds.gammares;
@@ -34,11 +34,14 @@ m_Int = pchip(t, m);
 m_init = ppval(m_Int, t_stat);
 
 alfa_Int_post = pchip(t, alfa);
-alfa_init = ppval(alfa_Int_post, t_contr);
-
 delta_Int_post = pchip(t, delta);
-delta_init = ppval(delta_Int_post, t_contr);
 
+alfa_init = [];
+delta_init = [];
+for i=1:length(t_contr(:,1))
+    alfa_init = [alfa_init, ppval(alfa_Int_post, t_contr(i,:))];
+    delta_init = [delta_init, ppval(delta_Int_post, t_contr(i,:))];
+end
 states = [v_init; chi_init; gamma_init; teta_init; lam_init; h_init; m_init];
 controls = [alfa_init; delta_init];
 end
