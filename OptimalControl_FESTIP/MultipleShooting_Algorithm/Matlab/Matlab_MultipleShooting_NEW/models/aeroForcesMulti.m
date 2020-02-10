@@ -1,14 +1,14 @@
 function [L,D, Mom] =  aeroForcesMulti(M, alfa, deltaf, cd, cl, cm, v, rho, mass, obj, npoint)
 
-for i=1:size(v)
-if isnan(v(i))
-    v(i) = 1;
-else
-    if isinf(v(i))
-        v(i) = 1e4;
-    end
-end
-end
+% for i=1:size(v)
+% if isnan(v(i))
+%     v(i) = 1;
+% else
+%     if isinf(v(i))
+%         v(i) = 1e4;
+%     end
+% end
+% end
 mach = [0.0, 0.3, 0.6, 0.9, 1.2, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 20.0];
 angAttack = [-2.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.5, 25.0, 30.0, 35.0, 40.0];
 bodyFlap = [-20, -10, 0, 10, 20, 30];
@@ -40,20 +40,17 @@ for i=1:npoint
 end
 
 function coeffFinal = coefCalc(coeff, m, alfa, deltaf)
-        if isnan(m)
-            m=mach(end);
-        end
-        if m > mach(end)
+        if m > mach(end) || isinf(m) 
             m = mach(end);
         else
-            if m < mach(1)
+            if m < mach(1) || isnan(m)
                 m = mach(1);
             end
         end
-        if alfa > angAttack(end)
-            alfa = angAttack(end);
+        if alfa > angAttack(end) || isinf(alfa)
+            alfa = angAttack(end); 
         else
-            if alfa < angAttack(1)
+            if alfa < angAttack(1) || isnan(alfa)
                 alfa = angAttack(1);
             end
         end

@@ -1,6 +1,6 @@
 function [states, controls] = intial_conds(t_stat, t_contr)
 
-intial_conds = load('/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat');
+intial_conds = load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat');
 v = intial_conds.vres;
 chi = intial_conds.chires;
 gamma = intial_conds.gammares;

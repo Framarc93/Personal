@@ -35,10 +35,8 @@ sspeedf = sqrt(1.4 * R * tmf);
 for i=1:size(altitude)
     
     alt = altitude(i);
-    if isnan(alt)
-        alt=1;
-    end
-    if alt < 0 
+    
+    if alt < 0 || isnan(alt)
         t = t0;
         p = p0;
         d = p / (R * t);

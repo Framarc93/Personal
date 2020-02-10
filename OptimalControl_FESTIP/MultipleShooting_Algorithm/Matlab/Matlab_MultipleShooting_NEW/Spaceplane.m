@@ -24,13 +24,14 @@ classdef Spaceplane
         Hini = 100000;
         m10=0;
         r2=0;
+        tvert = 2 %[s] time for completely vertical take off
         Vtarget=0;
         chi_fin=0;
         Rtarget=0;
         States=[];
         Controls=[];
         vmax = 1e4;
-        chimax = deg2rad(150);
+        chimax = deg2rad(170);
         gammamax = deg2rad(89.9);
         tetamax = deg2rad(-10);
         lammax = deg2rad(30);

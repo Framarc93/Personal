@@ -1,12 +1,12 @@
 function [press, dens, sspeed] = isa_FESTIP(altitude, obj)
     
-if isnan(altitude)
-    altitude = 1;
-else
-    if isinf(altitude)
-        altitude = obj.hmax;
-    end
-end
+% if isnan(altitude)
+%     altitude = 1;
+% else
+%     if isinf(altitude)
+%         altitude = obj.hmax;
+%     end
+% end
     a = [-0.0065, 0, 0.0010, 0.0028, 0, -0.0020, -0.0040, 0];
     a90 = [0.0030, 0.0050, 0.0100, 0.0200, 0.0150, 0.0100, 0.0070];
     hv = [11000, 20000, 32000, 47000, 52000, 61000, 79000, 90000];

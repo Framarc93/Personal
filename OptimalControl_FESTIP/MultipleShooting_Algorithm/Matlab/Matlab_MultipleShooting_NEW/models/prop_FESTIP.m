@@ -39,7 +39,7 @@ dthr = 0.4224 * (36.656 - xcg) * thrx - 19.8 * (32 - xcg) * (1.7 * slpres - pres
 mommot = tau * dthr;
 thrz = -tau * (2.5E+6 - 22*slpres + 9.92 * presamb);
 FT = sqrt(thrx^2+thrz^2);
-deps = atan(thrz/thrx);
+deps = 0.0; %atan(thrz/thrx);
 
 
 

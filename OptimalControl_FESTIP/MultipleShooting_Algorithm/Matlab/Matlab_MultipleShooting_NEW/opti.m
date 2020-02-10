@@ -2,7 +2,7 @@ function [opt, fval] = opti(obj, prob, file, X0, LB, UB, states_init, cont_init)
 global varOld costOld ineqOld eqOld
 
 
-options=optimset('Algorithm', 'interior-point', ...                         % declare algorithm to use, here set to sequential quadratic programming (SQP)
+options=optimset('Algorithm', 'SQP', ...                         % declare algorithm to use, here set to sequential quadratic programming (SQP)
     'Display', 'iter-detailed', ...                                         %  displays output at each iteration, and gives the technical exit message.
     'TolCon', 1e-6, ...                                                     % tolerance on the constraint violation %'TolX', 1e-9, ...         % tolerance on the design vector     %
     'TolF', 1e-8, ...  

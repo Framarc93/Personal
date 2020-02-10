@@ -3,7 +3,7 @@ function iC = inequalityAll(states, controls, varnum, obj, file)
 
 v = states(:, 1);
 %chi = states(:, 2);
-%gamma = states(:, 3);
+gamma = states(:, 3);
 h = states(:, 6);
 m = states(:, 7);
 
@@ -32,7 +32,7 @@ q = 0.5 * rho .* (v' .^ 2);
 ax = (T .* cos(Deps) - D .* cos(alfa') + L .* sin(alfa')) ./ m';
 az = (T .* sin(Deps) + D .* sin(alfa') + L .* cos(alfa')) ./ m';
 
-iC = -[(obj.MaxAx - ax)./obj.MaxAx, (obj.MaxAz - az)./obj.MaxAz, (obj.MaxAz + az)./obj.MaxAz, (obj.MaxQ - q)./obj.MaxQ];
+iC = -[(obj.MaxAx - ax)./obj.MaxAx, (obj.MaxAz - az)./obj.MaxAz, (obj.MaxQ - q)./obj.MaxQ, (obj.gammamax-gamma')./obj.gammamax];
 end
 
 
