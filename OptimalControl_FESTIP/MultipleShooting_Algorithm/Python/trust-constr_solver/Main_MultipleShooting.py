@@ -174,7 +174,7 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
         #taurescol = np.reshape(taures, (Nint*Nleg, 1))
         t_ineq = np.linspace(0.0, tres[-1], NineqCond)
 
-        '''vrescol = np.nan_to_num(vrescol)
+        vrescol = np.nan_to_num(vrescol)
         chirescol = np.nan_to_num(chirescol)
         gammarescol = np.nan_to_num(gammarescol)
         tetarescol = np.nan_to_num(tetarescol)
@@ -182,7 +182,7 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
         hrescol = np.nan_to_num(hrescol)
         mrescol = np.nan_to_num(mrescol)
         alfarescol = np.nan_to_num(alfarescol)
-        deltarescol = np.nan_to_num(deltarescol)'''
+        deltarescol = np.nan_to_num(deltarescol)
 
         v_Int = PchipInterpolator(tres, vrescol)
         v_ineq = v_Int(t_ineq)
@@ -238,6 +238,24 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
     cost = -mf / obj.M0
     ineq_c = np.hstack((ineq_c, (mf-obj.m10)/obj.M0, (h-6e4)/obj.hmax, (v-6e3)/obj.vmax))
 
+    '''max_i = np.nan_to_num(max(ineq_c))
+    min_i = np.nan_to_num(min(ineq_c))
+    #bnd_i = max(abs(min_i), max_i)
+    max_e = np.nan_to_num(max(eq_c))
+    min_e = np.nan_to_num(min(eq_c))
+    #bnd_e = max(abs(min_e), max_e)
+    exp_i = int(np.log10(max(abs(min_i), max_i)))
+    red_i = 10 ** exp_i
+    exp_e = int(np.log10(max(abs(min_e), max_e)))
+    red_e = 10 ** exp_e
+    new_sup_i = max_i/red_i
+    new_inf_i = min_i/red_i
+    new_sup_e = max_e/red_e
+    new_inf_e = min_e/red_e
+    norm_ineq = new_inf_i + ((new_sup_i - new_inf_i)/(max_i - min_i))*(ineq_c - min_i) # maps inequality between -1 and 1 using min and max of the current array
+    norm_eq = new_inf_e + ((new_sup_e - new_inf_e)/(max_e - min_e))*(eq_c - min_e) # maps equality between -1 and 1 using min and max of the current array
+    #print("Max norm ineq: {}, Min norm ineq: {}".format(max(norm_ineq), min(norm_ineq)))
+    #print("Max norm eq: {}, Min norm eq: {}".format(max(norm_eq), min(norm_eq)))'''
     obj.eqOld = eq_c
     obj.costOld = cost
     obj.ineqOld = ineq_c
@@ -287,7 +305,7 @@ if __name__ == '__main__':
         time_tot = np.load(initial_path + "/Collocation_Algorithm/nice_initCond/Data_timeTot.npy")[-1]
 
     discretization = 1.5 # [s]  how close are the propagation points in the legs
-    Nbar = 4 # number of conjunction points
+    Nbar = 6 # number of conjunction points
     Nleg = Nbar - 1  # number of multiple shooting sub intervals
     NContPoints = 9  # number of control points for interpolation inside each interval
     Nint = int((time_tot/Nleg)/discretization)# number of points for each single shooting integration
@@ -388,8 +406,8 @@ if __name__ == '__main__':
         lbineq = ([0.0])  # lower bound for inequality constraints
         ubineq = ([np.inf])  # upper bound for inequality constraints
 
-        lb = lbeq * ((Nstates + Ncontrols) * (Nleg-1) + 1) + lbineq * (4 * NineqCond * Nleg + 3)# + NineqCond)  # all lower bounds
-        ub = ubeq * ((Nstates + Ncontrols) * (Nleg-1) + 1) + ubineq * (4 * NineqCond * Nleg + 3)# + NineqCond)  # all upper bounds
+        lb = lbeq * ((Nstates + Ncontrols) * (Nleg-1)) + lbineq * (4 * NineqCond * Nleg + 3)# + NineqCond)  # all lower bounds
+        ub = ubeq * ((Nstates + Ncontrols) * (Nleg-1)) + ubineq * (4 * NineqCond * Nleg + 3)# + NineqCond)  # all upper bounds
         if save_matrix:
             cons = NonlinearConstraint(constraints, lb, ub, finite_diff_jac_sparsity=None)
         else:

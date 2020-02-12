@@ -68,20 +68,20 @@ def equality(var, conj, varStates, NContPoints, obj, Ncontrols, Nleg, cl, cd, cm
     stat = obj.States[-1, :]
     #chi = stat[1]
     h = stat[5]
-    #lam = stat[4]
-    #gamma = stat[2]
+    lam = stat[4]
+    gamma = stat[2]
     #cont = obj.Controls[-1, :]
 
     vtAbs, chiass = vass(stat, obj.omega)
 
     vvv = np.sqrt(obj.GMe / (obj.Re + h))
 
-    '''if np.cos(obj.incl) / np.cos(lam) > 1:
+    if np.cos(obj.incl) / np.cos(lam) > 1:
         chifin = np.pi
     elif np.cos(obj.incl) / np.cos(lam) < - 1:
         chifin = 0.0
     else:
-        chifin = 0.5 * np.pi + np.arcsin(np.cos(obj.incl) / np.cos(lam))'''
+        chifin = 0.5 * np.pi + np.arcsin(np.cos(obj.incl) / np.cos(lam))
     states_unit = [obj.vmax, obj.chimax, obj.gammamax, obj.tetamax, obj.lammax, obj.hmax, obj.M0]
     cont_unit = [obj.alfamax, obj.deltamax]
     eq_cond = np.zeros((0))
@@ -93,6 +93,6 @@ def equality(var, conj, varStates, NContPoints, obj, Ncontrols, Nleg, cl, cd, cm
         eq_cond = np.concatenate((eq_cond, var[varStates+i*Ncontrols*NContPoints-1:varStates+i*Ncontrols*NContPoints] - var[varStates+i*Ncontrols*NContPoints+1:varStates+i*Ncontrols*NContPoints+Ncontrols]/cont_unit))
         i += 1
     eq_cond = np.concatenate((eq_cond, ((vvv - vtAbs)/obj.vmax,)))
-    #eq_cond = np.concatenate((eq_cond, ((chifin - chiass)/obj.chimax,)))
-    #eq_cond = np.concatenate((eq_cond, (gamma/obj.gammamax,)))  # final condition on gamma
+    eq_cond = np.concatenate((eq_cond, ((chifin - chiass)/obj.chimax,)))
+    eq_cond = np.concatenate((eq_cond, (gamma/obj.gammamax,)))  # final condition on gamma
     return eq_cond

@@ -603,7 +603,7 @@ class Problem:
                                     args=(self, obj),
                                     constraints=cons,
                                     jac=jac,
-                                    method='SLSQP',
+                                    method='trust-constr',
                                     options={"disp":True,
                                              "iprint":2,
                                              "maxiter": maxiter})
