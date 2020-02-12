@@ -2,13 +2,13 @@ function [opt, fval] = opti(obj, prob, file, X0, LB, UB, states_init, cont_init)
 global varOld costOld ineqOld eqOld
 
 
-options=optimset('Algorithm', 'SQP', ...                         % declare algorithm to use, here set to sequential quadratic programming (SQP)
+options=optimset('Algorithm', 'sqp', ...                         % declare algorithm to use, here set to sequential quadratic programming (SQP)
     'Display', 'iter-detailed', ...                                         %  displays output at each iteration, and gives the technical exit message.
     'TolCon', 1e-6, ...                                                     % tolerance on the constraint violation %'TolX', 1e-9, ...         % tolerance on the design vector     %
     'TolF', 1e-8, ...  
     'MaxSQPIter',1e5, ...                                                      % maximum number of SQP iterations allowed
     'MaxFunEvals',1e5, ...                                      % maximum number of function evaluations allowed
-    'ScaleProblem','none', ...                                    %  causes the algorithm to normalize all constraints and the objective function    
+    'ScaleProblem','None', ...                                    %  causes the algorithm to normalize all constraints and the objective function    
     'UseParallel',true, ...
     'TolX',1e-15...
     );  %     'TolFun', 1e-6, ...   

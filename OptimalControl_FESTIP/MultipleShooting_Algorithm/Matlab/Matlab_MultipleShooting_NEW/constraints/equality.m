@@ -1,10 +1,10 @@
 function eq_cond = equality(var, conj, final_states, final_controls, obj, prob, file, states_init, cont_init)
 
-hFinal = final_states(end - 1);
-lamFinal = final_states(end - 2);
-gammaFinal = final_states(end - 4);
+hFinal = final_states(end, 6);
+lamFinal = final_states(end, 4);
+gammaFinal = final_states(end, 3);
 
-[vtAbs, chiass] = vass(final_states, final_controls, obj.omega, obj, file);
+[vtAbs, chiass] = vass(final_states(end,:), final_controls(end,:), obj.omega, obj, file);
  
 vvv = sqrt(obj.GMe / (obj.Re + hFinal));
  
@@ -19,13 +19,17 @@ else
 end
 
 divv = [obj.vmax, obj.chimax, obj.gammamax, obj.tetamax, obj.lammax, obj.hmax, obj.M0];
+
 divc = [obj.alfamax, obj.deltamax];
+
 eq_cond = zeros(0);
 eq_cond = [eq_cond, (var(2:prob.varStates) - conj)./repmat(divv, 1, prob.Nleg-1)];  % knotting conditions 
 %eq_cond = [eq_cond, (var(prob.varStates + prob.Ncontrols) - 1.0)/obj.deltamax];  % init cond on delta
+
 for i=1:prob.Nleg-1
-    eq_cond = [eq_cond, var(prob.varStates+i*prob.Ncontrols*prob.NContPoints-1:prob.varStates+i*prob.Ncontrols*prob.NContPoints) ...
-        - var(prob.varStates+i*prob.Ncontrols*prob.NContPoints+1:prob.varStates+i*prob.Ncontrols*prob.NContPoints+prob.Ncontrols)./divc];
+     eq_cond = [eq_cond, var(prob.varStates+i*prob.Ncontrols*prob.NContPoints-1:prob.varStates+i*prob.Ncontrols*prob.NContPoints) ...
+         - var(prob.varStates+i*prob.Ncontrols*prob.NContPoints+1:prob.varStates+i*prob.Ncontrols*prob.NContPoints+prob.Ncontrols)./divc];
+
 end
 eq_cond = [eq_cond, (vtAbs-vvv)/obj.vmax];
 eq_cond = [eq_cond, (chifin - chiass)/obj.chimax];

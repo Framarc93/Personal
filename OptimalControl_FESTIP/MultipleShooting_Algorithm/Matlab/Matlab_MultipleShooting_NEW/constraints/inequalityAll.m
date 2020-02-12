@@ -33,6 +33,7 @@ ax = (T .* cos(Deps) - D .* cos(alfa') + L .* sin(alfa')) ./ m';
 az = (T .* sin(Deps) + D .* sin(alfa') + L .* cos(alfa')) ./ m';
 
 iC = -[(obj.MaxAx - ax)./obj.MaxAx, (obj.MaxAz - az)./obj.MaxAz, (obj.MaxQ - q)./obj.MaxQ, (obj.gammamax-gamma')./obj.gammamax];
+
 end
 
 
