@@ -17,21 +17,19 @@ def inequalityAll(states, controls, varnum, obj, cl, cd, cm, presv, spimpv):
     tau = np.zeros(len(v)) #np.transpose(controls[:, 2])  # tau back to [-1, 1] interval
     # mu = np.transpose(controls[:, 4])
 
-    Press, rho, c = isaMulti(h, obj.psl, obj.g0, obj.Re)
+    Press, rho, c = isaMulti(h, obj)
     Press = np.asarray(Press, dtype=np.float64)
     rho = np.asarray(rho, dtype=np.float64)
     c = np.asarray(c, dtype=np.float64)
     M = v / c
 
-    L, D, MomA = aeroForcesMulti(M, alfa, deltaf, cd, cl, cm, v, obj.wingSurf, rho, obj.lRef, obj.M0, m, obj.m10,
-                                 obj.xcg0, obj.xcgf, obj.pref, varnum)
+    L, D, MomA = aeroForcesMulti(M, alfa, deltaf, cd, cl, cm, v, rho, m, obj, varnum)
 
     L = np.asarray(L, dtype=np.float64)
     D = np.asarray(D, dtype=np.float64)
     #MomA = np.asarray(MomA, dtype=np.float64)
 
-    T, Deps, isp, MomT = thrustMulti(Press, m, presv, spimpv, delta, tau, varnum, obj.psl, obj.M0, obj.m10, obj.lRef,
-                                     obj.xcgf, obj.xcg0)
+    T, Deps, isp, MomT = thrustMulti(Press, m, presv, spimpv, delta, tau, varnum, obj)
 
     T = np.asarray(T, dtype=np.float64)
     #isp = np.asarray(isp, dtype=np.float64)
@@ -87,7 +85,7 @@ def equality(var, conj, varStates, NContPoints, obj, Ncontrols, Nleg, cl, cd, cm
     eq_cond = np.zeros((0))
 
     eq_cond = np.concatenate((eq_cond, (var[1:varStates] - conj)/np.tile(states_unit, Nleg-1)))  # knotting conditions
-    #eq_cond = np.concatenate((eq_cond, ((var[varStates + Ncontrols-1] - 1.0)/obj.deltamax,)))  # init cond on controls
+    eq_cond = np.concatenate((eq_cond, ((var[varStates + Ncontrols-1] - 1.0)/obj.deltamax,)))  # init cond on controls
     i = 1
     while i <= Nleg-1:
         eq_cond = np.concatenate((eq_cond, var[varStates+i*Ncontrols*NContPoints-1:varStates+i*Ncontrols*NContPoints] - var[varStates+i*Ncontrols*NContPoints+1:varStates+i*Ncontrols*NContPoints+Ncontrols]/cont_unit))

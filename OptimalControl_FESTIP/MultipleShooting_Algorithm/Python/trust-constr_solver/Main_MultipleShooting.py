@@ -1,10 +1,9 @@
 from scipy import optimize
 from scipy.optimize import Bounds, NonlinearConstraint, LinearConstraint, basinhopping, shgo
-from models import *
+import modelsMS as mods
 import time
 import datetime
 from scipy.sparse import csc_matrix, save_npz, load_npz
-import sys
 import multiprocessing
 import os
 import dynamicsMS as dyns
@@ -79,9 +78,9 @@ class Spaceplane:
         self.ineqOld = np.zeros((0))
         self.States = np.zeros((0))
         self.Controls = np.zeros((0))
-        self.gammamax = np.deg2rad(89.9)
-        self.gammamin = np.deg2rad(-50)
-        self.chimax = np.deg2rad(150)
+        self.gammamax = np.deg2rad(89)
+        self.gammamin = np.deg2rad(-40)
+        self.chimax = np.deg2rad(170)
         self.chimin = np.deg2rad(100)
         self.lammax = np.deg2rad(30)
         self.lammin = np.deg2rad(2)
@@ -97,6 +96,17 @@ class Spaceplane:
         self.deltamin = 0.0
         self.vstart = 0.1
         self.hstart = 0.1
+        self.mach = [0.0, 0.3, 0.6, 0.9, 1.2, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 20.0]
+        self.angAttack = [-2.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.5, 25.0, 30.0, 35.0, 40.0]
+        self.bodyFlap = [-20, -10, 0, 10, 20, 30]
+        self.a = [-0.0065, 0, 0.0010, 0.0028, 0, -0.0020, -0.0040, 0]
+        self.a90 = [0.0030, 0.0050, 0.0100, 0.0200, 0.0150, 0.0100, 0.0070]
+        self.hv = [11000, 20000, 32000, 47000, 52000, 61000, 79000, 90000]
+        self.h90 = [90000, 100000, 110000, 120000, 150000, 160000, 170000, 190000]
+        self.tmcoeff = [180.65, 210.65, 260.65, 360.65, 960.65, 1110.65, 1210.65]
+        self.pcoeff = [0.16439, 0.030072, 0.0073526, 0.0025207, 0.505861E-3, 0.36918E-3, 0.27906E-3]
+        self.tcoeff2 = [2.937, 4.698, 9.249, 18.11, 12.941, 8.12, 5.1]
+        self.tcoeff1 = [180.65, 210.02, 257.0, 349.49, 892.79, 1022.2, 1103.4]
 
 
 def constraints(var):
@@ -172,7 +182,7 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
         #deltafrescol = np.reshape(deltafres, (Nint*Nleg, 1))
         #murescol = np.reshape(mures, (Nint*Nleg, 1))
         #taurescol = np.reshape(taures, (Nint*Nleg, 1))
-        t_ineq = np.linspace(0.0, tres[-1], NineqCond)
+        t_ineq = np.linspace(tres[0], tres[-1], NineqCond)
 
         vrescol = np.nan_to_num(vrescol)
         chirescol = np.nan_to_num(chirescol)
@@ -213,8 +223,8 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
 
         obj.States = states_after
         obj.Controls = controls_after
-        #if i == 0:
-         #   ineq_c = np.hstack((ineq_c, h_ineq.T[0]/obj.hmax))
+        if i == 0:
+            ineq_c = np.hstack((ineq_c, gamma_ineq.T[0]/obj.gammamax, h_ineq.T[0]/obj.hmax))
         ineq_c = np.hstack((ineq_c, const.inequalityAll(states_ineq, controls_ineq, NineqCond, obj, cl, cd, cm, presv, spimpv)))
 
     eq_c = const.equality(varD, states_atNode, varStates, NContPoints, obj, Ncontrols, Nleg, cl, cd, cm, presv, spimpv)
@@ -224,17 +234,15 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
     delta = controls_after[-1, 1]
     tau = 0.0 #controls_after[-1, 2]
 
-    Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
+    Press, rho, c = isa(h, obj)
 
-    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, obj.psl, obj.M0, obj.m10, obj.lRef,
-                                obj.xcgf, obj.xcg0)
+    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, obj)
 
     r1 = h + obj.Re
     Dv1 = np.sqrt(obj.GMe / r1) * (np.sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1)
     Dv2 = np.sqrt(obj.GMe / obj.r2) * (1 - np.sqrt((2 * r1) / (r1 + obj.r2)))
     mf = m / np.exp((Dv1 + Dv2) / (obj.g0 * isp))
-    '''if np.isnan(mf) or mf == 0.0:
-        mf = m'''
+
     cost = -mf / obj.M0
     ineq_c = np.hstack((ineq_c, (mf-obj.m10)/obj.M0, (h-6e4)/obj.hmax, (v-6e3)/obj.vmax))
 
@@ -269,9 +277,9 @@ if __name__ == '__main__':
 
     '''reading of aerodynamic coefficients and specific impulse from file'''
 
-    cl = fileReadOr(initial_path + "/coeff_files/clfile.txt")
-    cd = fileReadOr(initial_path + "/coeff_files/cdfile.txt")
-    cm = fileReadOr(initial_path + "/coeff_files/cmfile.txt")
+    cl = mods.fileReadOrMS(initial_path + "/coeff_files/clfile.txt")
+    cd = mods.fileReadOrMS(initial_path + "/coeff_files/cdfile.txt")
+    cm = mods.fileReadOrMS(initial_path + "/coeff_files/cmfile.txt")
     with open(initial_path + "/coeff_files/impulse.dat") as f:
         impulse = []
         for line in f:
@@ -304,10 +312,10 @@ if __name__ == '__main__':
     else:
         time_tot = np.load(initial_path + "/Collocation_Algorithm/nice_initCond/Data_timeTot.npy")[-1]
 
-    discretization = 1.5 # [s]  how close are the propagation points in the legs
+    discretization = 1 # [s]  how close are the propagation points in the legs
     Nbar = 6 # number of conjunction points
     Nleg = Nbar - 1  # number of multiple shooting sub intervals
-    NContPoints = 9  # number of control points for interpolation inside each interval
+    NContPoints = 7  # number of control points for interpolation inside each interval
     Nint = int((time_tot/Nleg)/discretization)# number of points for each single shooting integration
     Nstates = 7  # number of states
     Ncontrols = 2  # number of controls
@@ -322,7 +330,7 @@ if __name__ == '__main__':
     if save_matrix:
         flag_save = False
     '''NLP solver parameters'''
-    solver = 'trust-constr'
+    solver = 'SLSQP'
     OptGlobal = False
     general_tol = 1e-8
     tr_radius = 10
@@ -406,8 +414,8 @@ if __name__ == '__main__':
         lbineq = ([0.0])  # lower bound for inequality constraints
         ubineq = ([np.inf])  # upper bound for inequality constraints
 
-        lb = lbeq * ((Nstates + Ncontrols) * (Nleg-1)) + lbineq * (4 * NineqCond * Nleg + 3)# + NineqCond)  # all lower bounds
-        ub = ubeq * ((Nstates + Ncontrols) * (Nleg-1)) + ubineq * (4 * NineqCond * Nleg + 3)# + NineqCond)  # all upper bounds
+        lb = lbeq * ((Nstates + Ncontrols) * (Nleg-1) + 4) + lbineq * (4 * NineqCond * Nleg + 3 + 2 * NineqCond)# + NineqCond)  # all lower bounds
+        ub = ubeq * ((Nstates + Ncontrols) * (Nleg-1) + 4) + ubineq * (4 * NineqCond * Nleg + 3 + 2 * NineqCond)# + NineqCond)  # all upper bounds
         if save_matrix:
             cons = NonlinearConstraint(constraints, lb, ub, finite_diff_jac_sparsity=None)
         else:
