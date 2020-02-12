@@ -9,12 +9,12 @@ timestart = 0.0;
 states_atNode = [];
 
 i=0;
-states_after = zeros(prob.Nint*prob.Nleg, prob.Nstates);
+states_after = zeros(prob.Nint*prob.Nleg, prob.Nstates);  
 controls_after = zeros(prob.Nint*prob.Nleg, prob.Ncontrols);
 
 varD = var.*(prob.UBV - prob.LBV) + prob.LBV;
 
-while i <= prob.Nleg-1 
+while i < prob.Nleg % this is the loop for the shooting in each leg. It start from the first bar and finish in the bar before the last one
     controls = extract_controls(varD(prob.varStates+1+(prob.Ncontrols*prob.NContPoints)*i:prob.varStates+(i+1)*prob.Ncontrols*prob.NContPoints), prob.NContPoints, prob.Ncontrols);
     if i == 0
         states = states_init;
@@ -22,8 +22,8 @@ while i <= prob.Nleg-1
     else
         states = varD(1+i*prob.Nstates-(prob.Nstates-1):i*prob.Nstates+1);  
     end
-    timeend = timestart + varD(prob.varTot + i+1);
-    prob.Nint = round((timeend-timestart)/prob.discretization);
+    timeend = timestart + varD(prob.varTot+i+1);
+    
     [vres, chires, gammares, tetares, lamres, hres, mres, t, alfares, deltares] = SingleShooting(states, controls, timestart, timeend, prob, obj, file);
     
     %vres(isnan(vres)) = 0;
@@ -36,7 +36,7 @@ while i <= prob.Nleg-1
     if i < prob.Nleg-1
         states_atNode = [states_atNode, [vres(end), chires(end), gammares(end), tetares(end), lamres(end), hres(end), mres(end)]]; 
     end
-    t_ineqCond = linspace(0.0, timeend, prob.NineqCond);
+    t_ineqCond = linspace(timestart, timeend, prob.NineqCond);
     
     v_Int = pchip(t, vres);
     v_ineq = ppval(v_Int, t_ineqCond);
@@ -61,10 +61,10 @@ while i <= prob.Nleg-1
     states_after = [vres, chires, gammares, tetares, lamres, hres, mres];
     controls_after = [alfares, deltares];
     controls_ineq = [alfa_ineq', delta_ineq'];
-%     if i == 0
-%         ineq_Cond = [ineq_Cond, -gammares'./obj.gammamax, -hres'./obj.hmax];
-%         
-%     end
+    if i == 0
+        ineq_Cond = [ineq_Cond, -gamma_ineq./obj.gammamax, -h_ineq./obj.hmax];
+        
+    end
     
     ineq_Cond = [ineq_Cond, inequalityAll(states_ineq, controls_ineq, prob.NineqCond, obj, file)];% evaluation of inequality constraints
     

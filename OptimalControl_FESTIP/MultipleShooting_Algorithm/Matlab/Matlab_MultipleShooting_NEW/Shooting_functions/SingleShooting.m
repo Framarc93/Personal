@@ -23,7 +23,7 @@ delta_Int = pchip(timeCont, controls(2, :));
 t = linspace(timestart, timeend, prob.Nint);
 
 dt = t(2) - t(1);
-x = zeros(prob.Nint, 7);
+x = zeros(prob.Nint, prob.Nstates);
 x(1,:) = states;
 for i=1:prob.Nint-1
     k1 = dt*dynamicsInt(t(i), x(i, :), alfa_Int, delta_Int, obj, file);

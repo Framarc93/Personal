@@ -68,20 +68,27 @@ mu = 0.0; %ppval(mu_Int, t);
 % end
 
 [Press, rho, c] = isa_FESTIP(h, obj);
-M = v / c;
+if isnan(v)
+    M = 0;
+elseif isinf(v)
+    M = 1e6/c;
+else
+    M = v/c;
+end
 [L, D, MomA] = aero_FESTIP(M, alfa, deltaf, file.cd, file.cl, file.cm, v, rho, m, obj);
 [T, Deps, isp, MomT] = prop_FESTIP(Press, m, file.presv, file.spimpv, delta, tau, obj);
 
+
 eps = Deps + alfa;
-g0 = obj.g0;
+
 if h == 0
-    g = g0;
+    g = obj.g0;
 else
-    g = g0 * (obj.Re / (obj.Re + h)) ^ 2;
+    g = obj.g0 * (obj.Re / (obj.Re + h)) ^ 2;
 end
 
 if t <= obj.tvert
-    dx = [(T*cos(eps) - D)/m - g, 0, 0, 0, 0, v, -T/(g0*isp)];
+    dx = [(T*cos(eps) - D)/m - g, 0, 0, 0, 0, v, -T/(obj.g0*isp)];
 else
 dx = [((T * cos(eps) - D) / m) - g * sin(gamma) + (obj.omega ^ 2) * ...
     (obj.Re + h) * cos(lam) * (cos(lam) * sin(gamma) - sin(lam) * cos(gamma) * sin(chi)), ...
@@ -94,7 +101,7 @@ dx = [((T * cos(eps) - D) / m) - g * sin(gamma) + (obj.omega ^ 2) * ...
     -cos(gamma) * cos(chi) * (v / ((obj.Re + h) * cos(lam))), ...
     cos(gamma) * sin(chi) * (v / (obj.Re + h)), ...
     v * sin(gamma), ...
-    -T / (g0 * isp)];
+    -T / (obj.g0 * isp)];
 end
 end
 

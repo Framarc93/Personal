@@ -13,7 +13,7 @@ t_cont_vects = [];
 for i=1:prob.Nleg
     t_cont_vects = [t_cont_vects; linspace(tstat(i), tstat(i + 1), prob.NContPoints)];  % time vector used for interpolation of controls intial guess
 end
-
+prob.Nint = round((time_tot/prob.Nleg)/prob.discretization);
 tnew = linspace(0, time_tot, prob.Nbar);
 % Load initial conditions %
 [states_init, controls_init] = intial_conds(tstat, t_cont_vects);
@@ -75,15 +75,15 @@ X0a = (X0d - prob.LBV)./(prob.UBV-prob.LBV);
 lb = 0.0;
 ub = 1.0;
 
-LB = zeros(1, (prob.Nleg-1)*prob.Nstates + 1 + prob.Nleg * prob.NContPoints  * prob.Ncontrols + prob.Nleg);
-UB = ones(1, (prob.Nleg-1)*prob.Nstates + 1 + prob.Nleg * prob.NContPoints  * prob.Ncontrols + prob.Nleg);
-global varOld costOld eqOld ineqOld States Controls globTime
+LB = zeros(1, length(X0a));
+UB = ones(1, length(X0a));
+global varOld costOld eqOld ineqOld States Controls 
 varOld = zeros(size(X0a));
 costOld = 0;
 eqOld = zeros(0);
 ineqOld = zeros(0);
 States = zeros(0);
 Controls = zeros(0);
-globTime = zeros(0);
+
 [opt, fval] = opti(obj, prob, file, X0a, LB, UB, states_init, cont_init);
 Plot_MS(opt, prob, obj, file, states_init);

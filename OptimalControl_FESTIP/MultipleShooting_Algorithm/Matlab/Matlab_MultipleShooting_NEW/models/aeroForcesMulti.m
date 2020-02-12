@@ -1,45 +1,26 @@
 function [L,D, Mom] =  aeroForcesMulti(M, alfa, deltaf, cd, cl, cm, v, rho, mass, obj, npoint)
 
-% for i=1:size(v)
-% if isnan(v(i))
-%     v(i) = 1;
-% else
-%     if isinf(v(i))
-%         v(i) = 1e4;
-%     end
-% end
-% end
-mach = [0.0, 0.3, 0.6, 0.9, 1.2, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 20.0];
-angAttack = [-2.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.5, 25.0, 30.0, 35.0, 40.0];
-bodyFlap = [-20, -10, 0, 10, 20, 30];
-lRef = obj.lRef;
-mstart = obj.M0;
-m10 = obj.m10;
-xcgf = obj.xcgf; %cg position with empty vehicle
-xcg0 = obj.xcg0; %cg position at take-off
-pref = obj.pref;
-sup = obj.wingSurf;
 alfag = rad2deg(alfa);
 deltafg = rad2deg(deltaf);
 L = [];
 D = [];
 Mom = [];
 for i=1:npoint
-    cL = coefCalc(cl, M(i), alfag(i), deltafg(i)); 
-    cD = coefCalc(cd, M(i), alfag(i), deltafg(i)); 
-    l = 0.5 * (v(i) ^ 2) * sup * rho(i) * cL;
-    d = 0.5 * (v(i) ^ 2) * sup * rho(i) * cD;
-    xcg = lRef * (((xcgf - xcg0)/(m10 - mstart))*(mass(i)-mstart)+xcg0);
-    dx = xcg - pref;
-    cM = coefCalc(cm, M(i), alfag(i), deltafg(i));
-    cM = cM + cL * (dx/lRef) * cos(alfa(i)) + cD * (dx/lRef) * sin(alfa(i));
-    mom = 0.5 * (v(i) ^ 2) * sup * lRef * rho(i) * cM;
+    cL = coefCalc(cl, M(i), alfag(i), deltafg(i), obj.mach, obj.angAttack, obj.bodyFlap); 
+    cD = coefCalc(cd, M(i), alfag(i), deltafg(i), obj.mach, obj.angAttack, obj.bodyFlap); 
+    l = 0.5 * (v(i) ^ 2) * obj.wingSurf * rho(i) * cL;
+    d = 0.5 * (v(i) ^ 2) * obj.wingSurf * rho(i) * cD;
+    xcg = obj.lRef * (((obj.xcgf - obj.xcg0)/(obj.m10 - obj.M0))*(mass(i)-obj.M0)+obj.xcg0);
+    dx = xcg - obj.pref;
+    cM = coefCalc(cm, M(i), alfag(i), deltafg(i), obj.mach, obj.angAttack, obj.bodyFlap);
+    cM = cM + cL * (dx/obj.lRef) * cos(alfa(i)) + cD * (dx/obj.lRef) * sin(alfa(i));
+    mom = 0.5 * (v(i) ^ 2) * obj.wingSurf * obj.lRef * rho(i) * cM;
     L = [L, l];
     D = [D, d];
     Mom = [Mom, mom];
 end
 
-function coeffFinal = coefCalc(coeff, m, alfa, deltaf)
+function coeffFinal = coefCalc(coeff, m, alfa, deltaf, mach, angAttack, bodyFlap)
         if m > mach(end) || isinf(m) 
             m = mach(end);
         else
@@ -68,8 +49,12 @@ try
         cnew2 = coeff(17*(sm-1)+1:17*(sm-1)+length(angAttack),:);
 
         [ia,sa] = limCalc(angAttack, alfa); %angle of attack boundaries
-        [id,sd] = limCalc(bodyFlap, deltaf); %PROBLEMA %deflection angle boundaries
-
+        if deltaf == 0
+            id = 2;
+            sd = 3;
+        else
+            [id,sd] = limCalc(bodyFlap, deltaf); %PROBLEMA %deflection angle boundaries
+        end
         rowinf1 = cnew1(ia,:);
         rowsup1 = cnew1(sa,:);
 
@@ -101,9 +86,9 @@ end
     end
     
     function [i,s] = limCalc(array, value)
-    s = min(find(array>=value));
+    s = find(array>=value, 1 );
     s = max([s, 2]);
-    i = max(find(array(1:s-1)<=value));
+    i = find(array(1:s-1)<=value, 1, 'last' );
     
      
     end

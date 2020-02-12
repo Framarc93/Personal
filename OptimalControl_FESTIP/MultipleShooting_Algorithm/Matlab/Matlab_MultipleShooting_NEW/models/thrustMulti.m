@@ -1,35 +1,27 @@
 function [Thrust, Deps, Simp, Mom] =  thrustMulti(presamb, m, presv, spimpv, delta, tau, obj, npoint)
 
-slpres = obj.psl;
 nimp = 17;
 nmot = 1;
-lref = obj.lRef;
-wlo = obj.M0;
-we = obj.m10;
-xcgf = obj.xcgf;  %cg position with empty vehicle
-xcg0 = obj.xcg0;  %cg position at take-off
 Deps = [];
 Simp = [];
 Mom = [];
 Thrust = [];
-presv = (presv);
-spimpv = (spimpv);
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 for j=1:npoint
-    thrx = nmot*(5.8E+6+14.89*slpres-11.16*presamb(j))*delta(j);
-    if presamb(j) > slpres
+    thrx = nmot*(5.8e6 + 14.89*obj.psl-11.16*presamb(j))*delta(j);
+    if presamb(j) > obj.psl
         spimp = spimpv(end);
-        presamb(j) = slpres;
+        presamb(j) = obj.psl;
     else
-        i=1;
-        if (presamb(j) <= slpres)
+        if (presamb(j) <= obj.psl)
             for i=1:nimp
                 if i == nimp
-                    spimp = spimpv(i) - (((presv(i)-presamb(j)/(presv(i)-presv(i-1)))*(spimpv(i)-spimpv(i-1))));
+                    spimp = spimpv(end) - (((presv(end)-presamb(j))/(presv(end)-presv(i-1)))*(spimpv(end)-spimpv(i-1)));
                     break
                 else
-                    if (ge(presv(i),presamb(j)))
-                        spimp = spimpv(i+1) - (((presv(i+1)-presamb(j)/(presv(i+1)-presv(i)))*(spimpv(i+1)-spimpv(i))));
+                    if presv(i) >= presamb(j)
+                        spimp = spimpv(i+1) - (((presv(i+1)-presamb(j))/(presv(i+1)-presv(i)))*(spimpv(i+1)-spimpv(i)));
                         break
                     end
                 end
@@ -37,12 +29,18 @@ for j=1:npoint
         end
     end
 
-    xcg = ((xcgf  - xcg0) / (we-wlo) * (m(j) - wlo) + xcg0) * lref;
-    dthr = 0.4224 * (36.656 - xcg) * thrx - 19.8 * (32 - xcg) * (1.7 * slpres - presamb(j));
-    mommot = tau(j) * dthr;
-    thrz = -tau(j) * (2.5E+6 - 22*slpres + 9.92 * presamb(j));
-    FT = sqrt(thrx^2+thrz^2);
-    deps = 0.0; %atan(thrz/thrx);
+    xcg = ((obj.xcgf  - obj.xcg0) / (obj.m10-obj.M0) * (m(j) - obj.M0) + obj.xcg0) * obj.lRef;
+    dthr = 0.4224 * (36.656 - xcg) * thrx - 19.8 * (32 - xcg) * (1.7 * obj.psl - presamb(j));
+    if tau(j) == 0
+        mommot = 0;
+        FT = thrx;
+        deps = 0.0; 
+    else
+        mommot = tau(j) * dthr;
+        thrz = -tau(j) * (2.5E+6 - 22*obj.psl + 9.92 * presamb(j));
+        FT = sqrt(thrx^2+thrz^2);
+        deps = atan(thrz/thrx);
+    end
     Thrust = [Thrust, FT];
     Deps = [Deps, deps];
     Simp = [Simp, spimp];

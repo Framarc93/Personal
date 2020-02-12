@@ -1,26 +1,19 @@
 function [FT, deps, spimp, mommot] =  prop_FESTIP(presamb, m, presv, spimpv, delta, tau, obj)
-presv = (presv);
-spimpv = (spimpv);
-slpres = obj.psl;
+
 nimp = 17;
 nmot = 1;
-lref = obj.lRef;
-wlo = obj.M0;
-we = obj.m10;
-xcgf = obj.xcgf;  %cg position with empty vehicle
-xcg0 = obj.xcg0;  %cg position at take-off
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-thrx = nmot*(5.8E+6+14.89*slpres-11.16*presamb)*delta;
+thrx = nmot*(5.8e6+14.89*obj.psl-11.16*presamb)*delta;
 
-if presamb >= slpres
+if presamb >= obj.psl
     spimp = spimpv(end);
-    presamb = slpres;
+    presamb = obj.psl;
 else
     i=1;
-    if (presamb < obj.psl)
-        while (i <= nimp)
+    if presamb < obj.psl
+        while i <= nimp
             if i == nimp
                 spimp = spimpv(end) - (((presv(end)-presamb)/(presv(end)-presv(i-1)))*(spimpv(end)-spimpv(i-1)));
             else
@@ -34,12 +27,20 @@ else
     end
 end
 
-xcg = ((xcgf  - xcg0) / (we-wlo) * (m - wlo) + xcg0) * lref;
-dthr = 0.4224 * (36.656 - xcg) * thrx - 19.8 * (32 - xcg) * (1.7 * slpres - presamb);
-mommot = tau * dthr;
-thrz = -tau * (2.5E+6 - 22*slpres + 9.92 * presamb);
-FT = sqrt(thrx^2+thrz^2);
-deps = 0.0; %atan(thrz/thrx);
+xcg = ((obj.xcgf  - obj.xcg0) / (obj.m10-obj.M0) * (m - obj.M0) + obj.xcg0) * obj.lRef;
+dthr = 0.4224 * (36.656 - xcg) * thrx - 19.8 * (32 - xcg) * (1.7 * obj.psl - presamb);
+if tau == 0
+    mommot = 0.0;
+    deps = 0.0;
+    FT = thrx;
+else
+    mommot = tau * dthr;
+    thrz = -tau * (2.5E+6 - 22*obj.psl + 9.92 * presamb);
+    deps = atan(thrz/thrx);
+    FT = sqrt(thrx^2+thrz^2);
+end
+
+
 
 
 
