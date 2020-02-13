@@ -64,15 +64,13 @@ def dynamicsInt(t, states, obj, cl, cd, cm, presv, spimpv, alfa_Int, delta_Int):
         m = obj.m10
         penalty = True'''
 
-    Press, rho, c = isa(h, obj.psl, obj.g0, obj.Re)
+    Press, rho, c = mods.isaMS(h, obj)
 
     M = v / c
 
-    L, D, MomA = aeroForces(M, alfa, deltaf, cd, cl, cm, v, obj.wingSurf, rho, obj.lRef, obj.M0, m, obj.m10,
-                            obj.xcg0, obj.xcgf, obj.pref)
+    L, D, MomA = mods.aeroForcesMS(M, alfa, deltaf, cd, cl, cm, v, rho, m, obj)
 
-    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, obj.psl, obj.M0, obj.m10,
-                                obj.lRef, obj.xcgf, obj.xcg0)
+    T, Deps, isp, MomT = mods.thrustMS(Press, m, presv, spimpv, delta, tau, obj)
 
     eps = Deps + alfa
     g0 = obj.g0
@@ -83,7 +81,7 @@ def dynamicsInt(t, states, obj, cl, cd, cm, presv, spimpv, alfa_Int, delta_Int):
         g = g0 * (obj.Re / (obj.Re + h)) ** 2
     # g = np.asarray(g, dtype=np.float64)
 
-    if t < obj.tvert:
+    if t <= obj.tvert:
         dx = np.array(((T * np.cos(eps) - D) / m - g, 0, 0, 0, 0, v, -T / (g0 * isp)))
     else:
         dx = np.array((((T * np.cos(eps) - D) / m) - g * np.sin(gamma) + (obj.omega ** 2) * (obj.Re + h) * np.cos(lam) * \
