@@ -1,7 +1,5 @@
 function dx = dynamicsVel(states, controls, obj, file)
 %this functions receives the states and controls unscaled and calculates the dynamics%
-global Pissue
-
 v = states(1);
 chi = states(2);
 gamma = states(3);
@@ -11,32 +9,30 @@ h = states(6);
 m = states(7);
 alfa = controls(1);
 delta = controls(2);
-deltaf = 0.0;%controls(3);
-tau = 0.0;%controls(4);
+deltaf = controls(3);
+tau = controls(4);
 mu = 0.0 ;%controls(5);
-if isnan(sum(states))
-Pissue=1;
+
 if isnan(v)
-v=100;
+v=0;
 end
 if isnan(h)
 h=0;
 end
 if isnan(chi)
-chi=1;
+chi=0;
 end
 if isnan(gamma)
-gamma=1;
+gamma=0;
 end
 if isnan(teta)
 teta=1;
 end
 if isnan(lam)
-lam=1;
+lam=0;
 end
 if isnan(m)
-m=1;
-end
+m=10;
 end
 
 [Press, rho, c] = isa_FESTIP(h, obj);

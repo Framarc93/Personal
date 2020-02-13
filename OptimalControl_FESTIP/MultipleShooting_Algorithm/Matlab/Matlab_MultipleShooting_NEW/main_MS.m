@@ -9,9 +9,13 @@ file = Files;
 ff = load('/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat');
 time_tot = ff.t(end); % initial time
 tstat = linspace(0, time_tot, prob.Nbar);
-t_cont_vects = [];
+t_cont_vects = {};
 for i=1:prob.Nleg
-    t_cont_vects = [t_cont_vects; linspace(tstat(i), tstat(i + 1), prob.NContPoints)];  % time vector used for interpolation of controls intial guess
+    if i == 1
+        t_cont_vects{i} = linspace(tstat(i), tstat(i + 1), prob.NContPointsLeg1);
+    else
+        t_cont_vects{i} = linspace(tstat(i), tstat(i + 1), prob.NContPoints);  % time vector used for interpolation of controls intial guess
+    end
 end
 %prob.Nint = round((time_tot/prob.Nleg)/prob.discretization);
 tnew = linspace(0, time_tot, prob.Nbar);
@@ -26,17 +30,18 @@ h_init = states_init(6, :);
 m_init = states_init(7, :);
 alfa_init = controls_init(1, :);
 delta_init = controls_init(2, :);
-
+deltaf_init = zeros(1, length(delta_init));
+tau_init = zeros(1, length(delta_init));
 % set vector of initial conditions of states and controls
 X = zeros(1,prob.varStates);
 U = zeros(1,prob.varControls);
 
 states_init = [v_init(1), chi_init(1), gamma_init(1), teta_init(1), lam_init(1), h_init(1), m_init(1)];
-cont_init = [alfa_init(1), delta_init(1)];
+cont_init = [alfa_init(1), delta_init(1), deltaf_init(1), tau_init(1)];
 X(1) = chi_init(1);
 XGuess = [v_init(2:end); chi_init(2:end); gamma_init(2:end); teta_init(2:end); lam_init(2:end); h_init(2:end); m_init(2:end)];  % states initial guesses
 
-UGuess = [alfa_init; delta_init];  % states initial guesses
+UGuess = [alfa_init; delta_init; deltaf_init; tau_init];  % states initial guesses
 
 k = 2;
 for i = 1:prob.Nleg-1
@@ -61,14 +66,14 @@ dt = diff(tnew);
 
 X0d = [X, U, dt];  % vector of initial conditions here all the angles are in degrees!!!!!
 
-Tlb = 8; % time lower bounds
-Tub = 250; % time upper bounds
+Tlb = [8, 20, 20, 20, 20, 20];% time lower bounds
+Tub = [10, 250, 250, 250, 250, 250]; % time upper bounds
 UbS = [obj.chimax, repmat([obj.vmax, obj.chimax, obj.gammamax, obj.tetamax, obj.lammax, obj.hmax, obj.M0], 1, prob.Nleg-1)];
 LbS = [obj.chimin, repmat([obj.vmin, obj.chimin, obj.gammamin, obj.tetamin, obj.lammin, obj.hmin, obj.m10], 1, prob.Nleg-1)];
-UbC = repmat([obj.alfamax, obj.deltamax], 1, prob.Nleg * prob.NContPoints);
-LbC = repmat([obj.alfamin, obj.deltamin], 1, prob.Nleg * prob.NContPoints);
-prob.LBV = [LbS, LbC, repmat(Tlb, 1, prob.Nleg)];
-prob.UBV = [UbS, UbC, repmat(Tub, 1, prob.Nleg)];
+UbC = repmat([obj.alfamax, obj.deltamax, obj.deltafmax, obj.taumax], 1, (prob.Nleg-1) * prob.NContPoints + prob.NContPointsLeg1);
+LbC = repmat([obj.alfamin, obj.deltamin, obj.deltafmin, obj.taumin], 1, (prob.Nleg-1) * prob.NContPoints + prob.NContPointsLeg1);
+prob.LBV = [LbS, LbC, Tlb]; %repmat(Tlb, 1, prob.Nleg)];
+prob.UBV = [UbS, UbC, Tub]; %repmat(Tub, 1, prob.Nleg)];
 
 X0a = (X0d - prob.LBV)./(prob.UBV-prob.LBV);
 

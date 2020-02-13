@@ -38,9 +38,9 @@ delta_Int_post = pchip(t, delta);
 
 alfa_init = [];
 delta_init = [];
-for i=1:length(t_contr(:,1))
-    alfa_init = [alfa_init, ppval(alfa_Int_post, t_contr(i,:))];
-    delta_init = [delta_init, ppval(delta_Int_post, t_contr(i,:))];
+for i=1:length(t_contr)
+    alfa_init = [alfa_init, ppval(alfa_Int_post, t_contr{i})];
+    delta_init = [delta_init, ppval(delta_Int_post, t_contr{i})];
 end
 states = [v_init; chi_init; gamma_init; teta_init; lam_init; h_init; m_init];
 controls = [alfa_init; delta_init];

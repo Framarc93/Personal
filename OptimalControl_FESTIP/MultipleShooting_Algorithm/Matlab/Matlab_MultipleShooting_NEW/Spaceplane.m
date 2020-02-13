@@ -46,6 +46,10 @@ classdef Spaceplane
         alfamin = deg2rad(-2);
         deltamax = 1.0;
         deltamin = 0.0;
+        deltafmax = deg2rad(30);
+        deltafmin = deg2rad(-20);
+        taumax = 1;
+        taumin = -1;
         mach = [0.0, 0.3, 0.6, 0.9, 1.2, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 20.0];
         angAttack = [-2.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.5, 25.0, 30.0, 35.0, 40.0];
         bodyFlap = [-20, -10, 0, 10, 20, 30];

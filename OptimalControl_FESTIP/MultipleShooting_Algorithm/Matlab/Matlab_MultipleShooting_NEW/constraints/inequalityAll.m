@@ -9,8 +9,8 @@ m = states(:, 7)';
 
 alfa = controls(:, 1)';
 delta = controls(:, 2)';
-deltaf = zeros(1,length(alfa)); %controls(:, 3);
-tau = zeros(1,length(alfa)); %controls(:, 4);  % tau back to [-1, 1] interval
+deltaf = controls(:, 3);
+tau = controls(:, 4);  
 
 [Press, rho, c] = isaMulti(h, obj);
 

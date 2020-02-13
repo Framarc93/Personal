@@ -1,12 +1,13 @@
 classdef Problem
     properties
     %set problem parameters%
-    NContPoints = 7;  % number of control points for interpolation inside each interval
+    NContPoints = 5;  % number of control points for interpolation inside each interval
+    NContPointsLeg1 = 4;
     Nint = 100; % number of points for each single shooting integration
     discretization = 1; % [s] how close are to each other the propagation points
     Nstates = 7;  % number of states
-    Ncontrols = 2;  % number of controls 
-    NineqCond = 7;
+    Ncontrols = 4;  % number of controls 
+    NineqCond = 5;
     varStates = 0;
     varControls = 0;
     varTot = 0;
@@ -27,7 +28,7 @@ classdef Problem
         function self = Problem(self)
             self.Nbar = self.Nleg + 1;
             self.varStates = self.Nstates * (self.Nleg-1) + 1;
-            self.varControls = self.Ncontrols * self.NContPoints * self.Nleg;   % total number of optimization variables for controls
+            self.varControls = self.Ncontrols * (self.NContPoints * (self.Nleg-1) + self.NContPointsLeg1);   % total number of optimization variables for controls
             self.varTot = self.varStates + self.varControls; % total number of optimization variables for states and controls
             self.varC = round(self.varControls / self.Ncontrols);
         end

@@ -1,4 +1,4 @@
-function dx = dynamicsInt(t, states, alfa_Int, delta_Int, obj, file)
+function dx = dynamicsInt(t, states, alfa_Int, delta_Int, deltaf_Int, tau_Int, obj, file)
 %this functions receives the states and controls unscaled and calculates the dynamics%
 
 v = states(1);
@@ -10,8 +10,8 @@ h = states(6);
 m = states(7);
 alfa = ppval(alfa_Int,t);
 delta = ppval(delta_Int,t);
-deltaf = 0.0;% ppval(deltaf_Int, t);
-tau = 0.0; %ppval(tau_Int, t);
+deltaf = ppval(deltaf_Int, t);
+tau = ppval(tau_Int, t);
 mu = 0.0; %ppval(mu_Int, t);
 
 % if v > obj.vmax

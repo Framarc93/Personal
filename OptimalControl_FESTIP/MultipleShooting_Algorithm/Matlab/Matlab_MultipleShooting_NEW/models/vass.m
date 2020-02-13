@@ -1,37 +1,37 @@
 function [vela, chiass] = vass(states, controls, omega, obj, file)
 
-Re = 6371000;
+Re = obj.Re;
 v = states(1);
 if isnan(v)
     v = 0.0;
 elseif isinf(v)
-    v = 1.7976931348623157e+308;
+    v = 1e10;
 end
 
 chi = states(2);
 if isnan(chi)
     chi = 0.0;
 elseif isinf(chi)
-    chi = 1.7976931348623157e+308;
+    chi = 1e10;
 end
 gamma = states(3);
 if isnan(gamma)
     gamma = 0.0;
 elseif isinf(gamma)
-    gamma = 1.7976931348623157e+308;
+    gamma = 1e10;
 end
 teta = states(4);
 lam = states(5);
 if isnan(lam)
     lam = 0.0;
 elseif isinf(lam)
-    lam = 1.7976931348623157e+308;
+    lam = 1e10;
 end
 h = states(6);
 if isnan(h)
     h = 0.0;
 elseif isinf(h)
-    h = 1.7976931348623157e+308;
+    h = 1e10;
 end
 m = states(7);
 

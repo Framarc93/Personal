@@ -6,21 +6,23 @@ varD = var.*(prob.UBV - prob.LBV) + prob.LBV;
 
 i = 0;
 while i <= prob.Nleg-1
-    controls = extract_controls(varD(prob.varStates+1+(prob.Ncontrols*prob.NContPoints)*i:prob.varStates+(i+1)*prob.Ncontrols*prob.NContPoints), prob.NContPoints, prob.Ncontrols);
-    alfaCP = controls(1,:);
-    deltaCP = controls(2,:);
     if i == 0
         states = states_init;
         states(2) = varD(1);
+        controls = extract_controls(varD(prob.varStates+1+(prob.Ncontrols*prob.NContPointsLeg1)*i:prob.varStates+(i+1)*prob.Ncontrols*prob.NContPointsLeg1), prob.NContPointsLeg1, prob.Ncontrols);
     else
         states = varD(1+i*prob.Nstates-(prob.Nstates-1):i*prob.Nstates+1);  
+        controls = extract_controls(varD(prob.varStates+1+prob.NContPointsLeg1*prob.Ncontrols+(prob.Ncontrols*prob.NContPoints)*(i-1):prob.varStates+prob.NContPointsLeg1*prob.Ncontrols+i*prob.Ncontrols*prob.NContPoints), prob.NContPoints, prob.Ncontrols);
     end
+    alfaCP = controls(1,:);
+    deltaCP = controls(2,:);
+    deltafCP = controls(3,:);
+    tauCP = controls(4,:);
     timeend = timestart + varD(prob.varTot + i+1);
   
     tC = linspace(timestart, timeend, length(alfaCP));
-    [vres, chires, gammares, tetares, lamres, hres, mres, t, alfares, deltares] = SingleShooting(states, controls, timestart, timeend, prob, obj, file);
-    deltafres = zeros(1, length(vres))';
-    taures = zeros(1, length(vres))';
+    [vres, chires, gammares, tetares, lamres, hres, mres, t, alfares, deltares, deltafres, taures] = SingleShooting(states, controls, timestart, timeend, prob, obj, file);
+    %taures = zeros(1, length(vres))';
     [Press, rho, c] = isaMulti(hres, obj);
 
     M = vres' ./ c;
@@ -135,23 +137,23 @@ while i <= prob.Nleg-1
     hold on
     title("Throttles");
     plot(t, deltares * 100, 'r')
-    %plot(t, taures * 100, 'k')
+    plot(t, taures * 100, 'k')
     plot(tC, deltaCP * 100, 'ro')
-    %plot(tC, tauCP(i, :) * 100, 'ro')
+    plot(tC, tauCP * 100, 'ro')
     ylabel("%");
     xlabel("time [s]");
     legend("Delta", "Tau", "Control points");
     grid on
 
-    % figure(10)
-    % hold on
-    % title("Body Flap deflection");
-    % %plot(tC, rad2deg(deltafCP(i, :)), "ro")
-    % plot(timeTotal, rad2deg(deltafres));
-    % ylabel("deg");
-    % xlabel("time [s]");
-    % legend(["Control points"]);
-    % grid on
+    figure(10)
+    hold on
+    title("Body Flap deflection");
+    plot(tC, rad2deg(deltafCP), "ro")
+    plot(t, rad2deg(deltafres));
+    ylabel("deg");
+    xlabel("time [s]");
+    legend(["Control points"]);
+    grid on
 
     %figure(11)
     %hold on
