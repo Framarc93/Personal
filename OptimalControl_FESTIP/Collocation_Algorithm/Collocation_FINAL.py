@@ -3,19 +3,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from OpenGoddard.optimize import Condition, Dynamics, Problem
 import time
-from functools import partial
 import os
 import datetime
-import sys
 from multiprocessing import Pool
-from scipy import special
 from scipy import interpolate
-from scipy import optimize
-from scipy.interpolate import splev, splrep
+from scipy.interpolate import splrep
 import scipy.io as sio
 from import_initialCond import init_conds
-from models_collocation import *
-
+import models_collocation as modcol
+from models_collocation import to_new_int
+from mpl_toolkits import mplot3d
 
 '''this script is a collocation algorithm on FESTIP model'''
 
@@ -101,13 +98,13 @@ def dynamics(prob, obj, section):
     tau = np.zeros(len(v)) #prob.controls(2, section)
     mu = np.zeros(len(v)) #prob.controls(4, section)
 
-    Press, rho, c = isa(h, obj, 0)
+    Press, rho, c = modcol.isa(h, obj, 0)
 
     M = v / c
 
-    L, D, MomA = aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, prob.nodes[0], obj)
+    L, D, MomA = modcol.aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, prob.nodes[0], obj)
 
-    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
+    T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
 
     eps = Deps + alfa
     g = np.zeros(prob.nodes[0])
@@ -163,9 +160,9 @@ def cost(prob, obj):
     delta = prob.controls_all_section(1)
     tau = np.zeros(len(h)) #prob.controls_all_section(2)
 
-    Press, rho, c = isa(h, obj, 0)
+    Press, rho, c = modcol.isa(h, obj, 0)
 
-    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
+    T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
 
     r1 = h[-1] + obj.Re
     Dv1 = np.sqrt(obj.GMe / r1) * (np.sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1)
@@ -200,7 +197,7 @@ def equality(prob, obj):
 
 
 
-    vtAbs, chiass, vtAbs2 = vass(States, Controls, dynamicsVel, obj.omega, obj)
+    vtAbs, chiass, vtAbs2 = modcol.vass(States, Controls, dynamicsVel, obj.omega, obj)
 
     if np.cos(obj.incl) > np.cos(lam[-1]):
         chifin = np.pi
@@ -260,13 +257,13 @@ def inequality(prob, obj):
     #mu = np.zeros(len(v)) #prob.controls_all_section(4)
     #t = prob.time_update()
 
-    Press, rho, c = isa(h, obj, 0)
+    Press, rho, c = modcol.isa(h, obj, 0)
 
     M = v / c
 
-    L, D, MomA = aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, prob.nodes[0], obj)
+    L, D, MomA = modcol.aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, prob.nodes[0], obj)
 
-    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
+    T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
 
     #MomTot = MomA + MomT
 
@@ -415,13 +412,13 @@ def dynamicsVel(states, contr, obj):
     tau = 0.0 #contr[2]
     mu = 0.0 #contr[4]
 
-    Press, rho, c = isa(h, obj, 1)
+    Press, rho, c = modcol.isa(h, obj, 1)
 
     M = v / c
 
-    L, D, MomA = aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, 1, obj)
+    L, D, MomA = modcol.aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, 1, obj)
 
-    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, 1, spimp_interp, obj)
+    T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, 1, spimp_interp, obj)
 
     eps = Deps + alfa
     g0 = obj.g0
@@ -452,9 +449,9 @@ def dynamicsVel(states, contr, obj):
 
 if __name__ == '__main__':
 
-    cl = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt"))
-    cd = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt"))
-    cm = np.array(fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt"))
+    cl = np.array(modcol.fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt"))
+    cd = np.array(modcol.fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt"))
+    cm = np.array(modcol.fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt"))
     # cl = np.load("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cl_smooth_few.npy")
     # cd = np.load("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cd_smooth_few.npy")
     # cm = np.load("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cm_smooth_few.npy")
@@ -498,7 +495,7 @@ if __name__ == '__main__':
     pool = Pool(processes=3)
     plt.ion()
     start = time.time()
-    n = [50]
+    n = [100]
     time_init = [0.0, tfin]
     num_states = [7]
     num_controls = [2]
@@ -509,7 +506,7 @@ if __name__ == '__main__':
     varStates = Nstates * Npoints
     varTot = (Nstates + Ncontrols) * Npoints
     Nint = 1000
-    maxiter = 50
+    maxiter = 20
     ftol = 1e-8
 
     if flag_savefig:
@@ -627,9 +624,9 @@ if __name__ == '__main__':
 
         tf = prob.time_final(-1)
 
-        Press, rho, c = isa(h, obj, 0)
+        Press, rho, c = modcol.isa(h, obj, 0)
 
-        T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
+        T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
 
         # Hohmann transfer mass calculation
         r1 = h[-1] + obj.Re
@@ -671,15 +668,13 @@ if __name__ == '__main__':
         # if h<0:
         #   print("h: ", h, "gamma: ", gamma, "v: ", v)
 
-        Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 1)
+        Press, rho, c = modcol.isa(h, obj, 1)
 
         M = v / c
 
-        L, D, MomA = obj.aeroForces(M, alfa, deltaf, cd, cl, cm, v, obj.wingSurf, rho, obj.lRef, obj.M0, m, obj.m10,
-                                    obj.xcg0, obj.xcgf, obj.pref, 1)
+        L, D, MomA = modcol.aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, 1, obj)
 
-        T, Deps, isp, MomT = obj.thrust(Press, m, presv, spimpv, delta, tau, 1, obj.psl, obj.M0, obj.m10,
-                                        obj.lRef, obj.xcgf, obj.xcg0)
+        T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, 1, spimp_interp, obj)
 
         eps = Deps + alfa
         g0 = obj.g0
@@ -804,25 +799,21 @@ if __name__ == '__main__':
     vres, chires, gammares, tetares, lamres, hres, mres, tres, alfares, deltares, deltafres, taures, mures = \
         SingleShooting(Xinit, Uval, dynamicsInt, time, Nint)
 
-    Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 0)
+    Press, rho, c = modcol.isa(h, obj, 0)
 
-    Pressres, rhores, cres = obj.isa(hres, obj.psl, obj.g0, obj.Re, 0)
+    Pressres, rhores, cres = modcol.isa(hres, obj, 0)
 
     M = v / c
 
     Mres = vres / cres
 
-    L, D, MomA = obj.aeroForces(M, alfa, deltaf, cd, cl, cm, v, obj.wingSurf, rho, obj.lRef, obj.M0, m, obj.m10, obj.xcg0, obj.xcgf, obj.pref, n[0])
+    L, D, MomA = modcol.aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, n[0], obj)
 
-    Lres, Dres, MomAres = obj.aeroForces(Mres, alfares, deltafres, cd, cl, cm, vres, obj.wingSurf, rhores, obj.lRef, obj.M0, mres, obj.m10,
-                                obj.xcg0, obj.xcgf, obj.pref, len(vres))
+    Lres, Dres, MomAres = modcol.aeroForces(Mres, alfares, deltafres, cd, cl, cm, vres, rhores,  mres, len(vres), obj)
 
-    T, Deps, isp, MomT = obj.thrust(Press, m, presv, spimpv, delta, tau, n[0], obj.psl, obj.M0, obj.m10, obj.lRef,
-                                    obj.xcgf,
-                                    obj.xcg0)
+    T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, n[0], spimp_interp, obj)
 
-    Tres, Depsres, ispres, MomTres = obj.thrust(Pressres, mres, presv, spimpv, deltares, taures, len(vres), obj.psl, obj.M0, obj.m10, obj.lRef,
-                                    obj.xcgf,obj.xcg0)
+    Tres, Depsres, ispres, MomTres = modcol.thrust(Pressres, mres, presv, spimpv, deltares, taures, len(vres), spimp_interp, obj)
 
     MomTot = MomA + MomT
     MomTotres = MomAres + MomTres

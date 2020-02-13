@@ -1,5 +1,5 @@
 import numpy as np
-from models import *
+import modelsMS as mods
 import dynamicsMS as dyns
 
 def inequalityAll(states, controls, varnum, obj, cl, cd, cm, presv, spimpv):
@@ -17,19 +17,24 @@ def inequalityAll(states, controls, varnum, obj, cl, cd, cm, presv, spimpv):
     tau = np.zeros(len(v)) #np.transpose(controls[:, 2])  # tau back to [-1, 1] interval
     # mu = np.transpose(controls[:, 4])
 
-    Press, rho, c = isaMulti(h, obj)
+    Press, rho, c = mods.isaMultiMS(h, obj)
     Press = np.asarray(Press, dtype=np.float64)
     rho = np.asarray(rho, dtype=np.float64)
     c = np.asarray(c, dtype=np.float64)
+    for i in range(len(v)):
+        if np.isinf(v[i]):
+            v[i] = 1e6
+        elif np.isnan(v[i]):
+            v[i] = 0
     M = v / c
 
-    L, D, MomA = aeroForcesMulti(M, alfa, deltaf, cd, cl, cm, v, rho, m, obj, varnum)
+    L, D, MomA = mods.aeroForcesMultiMS(M, alfa, deltaf, cd, cl, cm, v, rho, m, obj, varnum)
 
     L = np.asarray(L, dtype=np.float64)
     D = np.asarray(D, dtype=np.float64)
     #MomA = np.asarray(MomA, dtype=np.float64)
 
-    T, Deps, isp, MomT = thrustMulti(Press, m, presv, spimpv, delta, tau, varnum, obj)
+    T, Deps, isp, MomT = mods.thrustMultiMS(Press, m, presv, spimpv, delta, tau, varnum, obj)
 
     T = np.asarray(T, dtype=np.float64)
     #isp = np.asarray(isp, dtype=np.float64)
@@ -70,7 +75,7 @@ def equality(var, conj, varStates, NContPoints, obj, Ncontrols, Nleg, cl, cd, cm
     gamma = stat[2]
     #cont = obj.Controls[-1, :]
 
-    vtAbs, chiass = vass(stat, obj.omega)
+    vtAbs, chiass = mods.vassMS(stat, obj.omega)
 
     vvv = np.sqrt(obj.GMe / (obj.Re + h))
 

@@ -1,4 +1,5 @@
-from models import *
+import modelsMS as mods
+import numpy as np
 
 def dynamicsInt(t, states, obj, cl, cd, cm, presv, spimpv, alfa_Int, delta_Int): #, deltaf_Int, tau_Int, mu_Int):
     '''this functions receives the states and controls unscaled and calculates the dynamics'''
@@ -66,7 +67,12 @@ def dynamicsInt(t, states, obj, cl, cd, cm, presv, spimpv, alfa_Int, delta_Int):
 
     Press, rho, c = mods.isaMS(h, obj)
 
-    M = v / c
+    if np.isnan(v):
+        M = 0
+    elif np.isinf(v):
+        M = 1e6/c
+    else:
+        M = v / c
 
     L, D, MomA = mods.aeroForcesMS(M, alfa, deltaf, cd, cl, cm, v, rho, m, obj)
 
