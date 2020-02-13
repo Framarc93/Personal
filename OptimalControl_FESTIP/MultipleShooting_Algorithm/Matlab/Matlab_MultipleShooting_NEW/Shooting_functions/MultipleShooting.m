@@ -23,7 +23,7 @@ while i < prob.Nleg % this is the loop for the shooting in each leg. It start fr
         states = varD(1+i*prob.Nstates-(prob.Nstates-1):i*prob.Nstates+1);  
     end
     timeend = timestart + varD(prob.varTot+i+1);
-    
+   
     [vres, chires, gammares, tetares, lamres, hres, mres, t, alfares, deltares] = SingleShooting(states, controls, timestart, timeend, prob, obj, file);
     
     %vres(isnan(vres)) = 0;
@@ -62,10 +62,11 @@ while i < prob.Nleg % this is the loop for the shooting in each leg. It start fr
     controls_after = [alfares, deltares];
     controls_ineq = [alfa_ineq', delta_ineq'];
     if i == 0
-        ineq_Cond = [ineq_Cond, -gamma_ineq./obj.gammamax, -h_ineq./obj.hmax];
-        
+        ineq_Cond = [ineq_Cond, -h_ineq./obj.hmax, 0.9-controls(2,:), timeend-10];
     end
-    
+    if i == 1
+        ineq_Cond = [ineq_Cond, 0.90-controls(2,:)];
+    end
     ineq_Cond = [ineq_Cond, inequalityAll(states_ineq, controls_ineq, prob.NineqCond, obj, file)];% evaluation of inequality constraints
     
     i = i + 1;
@@ -87,7 +88,7 @@ Dv1 = sqrt(obj.GMe / r1) * (sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1);
 Dv2 = sqrt(obj.GMe / obj.r2) * (1 - sqrt((2 * r1) / (r1 + obj.r2)));
 mf = m / exp((Dv1 + Dv2) / (obj.g0 * isp));
 
-ineq_Cond = [ineq_Cond, (obj.m10 - mf)/obj.M0, (6e4 - h)/obj.hmax, (7e3 - v)/obj.vmax];
+ineq_Cond = [ineq_Cond, (obj.m10 - mf)/obj.M0, (6e4 - h)/obj.hmax, (7e3 - v)/obj.vmax, delta-0.15];
 
 eq_Cond = equality(varD, states_atNode, states_after, controls_after, obj, prob, file, states_init, cont_init);  % evaluation of equality constraints
 

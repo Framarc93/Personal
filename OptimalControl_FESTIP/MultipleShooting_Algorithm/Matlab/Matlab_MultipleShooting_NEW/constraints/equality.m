@@ -3,7 +3,7 @@ function eq_cond = equality(var, conj, final_states, final_controls, obj, prob, 
 hFinal = final_states(end, 6);
 lamFinal = final_states(end, 4);
 gammaFinal = final_states(end, 3);
-
+%deltaFinal =final_controls(end, 2);
 [vtAbs, chiass] = vass(final_states(end,:), final_controls(end,:), obj.omega, obj, file);
  
 vvv = sqrt(obj.GMe / (obj.Re + hFinal));
@@ -24,7 +24,7 @@ divc = [obj.alfamax, obj.deltamax];
 
 eq_cond = zeros(0);
 eq_cond = [eq_cond, (var(2:prob.varStates) - conj)./repmat(divv, 1, prob.Nleg-1)];  % knotting conditions 
-%eq_cond = [eq_cond, (var(prob.varStates + prob.Ncontrols) - 1.0)/obj.deltamax];  % init cond on delta
+eq_cond = [eq_cond, var(prob.varStates + prob.Ncontrols) - 1.0];  % init cond on delta
 
 for i=1:prob.Nleg-1
      eq_cond = [eq_cond, var(prob.varStates+i*prob.Ncontrols*prob.NContPoints-1:prob.varStates+i*prob.Ncontrols*prob.NContPoints) ...

@@ -48,10 +48,10 @@ if (altitude > 190000) || isinf(altitude)
    z = obj.h90(end);
    b = zb - obj.tcoeff1(7) / obj.a90(7);
    temp = obj.tcoeff1(7) + (obj.tcoeff2(7) * (z - zb)) / 1000;
-   tm = obj.tmcoeff(7) + a90(7) * (z - zb) / 1000;
+   tm = obj.tmcoeff(7) + obj.a90(7) * (z - zb) / 1000;
    add1 = 1 / ((r + b) * (r + z)) + (1 / ((r + b) ^ 2)) * log(abs((z - b) / (z + r)));
    add2 = 1 / ((r + b) * (r + zb)) + (1 / ((r + b) ^ 2)) * log(abs((zb - b) / (zb + r)));
-   press = obj.pcoeff(7) * exp(-m0 / (a90(7) * Rs) * g0 * r ^ 2 * (add1 - add2));
+   press = obj.pcoeff(7) * exp(-m0 / (obj.a90(7) * Rs) * g0 * r ^ 2 * (add1 - add2));
    dens = press / (R * temp);
    sspeed = sqrt(1.4 * R * tm);
 end

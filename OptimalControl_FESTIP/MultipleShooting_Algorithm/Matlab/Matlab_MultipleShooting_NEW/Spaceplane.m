@@ -32,13 +32,13 @@ classdef Spaceplane
         Controls=[];
         vmax = 1e4;
         chimax = deg2rad(170);
-        gammamax = deg2rad(89.9);
+        gammamax = deg2rad(89);
         tetamax = deg2rad(-10);
         lammax = deg2rad(30);
         hmax = 150000;
         vmin = 0.5;
         chimin = deg2rad(90);
-        gammamin = deg2rad(-60);
+        gammamin = deg2rad(-40);
         tetamin = deg2rad(-60);
         lammin = deg2rad(2);
         hmin = 0.5;

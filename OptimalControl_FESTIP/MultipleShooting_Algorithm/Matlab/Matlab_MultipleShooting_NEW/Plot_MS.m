@@ -16,6 +16,7 @@ while i <= prob.Nleg-1
         states = varD(1+i*prob.Nstates-(prob.Nstates-1):i*prob.Nstates+1);  
     end
     timeend = timestart + varD(prob.varTot + i+1);
+  
     tC = linspace(timestart, timeend, length(alfaCP));
     [vres, chires, gammares, tetares, lamres, hres, mres, t, alfares, deltares] = SingleShooting(states, controls, timestart, timeend, prob, obj, file);
     deltafres = zeros(1, length(vres))';

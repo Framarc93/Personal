@@ -6,14 +6,14 @@ obj = Spaceplane;
 prob = Problem;
 file = Files;
 
-ff = load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat');
+ff = load('/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat');
 time_tot = ff.t(end); % initial time
 tstat = linspace(0, time_tot, prob.Nbar);
 t_cont_vects = [];
 for i=1:prob.Nleg
     t_cont_vects = [t_cont_vects; linspace(tstat(i), tstat(i + 1), prob.NContPoints)];  % time vector used for interpolation of controls intial guess
 end
-prob.Nint = round((time_tot/prob.Nleg)/prob.discretization);
+%prob.Nint = round((time_tot/prob.Nleg)/prob.discretization);
 tnew = linspace(0, time_tot, prob.Nbar);
 % Load initial conditions %
 [states_init, controls_init] = intial_conds(tstat, t_cont_vects);
@@ -61,7 +61,7 @@ dt = diff(tnew);
 
 X0d = [X, U, dt];  % vector of initial conditions here all the angles are in degrees!!!!!
 
-Tlb = 10; % time lower bounds
+Tlb = 8; % time lower bounds
 Tub = 250; % time upper bounds
 UbS = [obj.chimax, repmat([obj.vmax, obj.chimax, obj.gammamax, obj.tetamax, obj.lammax, obj.hmax, obj.M0], 1, prob.Nleg-1)];
 LbS = [obj.chimin, repmat([obj.vmin, obj.chimin, obj.gammamin, obj.tetamin, obj.lammin, obj.hmin, obj.m10], 1, prob.Nleg-1)];
