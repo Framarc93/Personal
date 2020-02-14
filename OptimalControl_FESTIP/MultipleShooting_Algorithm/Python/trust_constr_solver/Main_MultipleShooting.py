@@ -29,13 +29,13 @@ else:
     initial_path = "/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP"
 
 if flag_save and laptop:
-    os.makedirs(initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}".format(os.path.basename(__file__), timestr))
-    savefig_file = initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
-    savedata_file = initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Data_".format(os.path.basename(__file__), timestr)
+    os.makedirs(initial_path + "/MultipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}".format(os.path.basename(__file__), timestr))
+    savefig_file = initial_path + "/MultipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
+    savedata_file = initial_path + "/MultipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}/Data_".format(os.path.basename(__file__), timestr)
 elif flag_save and not laptop:
-    os.makedirs(initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}".format(os.path.basename(__file__), timestr))
-    savefig_file = initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
-    savedata_file = initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Data_".format(os.path.basename(__file__), timestr)
+    os.makedirs(initial_path + "/MultipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}".format(os.path.basename(__file__), timestr))
+    savefig_file = initial_path + "/MultipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
+    savedata_file = initial_path + "/MultipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}/Data_".format(os.path.basename(__file__), timestr)
 
 '''vehicle parameters'''
 
@@ -220,11 +220,14 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
         controls_ineq = np.column_stack((alfa_ineq, delta_ineq))  # , deltafrescol, taurescol, murescol))
         states_after = np.column_stack((vrescol, chirescol, gammarescol, tetarescol, lamrescol, hrescol, mrescol))
         controls_after = np.column_stack((alfarescol, deltarescol))#, deltafrescol, taurescol, murescol))
-
+        t_contr = np.linspace(tres[0], tres[-1], NContPoints)
+        delta_cont = delta_Int_post(t_contr)
         obj.States = states_after
         obj.Controls = controls_after
         if i == 0:
-            ineq_c = np.hstack((ineq_c, gamma_ineq.T[0]/obj.gammamax, h_ineq.T[0]/obj.hmax))
+            ineq_c = np.hstack((ineq_c, h_ineq.T[0]/obj.hmax, delta_cont.T[0]-0.9, 10-tres[-1]))
+        if i == 1:
+            ineq_c = np.hstack((ineq_c, delta_cont.T[0] - 0.9))
         ineq_c = np.hstack((ineq_c, const.inequalityAll(states_ineq, controls_ineq, NineqCond, obj, cl, cd, cm, presv, spimpv)))
 
     eq_c = const.equality(varD, states_atNode, varStates, NContPoints, obj, Ncontrols, Nleg, cl, cd, cm, presv, spimpv)
@@ -234,9 +237,9 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
     delta = controls_after[-1, 1]
     tau = 0.0 #controls_after[-1, 2]
 
-    Press, rho, c = isa(h, obj)
+    Press, rho, c = mods.isaMS(h, obj)
 
-    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, obj)
+    T, Deps, isp, MomT = mods.thrustMS(Press, m, presv, spimpv, delta, tau, obj)
 
     r1 = h + obj.Re
     Dv1 = np.sqrt(obj.GMe / r1) * (np.sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1)
@@ -244,7 +247,7 @@ def MultiShooting(var, dyn, obj, Nleg, Nint, NineqCond, presv, spimpv, NContPoin
     mf = m / np.exp((Dv1 + Dv2) / (obj.g0 * isp))
 
     cost = -mf / obj.M0
-    ineq_c = np.hstack((ineq_c, (mf-obj.m10)/obj.M0, (h-6e4)/obj.hmax, (v-6e3)/obj.vmax))
+    ineq_c = np.hstack((ineq_c, (mf-obj.m10)/obj.M0, (h-6e4)/obj.hmax, (v-7e3)/obj.vmax, 0.15-delta))
 
     '''max_i = np.nan_to_num(max(ineq_c))
     min_i = np.nan_to_num(min(ineq_c))
@@ -313,10 +316,10 @@ if __name__ == '__main__':
         time_tot = np.load(initial_path + "/Collocation_Algorithm/nice_initCond/Data_timeTot.npy")[-1]
 
     discretization = 1 # [s]  how close are the propagation points in the legs
-    Nbar = 6 # number of conjunction points
+    Nbar = 7 # number of conjunction points
     Nleg = Nbar - 1  # number of multiple shooting sub intervals
     NContPoints = 7  # number of control points for interpolation inside each interval
-    Nint = int((time_tot/Nleg)/discretization)# number of points for each single shooting integration
+    Nint = 100 # int((time_tot/Nleg)/discretization)# number of points for each single shooting integration
     Nstates = 7  # number of states
     Ncontrols = 2  # number of controls
     varStates = 1 + Nstates * (Nleg-1)  # total number of optimization variables for states
@@ -395,7 +398,7 @@ if __name__ == '__main__':
     UbS = uplimx
     LbC = inflimu
     UbC = uplimu
-    tlb = [10]
+    tlb = [8]
     tub = [250]
 
     obj.LBV = np.hstack((LbS, LbC, np.repeat(tlb, Nleg)))
@@ -419,7 +422,7 @@ if __name__ == '__main__':
         if save_matrix:
             cons = NonlinearConstraint(constraints, lb, ub, finite_diff_jac_sparsity=None)
         else:
-            sparseJac = load_npz(initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz")
+            sparseJac = load_npz(initial_path + "/MultipleShooting_Algorithm/Python/trust_constr_solver/FestipSparsity.npz")
             sp = sparseJac.todense()
             row = np.shape(sp)[0]
             column = np.shape(sp)[1]
@@ -504,6 +507,6 @@ if __name__ == '__main__':
     print("Time elapsed for total optimization ", tformat)
     if save_matrix:
         sparse = csc_matrix(opt.jac[0])
-        save_npz(initial_path + "/MultipleShooting_Algorithm/Python/trust-constr_solver/FestipSparsity.npz", sparse)
+        save_npz(initial_path + "/MultipleShooting_Algorithm/Python/trust_constr_solver/FestipSparsity.npz", sparse)
     if flag_save:
         Plot.plot(opt.x, Nint, Nleg, NContPoints, obj, Nstates, varTot, Ncontrols, varStates, cl, cd, cm, presv, spimpv, flag_save, savedata_file, maxiter, timestr, tformat, savefig_file, states_init)

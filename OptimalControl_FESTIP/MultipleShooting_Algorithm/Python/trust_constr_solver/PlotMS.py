@@ -1,7 +1,7 @@
 import numpy as np
 import ShootingFunctionsMS as shot
 import dynamicsMS as dyns
-from models import *
+import modelsMS as mods
 import os
 import matplotlib.pyplot as plt
 
@@ -57,18 +57,18 @@ def plot(var, Nint, Nleg, NContPoints, obj, Nstates, varTot, Ncontrols, varState
 
         rep = len(vres)
 
-        Press, rho, c = isaMulti(hres, obj)
+        Press, rho, c = mods.isaMultiMS(hres, obj)
         Press = np.asarray(Press, dtype=np.float64)
         rho = np.asarray(rho, dtype=np.float64)
         c = np.asarray(c, dtype=np.float64)
         M = vres / c
 
-        L, D, MomA = aeroForcesMulti(M, alfares, deltafres, cd, cl, cm, vres, obj, rep)
+        L, D, MomA = mods.aeroForcesMultiMS(M, alfares, deltafres, cd, cl, cm, vres, rho, mres, obj, rep)
         L = np.asarray(L, dtype=np.float64)
         D = np.asarray(D, dtype=np.float64)
         MomA = np.asarray(MomA, dtype=np.float64)
 
-        T, Deps, isp, MomT = thrustMulti(Press, mres, presv, spimpv, deltares, taures, rep, obj)
+        T, Deps, isp, MomT = mods.thrustMultiMS(Press, mres, presv, spimpv, deltares, taures, rep, obj)
         T = np.asarray(T, dtype=np.float64)
         isp = np.asarray(isp, dtype=np.float64)
         Deps = np.asarray(Deps, dtype=np.float64)

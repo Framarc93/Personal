@@ -1,4 +1,6 @@
 import numpy as np
+import warnings
+
 
 '''function to read data from txt file'''
 
@@ -134,7 +136,7 @@ def isaMultiMS(altitude, obj):
         elif 0 <= alt < 90000:
             for i in range(0, 8):
                 if alt <= obj.hv[i]:
-                    t, p = cal(p0, t0, obj.a[i], prevh, alt, obj.g0, R)
+                    t, p = calMS(p0, t0, obj.a[i], prevh, alt, obj.g0, R)
                     d = p / (R * t)
                     c = np.sqrt(1.4 * R * t)
                     density.append(d)
@@ -148,11 +150,11 @@ def isaMultiMS(altitude, obj):
                     break
                 else:
 
-                    t0, p0 = cal(p0, t0, obj.a[i], prevh, obj.hv[i], obj.g0, R)
+                    t0, p0 = calMS(p0, t0, obj.a[i], prevh, obj.hv[i], obj.g0, R)
                     prevh = obj.hv[i]
 
         elif 90000 <= alt <= 190000:
-            t, p, tpm = atm90(obj.a90, alt, obj.h90, obj.tcoeff1, obj.pcoeff, obj.tcoeff2, obj.tmcoeff, obj.Re, m0, obj.g0, Rs)
+            t, p, tpm = atm90MS(obj.a90, alt, obj.h90, obj.tcoeff1, obj.pcoeff, obj.tcoeff2, obj.tmcoeff, obj.Re, m0, obj.g0, Rs)
             temperature.append(t)
             pressure.append(p)
             tempm.append(tpm)
@@ -194,13 +196,13 @@ def coefCalcMS(coeff, m, alfa, deltaf, mach, angAttack, bodyFlap):
     elif deltaf < bodyFlap[0] or np.isnan(alfa):
         deltaf = bodyFlap[0]
 
-    im, sm = limCalc(mach, m)  # moments boundaries and determination of the 2 needed tables
+    im, sm = limCalcMS(mach, m)  # moments boundaries and determination of the 2 needed tables
     cnew1 = coeff[17 * im: 17 * im + angAttack.__len__()][:]
     cnew2 = coeff[17 * sm: 17 * sm + angAttack.__len__()][:]
 
-    ia, sa = limCalc(angAttack, alfa)  # angle of attack boundaries
+    ia, sa = limCalcMS(angAttack, alfa)  # angle of attack boundaries
 
-    idf, sdf = limCalc(bodyFlap, deltaf)  # deflection angle boundaries
+    idf, sdf = limCalcMS(bodyFlap, deltaf)  # deflection angle boundaries
 
     '''interpolation on the first table between angle of attack and deflection'''
     rowinf1 = cnew1[ia][:]
@@ -249,25 +251,24 @@ def limCalcMS(array, value):
     return i, s
 
 def aeroForcesMS(M, alfa, deltaf, cd, cl, cm, v, rho, mass, obj):
+    if np.isnan(v):
+        v = 0
+    elif np.isinf(v) or v > 1e6:
+        v = 1e6
+    elif v < -1e6:
+        v = -1e6
     alfag = np.rad2deg(alfa)
     deltafg = np.rad2deg(deltaf)
-    cL = coefCalc(cl, M, alfag, deltafg, obj.mach, obj.angAttack, obj.bodyFlap)
-    cD = coefCalc(cd, M, alfag, deltafg, obj.mach, obj.angAttack, obj.bodyFlap)
-    if v > obj.vmax:
-        print("e")
+    cL = coefCalcMS(cl, M, alfag, deltafg, obj.mach, obj.angAttack, obj.bodyFlap)
+    cD = coefCalcMS(cd, M, alfag, deltafg, obj.mach, obj.angAttack, obj.bodyFlap)
+
     l = 0.5 * (v ** 2) * obj.wingSurf * rho * cL
     d = 0.5 * (v ** 2) * obj.wingSurf * rho * cD
     xcg = obj.lRef * (((obj.xcgf - obj.xcg0) / (obj.m10 - obj.M0)) * (mass - obj.M0) + obj.xcg0)
     Dx = xcg - obj.pref
-    cM1 = coefCalc(cm, M, alfag, deltafg, obj.mach, obj.angAttack, obj.bodyFlap)
+    cM1 = coefCalcMS(cm, M, alfag, deltafg, obj.mach, obj.angAttack, obj.bodyFlap)
     cM = cM1 + cL * (Dx / obj.lRef) * np.cos(alfa) + cD * (Dx / obj.lRef) * np.sin(alfa)
     mom = 0.5 * (v ** 2) * obj.wingSurf * obj.lRef * rho * cM
-    if l > 1e10 or np.isin(l):
-        l = 1e10
-    if d > 1e10 or np.isin(d):
-        d = 1e10
-    if mom > 1e10 or np.isin(mom):
-        mom = 1e10
     return l, d, mom
 
 def aeroForcesMultiMS(M, alfa, deltaf, cd, cl, cm, v, rho, mass, obj, npoint):
@@ -277,21 +278,21 @@ def aeroForcesMultiMS(M, alfa, deltaf, cd, cl, cm, v, rho, mass, obj, npoint):
     D = []
     Mom = []
     for i in range(npoint):
-        cL = coefCalc(cl, M[i], alfag[i], deltafg[i], obj.mach, obj.angAttack, obj.bodyFlap)
-        cD = coefCalc(cd, M[i], alfag[i], deltafg[i], obj.mach, obj.angAttack, obj.bodyFlap)
+        if np.isnan(v[i]):
+            v[i] = 0
+        elif np.isinf(v[i]) or v[i]>1e5:
+            v[i] = 1e5
+        elif v[i] < -1e6:
+            v[i] = -1e6
+        cL = coefCalcMS(cl, M[i], alfag[i], deltafg[i], obj.mach, obj.angAttack, obj.bodyFlap)
+        cD = coefCalcMS(cd, M[i], alfag[i], deltafg[i], obj.mach, obj.angAttack, obj.bodyFlap)
         l = 0.5 * (v[i] ** 2) * obj.wingSurf * rho[i] * cL
         d = 0.5 * (v[i] ** 2) * obj.wingSurf * rho[i] * cD
         xcg = obj.lRef * (((obj.xcgf - obj.xcg0) / (obj.m10 - obj.M0)) * (mass[i] - obj.M0) + obj.xcg0)
         Dx = xcg - obj.pref
-        cM1 = coefCalc(cm, M[i], alfag[i], deltafg[i], obj.mach, obj.angAttack, obj.bodyFlap)
+        cM1 = coefCalcMS(cm, M[i], alfag[i], deltafg[i], obj.mach, obj.angAttack, obj.bodyFlap)
         cM = cM1 + cL * (Dx / obj.lRef) * np.cos(alfa[i]) + cD * (Dx / obj.lRef) * np.sin(alfa[i])
         mom = 0.5 * (v[i] ** 2) * obj.wingSurf * obj.lRef * rho[i] * cM
-        if l > 1e10 or np.isin(l):
-            l = 1e10
-        if d > 1e10 or np.isin(d):
-            d = 1e10
-        if mom > 1e10 or np.isin(mom):
-            mom = 1e10
         L.append(l)
         D.append(d)
         Mom.append(mom)
