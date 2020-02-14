@@ -506,7 +506,7 @@ if __name__ == '__main__':
     varStates = Nstates * Npoints
     varTot = (Nstates + Ncontrols) * Npoints
     Nint = 1000
-    maxiter = 20
+    maxiter = 100
     ftol = 1e-8
 
     if flag_savefig:
