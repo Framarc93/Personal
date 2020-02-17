@@ -8,12 +8,12 @@ timestart = 0.0;
 
 states_atNode = [];
 
-i=0;
+
 states_after = zeros(prob.Nint*prob.Nleg, prob.Nstates);  
 controls_after = zeros(prob.Nint*prob.Nleg, prob.Ncontrols);
 
 varD = var.*(prob.UBV - prob.LBV) + prob.LBV;
-
+i=0;
 while i < prob.Nleg % this is the loop for the shooting in each leg. It start from the first bar and finish in the bar before the last one
     if i == 0
         states = states_init;
@@ -67,11 +67,11 @@ while i < prob.Nleg % this is the loop for the shooting in each leg. It start fr
     controls_after = [alfares, deltares, deltafres, taures];
     controls_ineq = [alfa_ineq', delta_ineq', deltaf_ineq', tau_ineq'];
     if i == 0
-        ineq_Cond = [ineq_Cond, -h_ineq./obj.hmax, 0.95-controls(2,:)];
+        ineq_Cond = [ineq_Cond, -h_ineq./obj.hmax, 0.95-controls(2,:), -gamma_ineq./obj.gammamax];
     end
-    if i == 1
-        ineq_Cond = [ineq_Cond, 0.95-controls(2,:)];
-    end
+%     if i == 1
+%         ineq_Cond = [ineq_Cond, 0.8-controls(2,:)];
+%     end
     ineq_Cond = [ineq_Cond, inequalityAll(states_ineq, controls_ineq, prob.NineqCond, obj, file)];% evaluation of inequality constraints
     
     i = i + 1;
@@ -98,38 +98,6 @@ ineq_Cond = [ineq_Cond, (obj.m10 - mf)/obj.M0, (6e4 - h)/obj.hmax, (7e3 - v)/obj
 eq_Cond = equality(varD, states_atNode, states_after, controls_after, obj, prob, file, states_init, cont_init);  % evaluation of equality constraints
 
 objective = - mf / obj.M0;  % evaluation of objective function
-
-% max_i = 1e17; %max(ineq_Cond);
-% min_i = -1e17; % min(ineq_Cond);
-% max_e = 1e5; %max(eq_Cond);
-% min_e = -1e6; %min(eq_Cond);
-% if max(ineq_Cond) > max_i
-%     disp('max ineq greater than 1e17')
-% end
-% if min(ineq_Cond) < min_i
-%     disp('min ineq lower than -1e17')
-% end
-% if max(eq_Cond) > max_e
-%     disp('max eq greater than 1e5')
-% end
-% if min(eq_Cond) < min_e
-%     disp('min eq lower than -1e6')
-% end
-% exp_i = ceil(log10(max(abs(min_i), max_i)));
-% red_i = 10 ^ exp_i;
-% exp_e = ceil(log10(max(abs(min_e), max_e)));
-% red_e = 10 ^ exp_e;
-% new_sup_i = 1e3;%max_i/red_i;
-% new_inf_i = -1e3;%min_i/red_i;
-% new_sup_e = 1e1;%max_e/red_e;
-% new_inf_e = -1e2;%min_e/red_e;
-% norm_ineq = new_inf_i + ((new_sup_i - new_inf_i)./(max_i - min_i)).*(ineq_Cond - min_i); 
-% norm_eq = new_inf_e + ((new_sup_e - new_inf_e)./(max_e - min_e)).*(eq_Cond - min_e); 
- 
-% ineq_Cond(ineq_Cond > 1e6) = inf;
-% ineq_Cond(ineq_Cond < -1e6) = -inf;
-% eq_Cond(eq_Cond > 1e6) = inf;
-% eq_Cond(eq_Cond < -1e6) = -inf;
 
 costOld = objective;
 ineqOld = ineq_Cond;

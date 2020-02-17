@@ -1,5 +1,9 @@
 function [FT, deps, spimp, mommot] =  prop_FESTIP(presamb, m, presv, spimpv, delta, tau, obj)
-
+if m<obj.m10 || isnan(m)
+        m = obj.m10;
+    elseif m > obj.M0 || isinf(m)
+        m = obj.M0;
+    end
 nimp = 17;
 nmot = 1;
 

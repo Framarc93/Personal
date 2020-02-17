@@ -66,8 +66,8 @@ dt = diff(tnew);
 
 X0d = [X, U, dt];  % vector of initial conditions here all the angles are in degrees!!!!!
 
-Tlb = [8, 20, 20, 20, 20, 20];% time lower bounds
-Tub = [10, 250, 250, 250, 250, 250]; % time upper bounds
+Tlb = [obj.tvert-0.1, 20, 20, 20, 20, 20, 20];% time lower bounds
+Tub = [obj.tvert, 250, 250, 250, 250, 250, 250] ; % time upper bounds
 UbS = [obj.chimax, repmat([obj.vmax, obj.chimax, obj.gammamax, obj.tetamax, obj.lammax, obj.hmax, obj.M0], 1, prob.Nleg-1)];
 LbS = [obj.chimin, repmat([obj.vmin, obj.chimin, obj.gammamin, obj.tetamin, obj.lammin, obj.hmin, obj.m10], 1, prob.Nleg-1)];
 UbC = repmat([obj.alfamax, obj.deltamax, obj.deltafmax, obj.taumax], 1, (prob.Nleg-1) * prob.NContPoints + prob.NContPointsLeg1);

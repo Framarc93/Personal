@@ -4,15 +4,15 @@ Re = obj.Re;
 v = states(1);
 if isnan(v)
     v = 0.0;
-elseif isinf(v)
-    v = 1e10;
+elseif isinf(v) || v>1e6
+    v = 1e6;
 end
 
 chi = states(2);
 if isnan(chi)
     chi = 0.0;
-elseif isinf(chi)
-    chi = 1e10;
+elseif isinf(chi) || chi>obj.chimax
+    chi = obj.chimax;
 end
 gamma = states(3);
 if isnan(gamma)
@@ -30,10 +30,15 @@ end
 h = states(6);
 if isnan(h)
     h = 0.0;
-elseif isinf(h)
-    h = 1e10;
+elseif isinf(h) || h>1e7
+    h = 1e7;
 end
 m = states(7);
+if isnan(m) || m <obj.m10
+    m=obj.m10;
+elseif isinf(m) || m> obj.M0
+    m=obj.M0;
+end
 
 vv = [-v * cos(gamma) * cos(chi), v * cos(gamma) * sin(chi), -v * sin(gamma)];
 vv(1) = vv(1) + omega * cos(lam) * (Re + h);

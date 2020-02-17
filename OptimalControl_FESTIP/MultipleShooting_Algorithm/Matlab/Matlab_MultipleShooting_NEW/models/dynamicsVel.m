@@ -13,26 +13,36 @@ deltaf = controls(3);
 tau = controls(4);
 mu = 0.0 ;%controls(5);
 
+
 if isnan(v)
-v=0;
-end
-if isnan(h)
-h=0;
+    v = 0.0;
+elseif isinf(v) || v>1e6
+    v = 1e6;
 end
 if isnan(chi)
-chi=0;
+    chi = 0.0;
+elseif isinf(chi) || chi>obj.chimax
+    chi = obj.chimax;
 end
 if isnan(gamma)
-gamma=0;
-end
-if isnan(teta)
-teta=1;
+    gamma = 0.0;
+elseif isinf(gamma)
+    gamma = 1e10;
 end
 if isnan(lam)
-lam=0;
+    lam = 0.0;
+elseif isinf(lam)
+    lam = 1e10;
 end
-if isnan(m)
-m=10;
+if isnan(h)
+    h = 0.0;
+elseif isinf(h) || h>1e7
+    h = 1e7;
+end
+if isnan(m) || m <obj.m10
+    m=obj.m10;
+elseif isinf(m) || m> obj.M0
+    m=obj.M0;
 end
 
 [Press, rho, c] = isa_FESTIP(h, obj);

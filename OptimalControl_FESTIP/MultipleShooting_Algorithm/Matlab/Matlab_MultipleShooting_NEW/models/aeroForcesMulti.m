@@ -6,6 +6,11 @@ L = [];
 D = [];
 Mom = [];
 for i=1:npoint
+    if v(i) > 1e6 || isinf(v(i))
+        v(i) = 1e6;
+    elseif isnan(v(i))
+        v(i) = 0;
+    end
     cL = coefCalc(cl, M(i), alfag(i), deltafg(i), obj.mach, obj.angAttack, obj.bodyFlap); 
     cD = coefCalc(cd, M(i), alfag(i), deltafg(i), obj.mach, obj.angAttack, obj.bodyFlap); 
     l = 0.5 * (v(i) ^ 2) * obj.wingSurf * rho(i) * cL;

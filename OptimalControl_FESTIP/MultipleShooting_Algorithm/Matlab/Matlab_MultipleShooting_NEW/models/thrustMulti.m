@@ -9,6 +9,11 @@ Thrust = [];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 for j=1:npoint
+    if m(j)<obj.m10 || isnan(m(j))
+        m(j) = obj.m10;
+    elseif m(j) > obj.M0 || isinf(m(j))
+        m(j) = obj.M0;
+    end
     thrx = nmot*(5.8e6 + 14.89*obj.psl-11.16*presamb(j))*delta(j);
     if presamb(j) > obj.psl
         spimp = spimpv(end);

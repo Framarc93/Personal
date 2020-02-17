@@ -2,7 +2,7 @@ function [L,D, Mom] =  aero_FESTIP(M, alfa, deltaf, cd, cl, cm, v, rho, mass, ob
 
 if isnan(v)
     v = 0;
-elseif isinf(v)
+elseif isinf(v) || v>1e6
     v = 1e6;
 end
 

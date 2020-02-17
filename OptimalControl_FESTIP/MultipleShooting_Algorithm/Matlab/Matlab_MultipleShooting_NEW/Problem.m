@@ -2,17 +2,17 @@ classdef Problem
     properties
     %set problem parameters%
     NContPoints = 5;  % number of control points for interpolation inside each interval
-    NContPointsLeg1 = 4;
+    NContPointsLeg1 = 3;
     Nint = 100; % number of points for each single shooting integration
     discretization = 1; % [s] how close are to each other the propagation points
     Nstates = 7;  % number of states
     Ncontrols = 4;  % number of controls 
-    NineqCond = 5;
+    NineqCond = 9;
     varStates = 0;
     varControls = 0;
     varTot = 0;
     varC = 0;
-    Nleg = 6;
+    Nleg = 7;
     Nbar = 0;
     %NLP solver parameters%
     maxiter = 1; % max number of iterations for nlp solver
