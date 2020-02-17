@@ -18,13 +18,13 @@ flag_save = True
 laptop = False
 if flag_save and laptop:
     os.makedirs("/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm"
-               "/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_".format(os.path.basename(__file__), timestr))
-    savefig_file = "/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
-    savedata_file ="/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}_/Data_".format(os.path.basename(__file__), timestr)
+               "/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}_".format(os.path.basename(__file__), timestr))
+    savefig_file = "/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
+    savedata_file ="/home/francesco/Desktop/PhD/Git_workspace/IC4A2S/Personal/OptimalControl_FESTIP/MUltipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}_/Data_".format(os.path.basename(__file__), timestr)
 elif flag_save and not laptop:
-    os.makedirs("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}".format(os.path.basename(__file__), timestr))
-    savefig_file = "/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
-    savedata_file ="/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust-constr_solver/Results/MultiShooting_trust-constr_{}_{}/Data_".format(os.path.basename(__file__), timestr)
+    os.makedirs("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}".format(os.path.basename(__file__), timestr))
+    savefig_file = "/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}/Plot_".format(os.path.basename(__file__), timestr)
+    savedata_file ="/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/MultipleShooting_Algorithm/Python/trust_constr_solver/Results/MultiShooting_trust-constr_{}_{}/Data_".format(os.path.basename(__file__), timestr)
 
 '''vehicle parameters'''
 
