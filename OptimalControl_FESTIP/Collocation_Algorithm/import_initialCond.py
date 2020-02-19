@@ -4,7 +4,7 @@ import numpy as np
 
 def init_conds(time_new, source):
     if source == 'matlab':
-        mat_contents = sio.loadmat('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat')
+        mat_contents = sio.loadmat('/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat')
         v = mat_contents['vres'].T[0]
         chi = mat_contents['chires'].T[0]
         gamma = mat_contents['gammares'].T[0]

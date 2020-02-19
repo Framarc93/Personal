@@ -1,18 +1,21 @@
 from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
-from OpenGoddard.optimize import Condition, Dynamics, Problem
+from OpenGoddard.optimize import Condition, Dynamics, Problem, Guess
 import time
+from functools import partial
 import os
 import datetime
+import sys
 from multiprocessing import Pool
+from scipy import special
 from scipy import interpolate
-from scipy.interpolate import splrep
+from scipy import optimize
+from scipy.interpolate import splev, splrep
 import scipy.io as sio
 from import_initialCond import init_conds
-import models_collocation as modcol
-from models_collocation import to_new_int
-from mpl_toolkits import mplot3d
+from models_collocation import *
+
 
 '''this script is a collocation algorithm on FESTIP model'''
 
@@ -78,6 +81,10 @@ class Spaceplane():
         self.deltamin = 0.0
         self.vstart = 0.1
         self.hstart = 0.1
+        self.deltafmax = np.deg2rad(30)
+        self.deltafmin = np.deg2rad(-20)
+        self.taumax = 1
+        self.taumin = -1
 
 
 def dynamics(prob, obj, section):
@@ -94,17 +101,17 @@ def dynamics(prob, obj, section):
     #part2 = Guess.linear(time[int(len(v) * 0.4):], 1.0, 0.0001)
     #delta = np.hstack((part1, part2))
     delta = prob.controls(1, section)
-    deltaf = np.zeros(len(v)) #prob.controls(2, section)
-    tau = np.zeros(len(v)) #prob.controls(2, section)
+    deltaf = prob.controls(2, section)
+    tau = prob.controls(3, section)
     mu = np.zeros(len(v)) #prob.controls(4, section)
 
-    Press, rho, c = modcol.isa(h, obj, 0)
+    Press, rho, c = isa(h, obj, 0)
 
     M = v / c
 
-    L, D, MomA = modcol.aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, prob.nodes[0], obj)
+    L, D, MomA = aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, prob.nodes[0], obj)
 
-    T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
+    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
 
     eps = Deps + alfa
     g = np.zeros(prob.nodes[0])
@@ -158,11 +165,11 @@ def cost(prob, obj):
     #part2 = Guess.linear(time[int(len(m) * 0.4):], 1.0, 0.0001)
     #delta = np.hstack((part1, part2))
     delta = prob.controls_all_section(1)
-    tau = np.zeros(len(h)) #prob.controls_all_section(2)
+    tau = prob.controls_all_section(3)
 
-    Press, rho, c = modcol.isa(h, obj, 0)
+    Press, rho, c = isa(h, obj, 0)
 
-    T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
+    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
 
     r1 = h[-1] + obj.Re
     Dv1 = np.sqrt(obj.GMe / r1) * (np.sqrt((2 * obj.r2) / (r1 + obj.r2)) - 1)
@@ -187,17 +194,17 @@ def equality(prob, obj):
     #part2 = Guess.linear(time[int(len(v) * 0.4):], 1.0, 0.0001)
     #delta = np.hstack((part1, part2))
     delta = prob.controls_all_section(1)
-    #deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
-    #tau = prob.controls_all_section(2)
+    deltaf = prob.controls_all_section(2)
+    tau = prob.controls_all_section(3)
     #mu = np.zeros(len(v)) #prob.controls_all_section(4)
 
     States = np.array((v[-1], chi[-1], gamma[-1], teta[-1], lam[-1], h[-1], m[-1]))
-    Controls = np.array((alfa[-1], delta[-1])) #deltaf[-1], tau[-1], mu[-1]))
+    Controls = np.array((alfa[-1], delta[-1], deltaf[-1], tau[-1]))
     vt = np.sqrt(obj.GMe / (obj.Re + h[-1]))  # - obj.omega*np.cos(lam[-1])*(obj.Re+h[-1])
 
 
 
-    vtAbs, chiass, vtAbs2 = modcol.vass(States, Controls, dynamicsVel, obj.omega, obj)
+    vtAbs, chiass, vtAbs2 = vass(States, Controls, dynamicsVel, obj.omega, obj)
 
     if np.cos(obj.incl) > np.cos(lam[-1]):
         chifin = np.pi
@@ -252,18 +259,18 @@ def inequality(prob, obj):
     #part2 = Guess.linear(time[int(len(v) * 0.4):], 1.0, 0.0001)
     #delta = np.hstack((part1, part2))
     delta = prob.controls_all_section(1)
-    deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
-    tau = np.zeros(len(v)) #prob.controls_all_section(2)
+    deltaf = prob.controls_all_section(2)
+    tau = prob.controls_all_section(3)
     #mu = np.zeros(len(v)) #prob.controls_all_section(4)
     #t = prob.time_update()
 
-    Press, rho, c = modcol.isa(h, obj, 0)
+    Press, rho, c = isa(h, obj, 0)
 
     M = v / c
 
-    L, D, MomA = modcol.aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, prob.nodes[0], obj)
+    L, D, MomA = aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, prob.nodes[0], obj)
 
-    T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
+    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
 
     #MomTot = MomA + MomT
 
@@ -279,23 +286,6 @@ def inequality(prob, obj):
     Dv2 = np.sqrt(obj.GMe / obj.r2) * (1 - np.sqrt((2 * r1) / (r1 + obj.r2)))
     mf = m[-1] / (np.exp(Dv1 / obj.gIsp) * np.exp(Dv2 / (obj.g0 * isp[-1])))
 
-    #diff_chi = np.diff(np.rad2deg(chi))
-    #diff_gamma = np.diff(np.rad2deg(gamma))
-    #diff_alfa = np.diff(np.rad2deg(alfa))
-    #diff_delta = np.diff(delta * 100)
-    #diff_deltaf = np.diff(np.rad2deg(deltaf))
-    #diff_tau = np.diff(tau * 100)
-    #diff_mu = np.diff(np.rad2deg(mu))
-    #diff_t = np.diff(t)
-    # print(diff_t)
-    #mchi = abs(diff_chi / diff_t)
-    #mgamma = abs(diff_gamma / diff_t)
-    #malfa = abs(diff_alfa / diff_t)
-    #mdelta = abs(diff_delta / diff_t)
-    #mtau = abs(diff_tau / diff_t)
-    #mdeltaf = abs(diff_deltaf / diff_t)
-    #mmu = abs(diff_mu / diff_t)
-    #mthrot = np.hstack((mdelta, mtau))
     result = Condition()
 
     # lower bounds
@@ -308,8 +298,8 @@ def inequality(prob, obj):
     result.lower_bound(to_new_int(m, obj.m10, obj.M0, 0.0, 1.0), to_new_int(obj.m10, obj.m10, obj.M0, 0.0, 1.0), unit=1)  # m lower bound
     result.lower_bound(to_new_int(alfa, obj.alfamin, obj.alfamax, 0.0, 1.0), to_new_int(obj.alfamin, obj.alfamin, obj.alfamax, 0.0, 1.0), unit=1)  # alpha lower bound
     result.lower_bound(delta, obj.deltamin, unit=1)  # delta lower bound
-    # result.lower_bound(to_new_int(deltaf, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),  # obj.deltaf_lb, unit=1), to_new_int(np.deg2rad(-20), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0), unit=1)  # deltaf lower bound
-    # result.lower_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(-1, -1, 1, 0, 1), unit=1)  # tau lower bound
+    result.lower_bound(to_new_int(deltaf, obj.deltafmin, obj.deltafmax, 0.0, 1.0), to_new_int(obj.deltafmin, obj.deltafmin, obj.deltafmax, 0.0, 1.0), unit=1)  # deltaf lower bound
+    result.lower_bound(to_new_int(tau, obj.taumin, obj.taumax, 0, 1), to_new_int(obj.taumin, obj.taumin, obj.taumax, 0, 1), unit=1)  # tau lower bound
     # result.lower_bound(to_new_int(mu, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),  to_new_int(np.deg2rad(-60), np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)  # mu lower bound
     result.lower_bound(to_new_int(mf, obj.m10, obj.M0, 0.0, 1.0), to_new_int(obj.m10, obj.m10, obj.M0, 0.0, 1.0), unit=1)  # mf lower bound
     result.lower_bound(to_new_int(h[-1], obj.hmin, obj.hmax, 0.0, 1.0), to_new_int(6e4, obj.hmin, obj.hmax, 0.0, 1.0), unit=1)  # final h lower bound
@@ -360,11 +350,9 @@ def inequality(prob, obj):
 
     result.upper_bound(delta, obj.deltamax, unit=1)  # delta upper bound
 
-    #result.upper_bound(to_new_int(deltaf, np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),  # obj.deltaf_ub, unit=1)
-     #                  to_new_int(np.deg2rad(30), np.deg2rad(-20), np.deg2rad(30), 0.0, 1.0),
-      #                 unit=1)  # deltaf upper bound
+    result.upper_bound(to_new_int(deltaf, obj.deltafmin, obj.deltafmax, 0.0, 1.0), to_new_int(obj.deltafmax, obj.deltafmin, obj.deltafmax, 0.0, 1.0), unit=1)  # deltaf upper bound
 
-    #result.upper_bound(to_new_int(tau, -1, 1, 0, 1), to_new_int(1, -1, 1, 0, 1), unit=1)  # tau upper bound
+    result.upper_bound(to_new_int(tau, obj.taumin, obj.taumax, 0, 1), to_new_int(obj.taumax, obj.taumin, obj.taumax, 0, 1), unit=1)  # tau upper bound
 
     #result.upper_bound(to_new_int(mu, np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0),  # obj.mu_ub, unit=1)
      #                  to_new_int(np.deg2rad(60), np.deg2rad(-60), np.deg2rad(60), 0.0, 1.0), unit=1)  # mu upper bound
@@ -408,17 +396,17 @@ def dynamicsVel(states, contr, obj):
     m = states[6]
     alfa = contr[0]
     delta = contr[1]
-    deltaf = 0.0 #contr[2]
-    tau = 0.0 #contr[2]
+    deltaf = contr[2]
+    tau = contr[3]
     mu = 0.0 #contr[4]
 
-    Press, rho, c = modcol.isa(h, obj, 1)
+    Press, rho, c = isa(h, obj, 1)
 
     M = v / c
 
-    L, D, MomA = modcol.aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, 1, obj)
+    L, D, MomA = aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, 1, obj)
 
-    T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, 1, spimp_interp, obj)
+    T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, 1, spimp_interp, obj)
 
     eps = Deps + alfa
     g0 = obj.g0
@@ -449,9 +437,9 @@ def dynamicsVel(states, contr, obj):
 
 if __name__ == '__main__':
 
-    cl = np.array(modcol.fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt"))
-    cd = np.array(modcol.fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt"))
-    cm = np.array(modcol.fileReadOr("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt"))
+    cl = np.array(fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/clfile.txt"))
+    cd = np.array(fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cdfile.txt"))
+    cm = np.array(fileReadOr("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/cmfile.txt"))
     # cl = np.load("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cl_smooth_few.npy")
     # cd = np.load("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cd_smooth_few.npy")
     # cm = np.load("/home/francesco/Desktop/PhD/FESTIP_Work/coeff_files/cm_smooth_few.npy")
@@ -462,7 +450,7 @@ if __name__ == '__main__':
     cm = np.reshape(cm, (13, 17, 6))
 
 
-    with open("/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
+    with open("/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/coeff_files/impulse.dat") as f:
         impulse = []
         for line in f:
             line = line.split()
@@ -487,18 +475,18 @@ if __name__ == '__main__':
     flag_savefig = True
     source = 'matlab'
     if source == 'matlab':
-        mat_contents = sio.loadmat( '/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat')
+        mat_contents = sio.loadmat('/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/workspace_init_cond.mat')
         tfin = mat_contents['t'][0][-1]
     else:
-        tfin = np.load('/home/francesco/Desktop/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_timeTot.npy')[-1]
+        tfin = np.load('/home/francesco/Desktop/PhD/Git_workspace/Personal/OptimalControl_FESTIP/Collocation_Algorithm/nice_initCond/Data_timeTot.npy')[-1]
 
     pool = Pool(processes=3)
     plt.ion()
     start = time.time()
-    n = [100]
+    n = [50]
     time_init = [0.0, tfin]
     num_states = [7]
-    num_controls = [2]
+    num_controls = [4]
     max_iteration = 1000
     Ncontrols = num_controls[0]
     Nstates = num_states[0]
@@ -506,7 +494,7 @@ if __name__ == '__main__':
     varStates = Nstates * Npoints
     varTot = (Nstates + Ncontrols) * Npoints
     Nint = 1000
-    maxiter = 100
+    maxiter = 50
     ftol = 1e-8
 
     if flag_savefig:
@@ -530,10 +518,10 @@ if __name__ == '__main__':
     unit_h = obj.hmax
     unit_m = obj.M0
     unit_t = 700
-    unit_alfa = np.deg2rad(40)
-    unit_delta = 1
-    #unit_deltaf = np.deg2rad(30)
-    #unit_tau = 1
+    unit_alfa = obj.alfamax
+    unit_delta = obj.deltamax
+    unit_deltaf = obj.deltafmax
+    unit_tau = obj.taumax
     #unit_mu = np.deg2rad(60)
     prob.set_unit_states_all_section(0, unit_v)
     prob.set_unit_states_all_section(1, unit_chi)
@@ -544,8 +532,8 @@ if __name__ == '__main__':
     prob.set_unit_states_all_section(6, unit_m)
     prob.set_unit_controls_all_section(0, unit_alfa)
     prob.set_unit_controls_all_section(1, unit_delta)
-    #prob.set_unit_controls_all_section(2, unit_deltaf)
-    #prob.set_unit_controls_all_section(2, unit_tau)
+    prob.set_unit_controls_all_section(2, unit_deltaf)
+    prob.set_unit_controls_all_section(3, unit_tau)
     #prob.set_unit_controls_all_section(4, unit_mu)
     prob.set_unit_time(unit_t)
 
@@ -564,6 +552,8 @@ if __name__ == '__main__':
     m_init = states_init[6]
     alfa_init = controls_init[0]
     delta_init = controls_init[1]
+    deltaf_init = Guess.zeros(prob.time_all_section)
+    tau_init = Guess.zeros(prob.time_all_section)
     '''v_init = Guess.linear(prob.time_all_section, 1, obj.Vtarget)
     chi_init = Guess.linear(prob.time_all_section, obj.chistart, obj.chi_fin)
     gamma_init = Guess.linear(prob.time_all_section, obj.gammastart, 0.0)
@@ -576,8 +566,7 @@ if __name__ == '__main__':
     part1 = np.repeat(1.0, obj.n32)
     part2 = Guess.linear(prob.time_all_section[obj.n32:], 1.0, 0.001)
     delta_init = np.hstack((part1, part2))'''
-    #deltaf_init = Guess.zeros(prob.time_all_section)
-    #tau_init = Guess.zeros(prob.time_all_section)
+
     #mu_init = Guess.zeros(prob.time_all_section)
 
     # ===========
@@ -593,8 +582,8 @@ if __name__ == '__main__':
     prob.set_states_all_section(6, m_init)
     prob.set_controls_all_section(0, alfa_init)
     prob.set_controls_all_section(1, delta_init)
-    #prob.set_controls_all_section(2, deltaf_init)
-    #prob.set_controls_all_section(2, tau_init)
+    prob.set_controls_all_section(2, deltaf_init)
+    prob.set_controls_all_section(3, tau_init)
     #prob.set_controls_all_section(4, mu_init)
 
     # ========================
@@ -620,13 +609,13 @@ if __name__ == '__main__':
         #part2 = Guess.linear(time[int(len(m) * 0.4):], 1.0, 0.0001)
         #delta = np.hstack((part1, part2))
         delta = prob.controls_all_section(1)
-        tau = np.zeros(len(m)) #prob.controls_all_section(2)
+        tau = prob.controls_all_section(3)
 
         tf = prob.time_final(-1)
 
-        Press, rho, c = modcol.isa(h, obj, 0)
+        Press, rho, c = isa(h, obj, 0)
 
-        T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
+        T, Deps, isp, MomT = thrust(Press, m, presv, spimpv, delta, tau, prob.nodes[0], spimp_interp, obj)
 
         # Hohmann transfer mass calculation
         r1 = h[-1] + obj.Re
@@ -649,7 +638,7 @@ if __name__ == '__main__':
     print("Time elapsed:for total optimization ", tformat)
 
 
-    def dynamicsInt(t, states, alfa_int, delta_int):#, deltaf_int, tau_int, mu_int):
+    def dynamicsInt(t, states, alfa_int, delta_int, deltaf_int, tau_int):
         # this functions receives the states and controls unscaled and calculates the dynamics
 
         v = states[0]
@@ -661,20 +650,22 @@ if __name__ == '__main__':
         m = states[6]
         alfa = alfa_int(t)
         delta = delta_int(t)
-        deltaf = 0.0 #deltaf_int(t)
-        tau = 0.0 #tau_int(t)
+        deltaf = deltaf_int(t)
+        tau = tau_int(t)
         mu = 0.0 #mu_int(t)
 
         # if h<0:
         #   print("h: ", h, "gamma: ", gamma, "v: ", v)
 
-        Press, rho, c = modcol.isa(h, obj, 1)
+        Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 1)
 
         M = v / c
 
-        L, D, MomA = modcol.aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, 1, obj)
+        L, D, MomA = obj.aeroForces(M, alfa, deltaf, cd, cl, cm, v, obj.wingSurf, rho, obj.lRef, obj.M0, m, obj.m10,
+                                    obj.xcg0, obj.xcgf, obj.pref, 1)
 
-        T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, 1, spimp_interp, obj)
+        T, Deps, isp, MomT = obj.thrust(Press, m, presv, spimpv, delta, tau, 1, obj.psl, obj.M0, obj.m10,
+                                        obj.lRef, obj.xcgf, obj.xcg0)
 
         eps = Deps + alfa
         g0 = obj.g0
@@ -717,8 +708,8 @@ if __name__ == '__main__':
 
         alfa_Int = interpolate.PchipInterpolator(time, controls[0, :])
         delta_Int = interpolate.PchipInterpolator(time, controls[1, :])
-        #deltaf_Int = interpolate.PchipInterpolator(time, controls[2, :])
-        #tau_Int = interpolate.PchipInterpolator(time, controls[2, :])
+        deltaf_Int = interpolate.PchipInterpolator(time, controls[2, :])
+        tau_Int = interpolate.PchipInterpolator(time, controls[3, :])
         #mu_Int = interpolate.PchipInterpolator(time, controls[4, :])
 
         time_new = np.linspace(0, time[-1], Nint)
@@ -733,13 +724,13 @@ if __name__ == '__main__':
         for i in range(Nint - 1):
             # print(i, x[i,:])
             # print(u[i,:])
-            k1 = dt * dyn(t[i], x[i, :], alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k1 = dt * dyn(t[i], x[i, :], alfa_Int, delta_Int, deltaf_Int, tau_Int)
             # print("k1: ", k1)
-            k2 = dt * dyn(t[i] + dt / 2, x[i, :] + k1 / 2, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k2 = dt * dyn(t[i] + dt / 2, x[i, :] + k1 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int)
             # print("k2: ", k2)
-            k3 = dt * dyn(t[i] + dt / 2, x[i, :] + k2 / 2, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k3 = dt * dyn(t[i] + dt / 2, x[i, :] + k2 / 2, alfa_Int, delta_Int, deltaf_Int, tau_Int)
             # print("k3: ", k3)
-            k4 = dt * dyn(t[i + 1], x[i, :] + k3, alfa_Int, delta_Int) #, deltaf_Int, tau_Int, mu_Int)
+            k4 = dt * dyn(t[i + 1], x[i, :] + k3, alfa_Int, delta_Int, deltaf_Int, tau_Int)
             # print("k4: ", k4)
             x[i + 1, :] = x[i, :] + (1 / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
@@ -759,8 +750,8 @@ if __name__ == '__main__':
         mres = x[:, 6]
         alfares = alfa_Int(time_new)
         deltares = delta_Int(time_new)
-        deltafres = np.zeros(len(time_new)) #deltaf_Int(time_new)
-        taures = np.zeros(len(time_new)) #tau_Int(time_new)
+        deltafres = deltaf_Int(time_new)
+        taures = tau_Int(time_new)
         mures = np.zeros(len(time_new)) #mu_Int(time_new)
 
         return vres, chires, gammares, tetares, lamres, hres, mres, time_new, alfares, deltares, deltafres, taures, mures
@@ -787,33 +778,37 @@ if __name__ == '__main__':
     #part2 = Guess.linear(time[int(len(v) * 0.4):], 1.0, 0.0001)
     #delta = np.hstack((part1, part2))
     delta = prob.controls_all_section(1)
-    deltaf = np.zeros(len(v)) #prob.controls_all_section(2)
-    tau = np.zeros(len(v)) #prob.controls_all_section(2)
+    deltaf = prob.controls_all_section(2)
+    tau = prob.controls_all_section(3)
     mu = np.zeros(len(v)) #prob.controls_all_section(4)
 
 
-    Uval = np.array((alfa, delta)) #np.vstack((delta))#, deltaf, tau, mu))
+    Uval = np.array((alfa, delta, deltaf, tau))
 
     Xinit = np.array((v[0], chi[0], gamma[0], teta[0], lam[0], h[0], m[0]))
 
     vres, chires, gammares, tetares, lamres, hres, mres, tres, alfares, deltares, deltafres, taures, mures = \
         SingleShooting(Xinit, Uval, dynamicsInt, time, Nint)
 
-    Press, rho, c = modcol.isa(h, obj, 0)
+    Press, rho, c = obj.isa(h, obj.psl, obj.g0, obj.Re, 0)
 
-    Pressres, rhores, cres = modcol.isa(hres, obj, 0)
+    Pressres, rhores, cres = obj.isa(hres, obj.psl, obj.g0, obj.Re, 0)
 
     M = v / c
 
     Mres = vres / cres
 
-    L, D, MomA = modcol.aeroForces(M, alfa, deltaf, cd, cl, cm, v, rho, m, n[0], obj)
+    L, D, MomA = obj.aeroForces(M, alfa, deltaf, cd, cl, cm, v, obj.wingSurf, rho, obj.lRef, obj.M0, m, obj.m10, obj.xcg0, obj.xcgf, obj.pref, n[0])
 
-    Lres, Dres, MomAres = modcol.aeroForces(Mres, alfares, deltafres, cd, cl, cm, vres, rhores,  mres, len(vres), obj)
+    Lres, Dres, MomAres = obj.aeroForces(Mres, alfares, deltafres, cd, cl, cm, vres, obj.wingSurf, rhores, obj.lRef, obj.M0, mres, obj.m10,
+                                obj.xcg0, obj.xcgf, obj.pref, len(vres))
 
-    T, Deps, isp, MomT = modcol.thrust(Press, m, presv, spimpv, delta, tau, n[0], spimp_interp, obj)
+    T, Deps, isp, MomT = obj.thrust(Press, m, presv, spimpv, delta, tau, n[0], obj.psl, obj.M0, obj.m10, obj.lRef,
+                                    obj.xcgf,
+                                    obj.xcg0)
 
-    Tres, Depsres, ispres, MomTres = modcol.thrust(Pressres, mres, presv, spimpv, deltares, taures, len(vres), spimp_interp, obj)
+    Tres, Depsres, ispres, MomTres = obj.thrust(Pressres, mres, presv, spimpv, deltares, taures, len(vres), obj.psl, obj.M0, obj.m10, obj.lRef,
+                                    obj.xcgf,obj.xcg0)
 
     MomTot = MomA + MomT
     MomTotres = MomAres + MomTres
@@ -973,8 +968,8 @@ if __name__ == '__main__':
     plt.title("Throttle profile")
     plt.plot(time, delta, ".", label="Delta")
     plt.plot(tres, deltares, label="Interp")
-    #plt.plot(time, tau, ".", label="Tau")
-    #plt.plot(tres, taures, label="Interp")
+    plt.plot(time, tau, ".", label="Tau")
+    plt.plot(tres, taures, label="Interp")
     plt.grid()
     plt.xlabel("time [s]")
     plt.ylabel(" % ")
@@ -993,7 +988,7 @@ if __name__ == '__main__':
     if flag_savefig:
         plt.savefig(savefig_file + "angAttack" + ".png")
 
-    '''plt.figure(9)
+    plt.figure(9)
     plt.title("Body Flap deflection profile")
     plt.plot(time, np.rad2deg(deltaf), ".", label="Delta f")
     plt.plot(tres, np.rad2deg(deltafres), label="Interp")
@@ -1004,7 +999,7 @@ if __name__ == '__main__':
     if flag_savefig:
         plt.savefig(savefig_file + "bdyFlap" + ".png")
 
-    plt.figure(10)
+    '''plt.figure(10)
     plt.title("Bank angle profile")
     plt.plot(time, np.rad2deg(mu), ".", label="Mu")
     plt.plot(tres, np.rad2deg(mures), label="Interp")
