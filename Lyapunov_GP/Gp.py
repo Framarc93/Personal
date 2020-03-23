@@ -11,7 +11,6 @@ import operator
 import random
 from deap import gp
 from deap import base, creator, tools, algorithms
-import sys
 from functools import partial
 import multiprocessing
 import sympy
@@ -20,7 +19,8 @@ import math
 import GP_PrimitiveSet as gpprim
 from sympy.parsing.sympy_parser import parse_expr
 import matplotlib.pyplot as plt
-
+from scipy.optimize import minimize
+from copy import deepcopy
 
 random.seed()
 lb = -4
@@ -51,6 +51,7 @@ def evaluate_best(individual, f1, f2):
 
     vdot1 = sympy.diff(parsed_ind, x1)
     vdot2 = sympy.diff(parsed_ind, x2)
+
     vdot1_fun = toolbox.compile(vdot1, pset=pset)
     vdot2_fun = toolbox.compile(vdot2, pset=pset)
     vdot1_val = vdot1_fun(points[:, 0], points[:, 1]) * f1(points[:, 0], points[:, 1])
@@ -73,10 +74,15 @@ def evaluate_best(individual, f1, f2):
 
     return condition1, condition2, condition3
 
+def opt_f(var, fun):
+    return fun(var)
+def opt_grad(var, fun):
+    return fun(var)
+
 def evaluate(individual, f1, f2):
     global points
 
-    output_fun = toolbox.compile(expr=individual, pset=pset)  # individual evaluated through GP
+    output_fun = deepcopy(toolbox.compile(expr=individual, pset=pset))  # individual evaluated through GP
     output_eval = output_fun(points[:, 0], points[:, 1])  # output of reference function
     if not hasattr(output_eval, '__len__'):
         output_eval = output_eval * np.ones(len(points[:, 0]))
@@ -92,16 +98,105 @@ def evaluate(individual, f1, f2):
     x1, x2 = sympy.symbols('x1 x2')
     parsed_ind = parse_expr(str(individual), evaluate=False, local_dict={'x1': x1, 'x2':x2, 'add':operator.add, 'sub':operator.sub, 'mul':operator.mul, 'sin':sympy.sin, 'cos':sympy.cos, 'exp':sympy.exp,
                                                                          'pow':pow2, 'E':np.e})
-    try:
-        vdot1 = sympy.diff(parsed_ind, x1)
-        vdot2 = sympy.diff(parsed_ind, x2)
-        vdot1_fun = toolbox.compile(vdot1, pset=pset)
-        vdot2_fun = toolbox.compile(vdot2, pset=pset)
-        vdot1_val = vdot1_fun(points[:, 0], points[:, 1]) * f1(points[:, 0], points[:, 1])
-        vdot2_val = vdot2_fun(points[:, 0], points[:, 1]) * f2(points[:, 0], points[:, 1])
-        vdot = vdot1_val + vdot2_val
-    except TypeError:
-        print("e")
+    parsed_f1 = 'x1'
+    parsed_f2 = '-0.5*x2*(1-x1**2+0.1*x1**4)-x1'
+
+    vdot1 = sympy.diff(parsed_ind, x1)
+    vdot2 = sympy.diff(parsed_ind, x2)
+
+    vdot1_fun = toolbox.compile(vdot1, pset=pset)
+    vdot2_fun = toolbox.compile(vdot2, pset=pset)
+
+    grad2V = [[toolbox.compile(sympy.diff(parsed_ind, x1, x1)), toolbox.compile(sympy.diff(parsed_ind, x1, x2))],
+              [toolbox.compile(sympy.diff(parsed_ind, x2, x1)), toolbox.compile(sympy.diff(parsed_ind, x2, x2))]]
+
+
+    gradV = [toolbox.compile(sympy.diff(parsed_ind, x1)), toolbox.compile(sympy.diff(parsed_ind, x2))]
+
+    gradF = [[toolbox.compile(sympy.diff(parsed_f1, x1)), toolbox.compile(sympy.diff(parsed_f1, x2))],
+            [toolbox.compile(sympy.diff(parsed_f2, x1)), toolbox.compile(sympy.diff(parsed_f2, x2))]]
+    f = [f1, f2]
+    def dvdr(dvdx, dxdr):
+        return sum(dvdx*dxdr)
+
+    def dvdtheta(dvdx, dxdtheta):
+        return sum(dvdx*dxdtheta)
+
+    def eval_grad(x, y, rp, thetap):
+
+        dxdr = np.array([np.cos(thetap), np.sin(thetap)])
+        dxdtheta = rp * np.array([-np.sin(thetap), np.cos(thetap)])
+
+        dv_dotdr = 0
+        for k in range(terminals):
+            el_k = 0
+            for i in range(terminals):
+                el_k += grad2V[k][i](x, y) * f[i](x, y) + gradV[i](x, y) * gradF[i][k](x, y)
+            dv_dotdr += el_k * dxdr[k]
+
+        dv_dotdtheta = 0
+        for k in range(terminals):
+            el_k = 0
+            for i in range(terminals):
+                el_k += grad2V[k][i](x, y) * f[i](x, y) + gradV[i](x, y) * gradF[i][k](x, y)
+            dv_dotdtheta += el_k * dxdtheta[k]
+
+        return dv_dotdr, dv_dotdtheta
+
+    def fun_opt(var):
+        print(var)
+        varD = var * (ub - lb) + lb
+        return varD[0]
+
+    def jac_fun(var):
+        return np.array(([-1, 0]))
+
+    def constraints_fun1(var):
+        varD = var * (ub - lb) + lb
+        x = varD[0] * np.cos(varD[1])
+        y = varD[0] * np.sin(varD[1])
+
+        dv_dotdr, dv_dotdtheta = eval_grad(x, y, varD[0], varD[1])
+
+        return np.array((dv_dotdr, dv_dotdtheta))
+
+
+    cons1 = ({'type': 'ineq',
+             'fun': constraints_fun1})
+
+    def constraints_fun2(var):
+        varD = var * (ub - lb) + lb
+        x = varD[0] * np.cos(varD[1])
+        y = varD[0] * np.sin(varD[1])
+
+        return -np.array((output_fun(x, y)))
+
+    cons2 = ({'type': 'ineq',
+             'fun': constraints_fun2})
+
+    def out_rad(point):
+        r = np.sqrt(point[0] ** 2 + point[1] ** 2)
+        theta = np.arctan2(point[1], point[0])
+        return r, theta
+
+    bounds = ((0.0, 1.0), (0.0, 1.0))
+    r_max = 5
+    r_min = 0.0
+    theta_max = np.deg2rad(5)
+    theta_min = -np.deg2rad(5)
+    lb = np.array(([r_min, theta_min]))
+    ub = np.array(([r_max, theta_max]))
+    #init_point = [1, 2]
+    #rp, thetap = out_rad(init_point)
+    rp, thetap = np.array((1, np.deg2rad(7)))
+    init_coord1 = (np.array(([rp, thetap])) - lb)/(ub-lb)
+    init_coord2 = (np.array(([rp, thetap])) - lb) / (ub - lb)
+    res1 = minimize(fun_opt, init_coord1, method='SLSQP', bounds=bounds, constraints=cons1, options={'disp':True, 'iprint':2})
+    res2 = minimize(fun_opt, init_coord2, method='SLSQP', bounds=bounds, constraints=cons2, options={'disp':True, 'iprint':2})
+    vdot1_val = vdot1_fun(points[:, 0], points[:, 1]) * f1(points[:, 0], points[:, 1])
+    vdot2_val = vdot2_fun(points[:, 0], points[:, 1]) * f2(points[:, 0], points[:, 1])
+    vdot = vdot1_val + vdot2_val
+
     grad = 0
     if not hasattr(vdot, '__len__'):
         vdot = np.ones(len(points[:, 0]))*vdot
