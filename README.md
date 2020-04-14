@@ -11,7 +11,7 @@ The main idea on which the controller will be based is to use a control law gene
 ## Repository Structure:
 * Goddard_Problem : contains the intelligent controller developed on the Goddard rocket problem with both 1 and 2 control law
   * 2Controls: contains the scripts related to the Goddard rocket problem with 2 control laws
-  * Testing: contains all the scripts under development
+  * Testing: contains all the scripts under development, mainly focusing on Genetic Programming, Feedforward Neural Networks and LSTM Networks.
 * GP_Experiments : contains various algorithms related to Genetic Programming
   * MGGP: contains a Python implementation of Multi Gene Genetic Programming
   * SNGP: contains a Python implementation of Single Node Genetic Programming
